@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <script>
+            var ws_1=new WebSocket("ws://127.0.0.1:18111/socketserver", "protocolOne");;
+
+            function do0() {
+                var el = document.getElementById('r0');
+                try {
+                    el.innerHTML = ws_1.readyState;
+                } catch (e) {
+                    el.innerHTML = "<font color='red'>ERROR: "+e+"</font><br/>"+wsl;
+                }
+            }
+
+            function do1() {
+                var el = document.getElementById('r1');
+                var elT = document.getElementById('p1_text');
+                var s = (elT && elT.value) ? elT.value : "Default test client message";
+                
+                ws_1.send(s);
+                
+            }
+        </script>
+
+    </head>
+    <body>
+        <table border='1' style='border-collapse: collapse'>
+            <caption>WS controls</caption>
+            <tbody>
+                <tr><th>Action</th><th>Params</th><th>Result</th></tr>
+                <tr>
+                    <td><a onclick='do0();'>Check status</a></td>
+                    <td><div id='p0'></div></td>
+                    <td><div id='r0'></div></td>
+                </tr>
+                <tr>
+                    <td><a onclick='do1();'>Send message</a></td>
+                    <td><div id='p1'><input type='text' name='p1_text' id='p1_text'></div></td>
+                    <td><div id='r1'></div></td>
+                </tr>
+            </tbody>
+        </table>
+
+    </body>
+</html>

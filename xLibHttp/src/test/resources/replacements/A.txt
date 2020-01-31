@@ -1,0 +1,2 @@
+Hello, replacement tester, ${app.name}! How do You (${app.root}) do?
+Place ${include B.txt} is fine.
