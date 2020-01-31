@@ -31,3 +31,4 @@ hs_err_pid*
 /xLibNet/nbproject/
 /xLibService/nbproject/
 /xLibService/target/
+/xLibOAuth/target/

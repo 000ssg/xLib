@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+    <head>
+<!--
+/*
+ * The MIT License
+ *
+ * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+-->
+        <script src="autobahn.min.js"></script>
+
+        <script>
+            var wsURL="ws://127.0.0.1:30020/ws";
+            var ws_1 = new autobahn.Connection({
+                url: wsURL,
+                realm: "OPENPOINT"});
+            ws_1.onopen = function (session, details) {
+                var sess=session;
+                //
+                var add2 = function (args) {
+                    var res=args[0] + args[1];
+                    sess.publish('com.myapp.onAdd2', [res]);
+                    return res;
+                };
+
+                session.register('com.myapp.add2', add2);
+
+            };
+            ws_1.onclose = function (reason, details) {
+                var a = 0;
+            };
+            var ws_2 = new autobahn.Connection({
+                url: wsURL,
+                realm: "OPENPOINT"});
+            ws_2.onopen = function (session, details) {
+                var a = 0;
+            };
+            ws_2.onclose = function (reason, details) {
+                var a = 0;
+            };
+
+            var ws_3 = new autobahn.Connection({
+                url: wsURL,
+                realm: "OPENPOINT"});
+            ws_3.onopen = function (session, details) {
+                var a = 0;
+                //
+                var onCounter = function (args) {
+                    console.log('ws_3: onAdd2 is', args[0]);
+                }
+                session.subscribe("com.myapp.onAdd2", onCounter);
+            };
+            ws_3.onclose = function (reason, details) {
+                var a = 0;
+            };
+
+            function do0() {
+                var el = document.getElementById('r0');
+                try {
+                    if (!ws_1.session || !ws_1.session.isOpen) {
+                        ws_1.session=null;
+                        ws_1.open();
+                    }
+                    if (!ws_2.session || !ws_2.session.isOpen) {
+                        ws_2.session=null;
+                        ws_2.open();
+                    }
+                    if (!ws_3.session || !ws_3.session.isOpen) {
+                        ws_3.session=null;
+                        ws_3.open();
+                    }
+                    el.innerHTML = ws_1 + "; " + ws_2+"; "+ws_3;
+                } catch (e) {
+                    el.innerHTML = "<font color='red'>ERROR: " + e + "</font><br/>";
+                }
+            }
+            function do0_0() {
+                var el = document.getElementById('r0');
+                try {
+                    if (ws_1.session) {
+                        console.log('ws_1.close: error? ', ws_1.close("user.stop","Closed by user ws_1"));
+                    }
+                    if (ws_2.session) {
+                        console.log('ws_2.close: error? ', ws_2.close("user.stop2","Closed by user ws_2"));
+                    }
+                    if (ws_3.session) {
+                        console.log('ws_3.close: error? ', ws_3.close("user.stop3","Closed by user ws_3"));
+                    }
+                    el.innerHTML = ws_1 + "; " + ws_2+"; "+ws_3;
+                } catch (e) {
+                    el.innerHTML = "<font color='red'>ERROR: " + e + "</font><br/>";
+                }
+            }
+
+            function do1() {
+                var el = document.getElementById('r1');
+                var elT = document.getElementById('p1_text');
+                var s = (elT && elT.value) ? elT.value : "Default test client message";
+
+                ws_1.send(s);
+
+            }
+
+            function do2() {
+                var el = document.getElementById('r2');
+                var elT1 = document.getElementById('p2_text1');
+                var elT2 = document.getElementById('p2_text2');
+                ws_2.session.call('com.myapp.add2', [(elT1) ? elT1.value : 2, (elT2) ? elT2.value : 3]).then(function showSum(res) {
+                    console.log('sum is', res);
+                    if (el) {
+                        el.innerHTML = res;
+                    }
+                }, ws_2.session.log);
+            }
+        </script>
+
+    </head>
+    <body>
+        <table border='1' style='border-collapse: collapse'>
+            <caption>WS controls</caption>
+            <tbody>
+                <tr><th>Action</th><th>Params</th><th>Result</th></tr>
+                <tr>
+                    <td><a onclick='do0();'>Check status</a><a onclick='do0_0();'>Close</a></td>
+                    <td><div id='p0'></div></td>
+                    <td><div id='r0'></div></td>
+                </tr>
+                <tr>
+                    <td><a onclick='do1();'>Send message</a></td>
+                    <td><div id='p1'><input type='text' name='p1_text' id='p1_text'></div></td>
+                    <td><div id='r1'></div></td>
+                </tr>
+                <tr>
+                    <td><a onclick='do2();'>RPC 1</a></td>
+                    <td><div id='p2'><input type='text' name='p2_text1' id='p2_text1'><br/><input type='text' name='p2_text2' id='p2_text2'></div></td>
+                    <td><div id='r2'></div></td>
+                </tr>
+            </tbody>
+        </table>
+
+    </body>
+</html>
