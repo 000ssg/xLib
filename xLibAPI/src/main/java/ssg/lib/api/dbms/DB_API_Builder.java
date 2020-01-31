@@ -45,7 +45,7 @@ import ssg.lib.api.APIItemCategory;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_API_Builder {
 

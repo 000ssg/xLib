@@ -25,7 +25,7 @@ package ssg.lib.wamp.util.stat;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface TimingStatistics extends Statistics {
     public void onDuration(long dur);

@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPEventListener {
 

@@ -51,7 +51,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
  */
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMP_TestRPC implements Runnable {
 

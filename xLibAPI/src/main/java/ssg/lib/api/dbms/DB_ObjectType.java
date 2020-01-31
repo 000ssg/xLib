@@ -34,7 +34,7 @@ import ssg.lib.api.APIItem;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_ObjectType extends DB_Type implements DB_DataType {
 

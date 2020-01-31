@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipe extends BufferPipe<ByteBuffer> {
 

@@ -57,7 +57,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SSLTools {
 

@@ -29,7 +29,7 @@ import ssg.lib.wamp.util.stat.TimingStatisticsImpl;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPCallStatisticsImpl extends TimingStatisticsImpl implements WAMPCallStatistics {
 

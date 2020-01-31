@@ -29,7 +29,7 @@ import java.util.LinkedHashSet;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class APIItem implements Serializable, Cloneable {
 

@@ -26,3 +26,8 @@ hs_err_pid*
 /xLibSSLTestData/target/
 /xLibSSL/nbproject/
 /xLibCommon/target/
+/xLibDI/nbproject/
+/xLibHttp/nbproject/
+/xLibNet/nbproject/
+/xLibService/nbproject/
+/xLibService/target/

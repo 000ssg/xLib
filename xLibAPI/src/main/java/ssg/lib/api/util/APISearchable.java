@@ -29,7 +29,7 @@ import ssg.lib.api.APIProcedure;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface APISearchable {
 

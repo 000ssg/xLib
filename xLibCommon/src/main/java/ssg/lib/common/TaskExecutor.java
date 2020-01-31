@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface TaskExecutor {
 

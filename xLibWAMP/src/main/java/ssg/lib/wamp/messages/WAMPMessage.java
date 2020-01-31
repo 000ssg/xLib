@@ -31,7 +31,7 @@ import ssg.lib.wamp.messages.WAMPMessageType.WAMPValidationResult;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPMessage {
 

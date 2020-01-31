@@ -29,7 +29,7 @@ import ssg.lib.common.Huffman;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeHuffmanUnpack extends ByteBufferPipe {
 

@@ -39,7 +39,7 @@ import java.util.function.Consumer;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPTools {
 

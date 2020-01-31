@@ -33,7 +33,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * Callee call context binds procedure descriptor and execution instance for a
  * session.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class CalleeCall extends Call {
 

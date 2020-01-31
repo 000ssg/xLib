@@ -31,7 +31,7 @@ import java.util.Collection;
 /**
  * Non-blocking cascaded T reader.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class BufferPipe<T extends Buffer> implements Serializable, Cloneable {
 

@@ -35,7 +35,7 @@ import ssg.lib.common.Replacement;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeReplacementTest {
 

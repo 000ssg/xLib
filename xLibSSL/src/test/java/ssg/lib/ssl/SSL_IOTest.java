@@ -41,7 +41,7 @@ import ssg.lib.ssl.SSLTools.SSLHelper;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SSL_IOTest {
 

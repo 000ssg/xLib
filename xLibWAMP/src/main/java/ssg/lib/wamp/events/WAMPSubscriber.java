@@ -30,7 +30,7 @@ import ssg.lib.wamp.messages.WAMPMessage;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPSubscriber {
 

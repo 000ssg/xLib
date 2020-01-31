@@ -33,7 +33,7 @@ import ssg.lib.common.buffers.ByteBufferPipeReplacement;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class InputStreamReplacement extends FilterInputStream {
 

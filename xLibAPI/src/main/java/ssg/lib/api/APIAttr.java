@@ -27,7 +27,7 @@ import ssg.lib.api.dbms.DB_SQLType;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIAttr extends APIItem {
 

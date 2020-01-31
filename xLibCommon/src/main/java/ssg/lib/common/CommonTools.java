@@ -35,7 +35,7 @@ import ssg.lib.common.Refl.ReflImpl;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class CommonTools {
 

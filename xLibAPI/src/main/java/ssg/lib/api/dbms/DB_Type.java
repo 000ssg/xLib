@@ -28,7 +28,7 @@ import java.sql.Types;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_Type extends APIDataType {
     

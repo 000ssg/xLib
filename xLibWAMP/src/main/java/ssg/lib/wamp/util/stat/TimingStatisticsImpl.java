@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class TimingStatisticsImpl extends StatisticsBase implements TimingStatistics {
 

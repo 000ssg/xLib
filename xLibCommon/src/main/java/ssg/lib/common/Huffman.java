@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * Huffman algorithm enocidng/decoding for bytes.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class Huffman {
 

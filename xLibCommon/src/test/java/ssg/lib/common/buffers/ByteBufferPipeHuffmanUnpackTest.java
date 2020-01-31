@@ -35,7 +35,7 @@ import ssg.lib.common.SmallHuffman;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeHuffmanUnpackTest {
 

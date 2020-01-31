@@ -43,7 +43,7 @@ import ssg.lib.common.buffers.BufferTools;
 /**
  * Wraps SSLEngine (or none) functionality.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SSL_IO<P> {
 

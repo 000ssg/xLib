@@ -33,7 +33,7 @@ import java.util.Collection;
  *
  * Methods init/done are used to prepare/allocate and release needed resources.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPActor {
 

@@ -35,7 +35,7 @@ import static org.junit.Assert.*;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class HuffmanTest {
     

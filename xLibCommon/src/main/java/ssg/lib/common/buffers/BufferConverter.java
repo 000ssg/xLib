@@ -33,7 +33,7 @@ import java.nio.Buffer;
  * data are converted into output data. Flush must be automatically preformed on
  * close.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface BufferConverter<S extends Buffer, T extends Buffer> extends Serializable, Cloneable {
 

@@ -46,7 +46,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
 

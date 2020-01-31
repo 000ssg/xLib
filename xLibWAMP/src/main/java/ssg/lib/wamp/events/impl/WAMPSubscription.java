@@ -41,7 +41,7 @@ import ssg.lib.wamp.util.WAMPTools;
  *
  * All operations need session and are validated with session role(s).
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPSubscription implements WAMPActor {
 

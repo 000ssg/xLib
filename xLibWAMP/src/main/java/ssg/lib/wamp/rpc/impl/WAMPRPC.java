@@ -37,7 +37,7 @@ import ssg.lib.wamp.stat.WAMPCallStatisticsImpl;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRPC implements WAMPActor {
 

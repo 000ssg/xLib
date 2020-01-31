@@ -28,7 +28,7 @@ import ssg.lib.api.APIDataType;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_Col extends APIAttr {
     

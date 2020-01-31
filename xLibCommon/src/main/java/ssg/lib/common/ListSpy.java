@@ -28,7 +28,7 @@ import java.util.Collection;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ListSpy<T> extends ArrayList<T> {
 

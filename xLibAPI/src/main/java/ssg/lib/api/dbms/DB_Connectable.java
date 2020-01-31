@@ -27,7 +27,7 @@ import java.sql.Connection;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface DB_Connectable {
 

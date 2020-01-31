@@ -38,7 +38,7 @@ import ssg.lib.wamp.messages.WAMPMessage;
  * processable due to context, it returns "ignored" status. Status "busy"
  * indicates message would be handled, but later.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPMessagesFlow {
 

@@ -38,7 +38,7 @@ import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
  * Caches callables per name and evaluates best matching (resolves overloaded
  * methods).
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class API_Publisher {
 

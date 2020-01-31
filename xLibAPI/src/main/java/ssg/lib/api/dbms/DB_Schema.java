@@ -33,7 +33,7 @@ import ssg.lib.api.APIProcedure;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_Schema extends APIGroup {
 

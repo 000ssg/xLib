@@ -33,7 +33,7 @@ import javax.swing.ImageIcon;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ImagingTools {
     public static int MAX_IMAGE_WIDTH = 3000;

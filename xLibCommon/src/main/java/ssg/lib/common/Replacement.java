@@ -25,7 +25,7 @@ package ssg.lib.common;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Replacement implements Cloneable {
 

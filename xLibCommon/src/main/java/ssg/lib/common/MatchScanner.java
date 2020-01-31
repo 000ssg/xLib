@@ -27,7 +27,7 @@ import java.util.Collection;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface MatchScanner<S,T> {
     Collection<T> scan(Matcher<S> matcher);

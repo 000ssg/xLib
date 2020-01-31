@@ -32,7 +32,7 @@ import java.util.List;
  * Tasks may be prioritized.
  *
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface TaskProvider {
 

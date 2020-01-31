@@ -30,7 +30,7 @@ import java.util.Map;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public enum WAMP_DT {
     uri, id, integer, string, bool, dict, list;

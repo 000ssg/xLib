@@ -27,7 +27,7 @@ package ssg.lib.wamp.rpc.impl;
  * Represents RPC call. Actual implementations represent Caller, Dealer, and
  * Callee contexts.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Call {
 

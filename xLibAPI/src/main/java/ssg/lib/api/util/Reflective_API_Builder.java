@@ -41,7 +41,7 @@ import ssg.lib.api.APIProcedure;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Reflective_API_Builder {
 

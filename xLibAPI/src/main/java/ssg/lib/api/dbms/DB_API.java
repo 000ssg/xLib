@@ -52,7 +52,7 @@ import ssg.lib.api.util.APITools;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_API extends API {
 

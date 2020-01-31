@@ -34,7 +34,7 @@ import ssg.lib.common.buffers.BufferTools;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SSLChannelTests {
 

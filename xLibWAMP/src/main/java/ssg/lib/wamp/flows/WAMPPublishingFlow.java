@@ -44,7 +44,7 @@ import ssg.lib.wamp.messages.WAMP_DT;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPPublishingFlow implements WAMPMessagesFlow {
 

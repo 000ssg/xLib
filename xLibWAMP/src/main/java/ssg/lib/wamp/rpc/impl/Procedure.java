@@ -30,7 +30,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * Procedure metadata. Actual impelemntations provide callee and dealer specific
  * contexts.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Procedure {
 

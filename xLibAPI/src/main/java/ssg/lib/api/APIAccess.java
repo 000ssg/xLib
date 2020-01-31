@@ -31,7 +31,7 @@ import java.util.Map.Entry;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIAccess implements Serializable, Cloneable {
 

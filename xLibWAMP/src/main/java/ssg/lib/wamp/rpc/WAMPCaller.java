@@ -31,7 +31,7 @@ import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPCaller {
 

@@ -27,7 +27,7 @@ import ssg.lib.wamp.WAMP.Role;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPMessageTypeAdvanced extends WAMPMessageType {
 

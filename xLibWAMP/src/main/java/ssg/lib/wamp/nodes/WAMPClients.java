@@ -31,7 +31,7 @@ import ssg.lib.wamp.util.WAMPTools;
 /**
  * Local clients helper used to enable regular messages processing.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPClients implements Runnable {
 

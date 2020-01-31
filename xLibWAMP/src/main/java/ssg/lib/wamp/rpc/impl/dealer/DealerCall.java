@@ -34,7 +34,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * Dealer call binds caller request and callee invocation providing bypassing
  * parameters, results, and error.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DealerCall extends Call {
 

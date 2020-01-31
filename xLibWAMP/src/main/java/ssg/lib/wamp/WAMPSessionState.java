@@ -25,7 +25,7 @@ package ssg.lib.wamp;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public enum WAMPSessionState {
     open, established, closing, closed

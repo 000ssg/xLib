@@ -30,7 +30,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class CallerCall extends Call {
     String procedure;

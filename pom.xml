@@ -19,6 +19,10 @@
         <module>xLibSSLTestData</module>
         <module>xLibCommon</module>
         <module>xLibSSL</module>
+        <module>xLibDI</module>
+        <module>xLibService</module>
+        <module>xLibHttp</module>
+        <module>xLibNet</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

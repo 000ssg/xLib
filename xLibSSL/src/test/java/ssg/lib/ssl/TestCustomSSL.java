@@ -28,7 +28,7 @@ import ssg.lib.ssl.SSLTools.PrivateKeyCertificateInfo;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class TestCustomSSL {
 

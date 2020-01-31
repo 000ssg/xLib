@@ -31,7 +31,7 @@ import java.util.zip.GZIPOutputStream;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeGZIP extends ByteBufferPipe {
 

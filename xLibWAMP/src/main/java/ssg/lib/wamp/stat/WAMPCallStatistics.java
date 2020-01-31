@@ -27,7 +27,7 @@ import ssg.lib.wamp.util.stat.TimingStatistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPCallStatistics extends TimingStatistics {
     boolean hasCalls();

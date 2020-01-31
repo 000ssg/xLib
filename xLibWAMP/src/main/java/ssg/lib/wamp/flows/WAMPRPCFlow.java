@@ -47,7 +47,7 @@ import ssg.lib.wamp.rpc.WAMPDealer;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRPCFlow implements WAMPMessagesFlow {
 

@@ -30,7 +30,7 @@ import static ssg.lib.ssl.PKL.load;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class TestPKL {
 

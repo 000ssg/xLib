@@ -28,7 +28,7 @@ import java.util.Arrays;
 /**
  * Listeners helper.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class LS<T> {
 

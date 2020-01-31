@@ -39,7 +39,7 @@ import ssg.lib.common.Replacement.Replacements;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeReplacement extends ByteBufferPipe {
 

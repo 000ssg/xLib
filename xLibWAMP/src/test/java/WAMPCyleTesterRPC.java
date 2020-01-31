@@ -50,7 +50,7 @@ import ssg.lib.wamp.util.WAMPTools;
  */
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPCyleTesterRPC {
 

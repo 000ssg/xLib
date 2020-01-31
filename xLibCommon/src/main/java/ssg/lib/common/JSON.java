@@ -48,7 +48,7 @@ import ssg.lib.common.buffers.Chars2Bytes;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class JSON implements Cloneable {
 

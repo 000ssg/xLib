@@ -51,7 +51,7 @@ import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Reflective_API_BuilderTest {
 

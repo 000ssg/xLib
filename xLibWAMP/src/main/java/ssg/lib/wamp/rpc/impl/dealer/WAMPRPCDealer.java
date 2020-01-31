@@ -50,7 +50,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
 

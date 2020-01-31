@@ -27,7 +27,7 @@ import java.io.IOException;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIException extends IOException {
 

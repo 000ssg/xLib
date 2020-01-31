@@ -53,7 +53,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
  * implemented.
  *
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealmListener {
 

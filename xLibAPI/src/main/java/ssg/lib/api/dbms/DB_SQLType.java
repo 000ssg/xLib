@@ -28,7 +28,7 @@ import ssg.lib.api.APIItemCategory;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_SQLType extends DB_Type {
 

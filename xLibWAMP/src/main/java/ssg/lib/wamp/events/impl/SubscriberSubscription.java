@@ -28,7 +28,7 @@ import ssg.lib.wamp.events.WAMPEventListener;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SubscriberSubscription extends Subscription {
 

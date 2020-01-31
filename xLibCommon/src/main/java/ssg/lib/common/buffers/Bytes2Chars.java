@@ -36,7 +36,7 @@ import java.util.List;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Bytes2Chars implements BufferConverter<ByteBuffer, CharBuffer> {
 

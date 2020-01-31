@@ -25,7 +25,7 @@ package ssg.lib.wamp.util.stat;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class StatisticsGroup extends StatisticsBase {
 

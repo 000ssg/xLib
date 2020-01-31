@@ -38,7 +38,7 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
  */
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPTransportList<P> implements WAMPTransport {
 

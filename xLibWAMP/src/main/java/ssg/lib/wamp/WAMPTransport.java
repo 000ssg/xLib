@@ -30,7 +30,7 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
 /**
  * WAMP transport defines send/receive methods to hide transport implementation.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPTransport {
 

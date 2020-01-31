@@ -35,7 +35,7 @@ import ssg.lib.api.APIItem;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DB_CollectionType extends DB_Type implements DB_DataType {
 

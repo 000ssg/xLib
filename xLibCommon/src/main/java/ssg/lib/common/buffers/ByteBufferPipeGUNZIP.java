@@ -32,7 +32,7 @@ import java.util.zip.GZIPInputStream;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeGUNZIP extends ByteBufferPipe {
 

@@ -35,7 +35,7 @@ import ssg.lib.wamp.util.stat.Statistics;
  */
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPStatistics_Check {
 

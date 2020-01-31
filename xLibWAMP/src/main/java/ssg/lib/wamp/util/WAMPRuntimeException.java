@@ -25,7 +25,7 @@ package ssg.lib.wamp.util;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRuntimeException extends RuntimeException {
 

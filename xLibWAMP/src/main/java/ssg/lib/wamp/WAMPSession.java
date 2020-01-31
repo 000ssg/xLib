@@ -68,7 +68,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
  * Session stores session-related stuff that is not maintained but is just
  * available via sessions, like message statistics.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class WAMPSession implements Serializable, Cloneable {
 

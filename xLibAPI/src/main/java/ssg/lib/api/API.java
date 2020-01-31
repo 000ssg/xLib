@@ -26,7 +26,7 @@ package ssg.lib.api;
 /**
  * API is consistent hierarchical (optionally) set of functions and data types
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class API extends APIGroup {
 

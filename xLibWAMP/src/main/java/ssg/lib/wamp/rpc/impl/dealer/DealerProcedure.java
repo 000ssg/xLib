@@ -29,7 +29,7 @@ import ssg.lib.wamp.rpc.impl.Procedure;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class DealerProcedure extends Procedure {
 

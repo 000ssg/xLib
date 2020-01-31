@@ -27,7 +27,7 @@ import ssg.lib.wamp.WAMPSession;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class BrokerSubscription extends Subscription {
     

@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ByteBufferPipeChunk extends ByteBufferPipe {
 

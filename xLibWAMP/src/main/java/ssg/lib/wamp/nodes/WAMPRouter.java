@@ -48,7 +48,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
  *
  * Router runCycle is sequence of per-transport run cycles.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRouter extends WAMPNode {
 

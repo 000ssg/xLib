@@ -25,7 +25,7 @@ package ssg.lib.api.dbms;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface DB_DataType {
     int getSQLType();

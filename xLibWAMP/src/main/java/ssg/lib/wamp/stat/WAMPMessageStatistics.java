@@ -28,7 +28,7 @@ import ssg.lib.wamp.util.stat.Statistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPMessageStatistics extends Statistics {
 

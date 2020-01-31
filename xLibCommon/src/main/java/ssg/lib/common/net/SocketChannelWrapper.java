@@ -34,7 +34,7 @@ import java.util.Set;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class SocketChannelWrapper extends SocketChannel {
 

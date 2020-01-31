@@ -43,7 +43,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
  * To enable realm use both on router and client side, it allows "partial"
  * closing for selected sessions only, as needed by router.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRealm implements Serializable, Cloneable {
 

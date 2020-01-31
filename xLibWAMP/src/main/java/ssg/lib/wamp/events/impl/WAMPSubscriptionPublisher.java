@@ -39,7 +39,7 @@ import ssg.lib.wamp.util.WAMPTools;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPSubscriptionPublisher extends WAMPSubscription implements WAMPPublisher {
 
