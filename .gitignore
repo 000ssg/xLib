@@ -23,3 +23,6 @@
 hs_err_pid*
 /xLibAPI/target/
 /xLibWAMP/target/
+/xLibSSLTestData/target/
+/xLibSSL/nbproject/
+/xLibCommon/target/

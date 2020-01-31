@@ -16,6 +16,9 @@
     <modules>
         <module>xLibAPI</module>
         <module>xLibWAMP</module>
+        <module>xLibSSLTestData</module>
+        <module>xLibCommon</module>
+        <module>xLibSSL</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

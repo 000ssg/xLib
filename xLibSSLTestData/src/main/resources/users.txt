@@ -1,0 +1,5 @@
+#<user name>=<pwd>[/<cert alias or DN>]|<role>[,<role>]*[|<action>[,<action>]*[|<tag>[,<tag>]*]]
+aaa=aaapwd/key_a|a,b,c|get,put,post|tag_a,tag_b
+bbb=bbbpwd/key_b|c
+ccc=cccpwd/key_c|a
+ddd=dddpwd/key_d|c
