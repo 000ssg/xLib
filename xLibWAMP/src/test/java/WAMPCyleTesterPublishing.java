@@ -30,11 +30,6 @@ import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.events.WAMPEventListener.WAMPEventListenerBase;
 import ssg.lib.wamp.util.WAMPTools;
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 /**
  *
  * @author 000ssg

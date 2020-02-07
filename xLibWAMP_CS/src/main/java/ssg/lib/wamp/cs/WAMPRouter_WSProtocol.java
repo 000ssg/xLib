@@ -58,7 +58,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         wampRouter = new WAMPRouter(Role.broker, Role.dealer) {
             @Override
             public synchronized WAMPRealm createRealm(Object context, String name, WAMPFeature[] features, Role... roles) throws WAMPException {
-                if (canCreateRealm(name, roles)) {
+                if (!canCreateRealm(name, roles)) {
                     throw new WAMPException("Unsupported realm: " + name + " for " + ((roles != null) ? Arrays.asList(roles) : "<no roles>"));
                 }
                 WAMPRealm r = super.createRealm(context, name, features, roles);
@@ -72,7 +72,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         wampRouter = new WAMPRouter(roles) {
             @Override
             public synchronized WAMPRealm createRealm(Object context, String name, WAMPFeature[] features, Role... roles) throws WAMPException {
-                if (canCreateRealm(name, roles)) {
+                if (!canCreateRealm(name, roles)) {
                     throw new WAMPException("Unsupported realm: " + name + " for " + ((roles != null) ? Arrays.asList(roles) : "<no roles>"));
                 }
                 WAMPRealm r = super.createRealm(context, name, features, roles);
@@ -93,7 +93,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
     public boolean canCreateRealm(String name, Role... roles) {
         boolean isRouter = Role.hasRole(Role.router, roles);
         boolean isClient = Role.hasRole(Role.client, roles);
-        return WAMP_DT.id.validate(name) && (isRouter || isClient) && !(isRouter && isClient);
+        return WAMP_DT.uri.validate(name) && (isRouter || isClient) && !(isRouter && isClient);
     }
 
     @Override

@@ -67,6 +67,8 @@ public class DB_SQLType extends DB_Type {
             sb.append(cs);
             sb.append(']');
         }
+        sb.append('#');
+        sb.append(getSQLType());
         return sb.toString();
     }
 
@@ -76,6 +78,10 @@ public class DB_SQLType extends DB_Type {
             return Types.VARCHAR;
         } else if (name.startsWith("NUMBER")) {
             return Types.DECIMAL;
+        } else if (name.startsWith("FLOAT")) {
+            return Types.FLOAT;
+        } else if (name.startsWith("REAL")) {
+            return Types.REAL;
         } else if (name.startsWith("DATE")) {
             return Types.DATE;
         } else {
@@ -89,6 +95,10 @@ public class DB_SQLType extends DB_Type {
             return String.class;
         } else if (name.startsWith("NUMBER")) {
             return Number.class;
+        } else if (name.startsWith("FLOAT")) {
+            return Number.class;
+        } else if (name.startsWith("REAL")) {
+            return Number.class;
         } else if (name.startsWith("DATE")) {
             return java.util.Date.class;
         } else {
@@ -96,4 +106,39 @@ public class DB_SQLType extends DB_Type {
         }
     }
 
+    public static class DB_SQLTypeX extends DB_SQLType {
+
+        int sqlType;
+
+        public DB_SQLTypeX(APIItemCategory category, String name, int sqlType, String... scope) {
+            super(category, name, scope);
+            this.sqlType = sqlType;
+        }
+
+        @Override
+        public Class getJavaType() {
+            switch (getSQLType()) {
+                case Types.VARCHAR:
+                    return String.class;
+                case Types.INTEGER:
+                case Types.DECIMAL:
+                case Types.FLOAT:
+                case Types.REAL:
+                    return Number.class;
+                case Types.DATE:
+                    return java.util.Date.class;
+                case Types.ARRAY:
+                case Types.STRUCT:
+                case Types.OTHER:
+                    return super.getJavaType();
+            }
+            return super.getJavaType();
+        }
+
+        @Override
+        public int getSQLType() {
+            return sqlType;
+        }
+
+    }
 }

@@ -172,6 +172,107 @@ public class JDBCTools {
         return sb.toString();
     }
 
+    public static String dumpRSList(List<Object[]> list, boolean hasMeta, String separator, boolean includeTypesInfo, String... colsOnly) throws SQLException {
+        int[] icolsOnly = null;
+        if (hasMeta && colsOnly != null) {
+            //
+            icolsOnly = new int[colsOnly.length];
+            int off = 0;
+            String[] names = (String[]) list.get(0);
+            for (int i = 0; i < colsOnly.length; i++) {
+                String cn = colsOnly[i];
+                if (cn == null) {
+                    continue;
+                }
+                for (int j = 0; j < names.length; j++) {
+                    if (cn.equalsIgnoreCase(names[j])) {
+                        icolsOnly[off++] = j;
+                        break;
+                    }
+                }
+            }
+            if (off < icolsOnly.length) {
+                icolsOnly = Arrays.copyOf(icolsOnly, off);
+            }
+        }
+        return dumpRSList(list, hasMeta, separator, includeTypesInfo, icolsOnly);
+    }
+
+    /**
+     *
+     * @param rs
+     * @param includeTypesInfo
+     * @return
+     * @throws SQLException
+     */
+    public static String dumpRSList(List<Object[]> list, boolean hasMeta, String separator, boolean includeTypesInfo, int... colsOnly) throws SQLException {
+        StringBuilder sb = new StringBuilder();
+        if (list == null || list.isEmpty()) {
+            return sb.toString();
+        }
+
+        String[] names = (hasMeta) ? (String[]) list.get(0) : null;
+        Integer[] types = (hasMeta) ? (Integer[]) list.get(1) : null;
+        String[] jtypes = (hasMeta) ? (String[]) list.get(2) : null;
+        int off = (hasMeta) ? 3 : 0;
+        int cols = (names != null) ? names.length : list.get(0).length;
+
+        if (colsOnly == null || colsOnly.length == 0) {
+            colsOnly = new int[cols];
+            for (int i = 0; i < cols; i++) {
+                colsOnly[i] = i;
+            }
+        }
+
+        try {
+
+            if (separator == null || separator.isEmpty()) {
+                separator = "\t|";
+            }
+
+            if (hasMeta) {
+                sb.append("NAME");
+                for (int i : colsOnly) {
+                    sb.append(separator + names[i]);
+                }
+                sb.append("\n");
+                if (includeTypesInfo) {
+                    sb.append("TYPE");
+                    for (int i : colsOnly) {
+                        sb.append(separator + types[i]);
+                    }
+                    sb.append("\n");
+                    sb.append("CLASS");
+                    for (int i : colsOnly) {
+                        String cn = jtypes[i];
+                        if (cn.contains(".")) {
+                            cn = cn.substring(cn.lastIndexOf(".") + 1);
+                        }
+                        sb.append("\t|" + cn);
+                    }
+                    sb.append("\n");
+                }
+            }
+
+            if (off == list.size()) {
+                sb.append("NO DATA");
+            } else {
+                for (int row = off; row < list.size(); row++) {
+                    sb.append("[" + (row - off) + ((row - off) < 10 ? " " : "") + "]");
+                    for (int i : colsOnly) {
+                        Object[] oo = list.get(row);
+                        sb.append(separator + oo[i]);
+                    }
+                    sb.append("\n");
+                }
+            }
+        } catch (Throwable th) {
+            sb.append(th);
+            th.printStackTrace();
+        }
+        return sb.toString();
+    }
+
     /**
      *
      * @param rs

@@ -103,7 +103,7 @@ public class APIGroup extends APIItem implements APISearchable {
             }
         }
         if (!procs.isEmpty()) {
-            sb.append("\n  APIProcedures:");
+            sb.append("\n  Procedures[" + procs.size() + "]:");
             for (Map.Entry<String, APIProcedure[]> t : procs.entrySet()) {
                 sb.append("\n    " + t.getKey() + "(" + t.getValue().length + "): ");
                 if (t.getValue().length == 1) {
@@ -116,7 +116,7 @@ public class APIGroup extends APIItem implements APISearchable {
             }
         }
         if (!funcs.isEmpty()) {
-            sb.append("\n  Functions:");
+            sb.append("\n  Functions[" + funcs.size() + "]:");
             for (Map.Entry<String, APIFunction[]> t : funcs.entrySet()) {
                 sb.append("\n    " + t.getKey() + "(" + t.getValue().length + "): ");
                 if (t.getValue().length == 1) {
@@ -129,7 +129,7 @@ public class APIGroup extends APIItem implements APISearchable {
             }
         }
         if (!types.isEmpty()) {
-            sb.append("\n  Types:");
+            sb.append("\n  Types[" + types.size() + "]:");
             for (Map.Entry<String, APIDataType> t : types.entrySet()) {
                 sb.append("\n    " + t.getKey() + ": " + t.getValue().toString().replace("\n", "\n      "));
             }
@@ -186,4 +186,10 @@ public class APIGroup extends APIItem implements APISearchable {
         return sb.toString();
     }
 
+    public boolean isEmpty() {
+        return groups.isEmpty()
+                && procs.isEmpty()
+                && funcs.isEmpty()
+                && types.isEmpty();
+    }
 }

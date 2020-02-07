@@ -24,6 +24,7 @@
 package ssg.lib.api;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 
@@ -43,6 +44,17 @@ public abstract class APIItem implements Serializable, Cloneable {
     public APIItem(APIItemCategory category, String name, String... scope) {
         this.category = category;
         this.name = name;
+        if (scope != null && scope.length > 0) {
+            int off = 0;
+            for (int i = 0; i < scope.length; i++) {
+                if (scope[i] != null) {
+                    off = i + 1;
+                }
+            }
+            if (off < scope.length) {
+                scope = Arrays.copyOf(scope, off);
+            }
+        }
         this.scope = scope;
     }
 

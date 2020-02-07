@@ -45,6 +45,7 @@ import ssg.lib.service.SERVICE_PROCESSING_STATE;
 /**
  *
  * @author 000ssg
+ * @param <P> 
  */
 public abstract class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, HttpEventListener {
 
@@ -181,22 +182,6 @@ public abstract class HttpDataProcessor<P extends Channel> implements DataProces
             long lastTimestamp = HttpData.fromHeaderDatetime(modifiedSince);
             if (lastTimestamp != -1 && timestamp <= lastTimestamp) {
                 do304(data, timestamp, expires);
-//                HttpResponse resp = ((HttpRequest) data).getResponse();
-//                resp.setResponseCode(304, "No changes");
-//                //resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType());
-//                //resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + buf.length);
-//                resp.setHeader(HttpData.HH_CACHE_CONTROL,
-//                        HttpData.HCC_PUBLIC
-//                        + ((expires != null) ? ", max-age=" + expires / 1000 : "")
-//                        + ", must-revalidate");
-//                //resp.setHeader(HttpData.HH_PRAGMA, null);
-//                resp.setHeader(HttpData.HH_DATE, HttpData.toHeaderDatetime(timestamp));
-//                resp.setHeader(HttpData.HH_LAST_MODIFIED, HttpData.toHeaderDatetime(timestamp));
-//                if (expires != null) {
-//                    resp.setHeader(HttpData.HH_EXPIRES, HttpData.toHeaderDatetime(timestamp + expires));
-//                }
-//                resp.onHeaderLoaded();
-//                resp.onLoaded();
             }
         }
     }
@@ -212,13 +197,10 @@ public abstract class HttpDataProcessor<P extends Channel> implements DataProces
     public void do304(HttpData data, Long timestamp, Long expires) throws IOException {
         HttpResponse resp = ((HttpRequest) data).getResponse();
         resp.setResponseCode(304, "No changes");
-        //resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType());
-        //resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + buf.length);
         resp.setHeader(HttpData.HH_CACHE_CONTROL,
                 HttpData.HCC_PUBLIC
                 + ((expires != null) ? ", max-age=" + expires / 1000 : "")
                 + ", must-revalidate");
-        //resp.setHeader(HttpData.HH_PRAGMA, null);
         resp.setHeader(HttpData.HH_DATE, HttpData.toHeaderDatetime(timestamp));
         resp.setHeader(HttpData.HH_LAST_MODIFIED, HttpData.toHeaderDatetime(timestamp));
         if (expires != null) {
@@ -306,22 +288,6 @@ public abstract class HttpDataProcessor<P extends Channel> implements DataProces
         return null;
     }
 
-//    public static String[] initTextParameters(String starter, String ender, String encoding, InputStream is) throws IOException {
-//        String[] parameters = null;
-//        if (encoding == null) {
-//            encoding = "UTF-8";
-//        }
-//        byte[][] bps = CommonTools.scanUniqueSubsequences(starter.getBytes(encoding), ender.getBytes(encoding), is);
-//        if (bps != null && bps.length > 0) {
-//            parameters = new String[bps.length];
-//            for (int i = 0; i < bps.length; i++) {
-//                parameters[i] = new String(bps[i], encoding);
-//            }
-//        } else {
-//            parameters = new String[0];
-//        }
-//        return parameters;
-//    }
     public static String[][] initTextParameters(String[][] startends, String encoding, InputStream is) throws IOException {
         String[][] parameters = null;
         if (encoding == null) {
