@@ -48,6 +48,7 @@ import ssg.lib.api.util.Reflective_API_Builder.API_Reflective;
 import ssg.lib.api.T1Engine.T1;
 import ssg.lib.api.util.APISearchable.APIMatcher;
 import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
+import ssg.lib.api.util.Reflective_API_Builder.Reflective_API_Context;
 
 /**
  *
@@ -136,7 +137,7 @@ public class Reflective_API_BuilderTest {
         String name = "demo";
         Reflective_API_Builder.ReflectiveFilter filter = null;
         T1Engine demo = getTestItem();
-        API result = Reflective_API_Builder.buildAPI(name, filter, demo.getClass());
+        API result = Reflective_API_Builder.buildAPI(name, new Reflective_API_Context(filter), demo.getClass());
         System.out.println("API: " + result);
         System.out.println("API (fqn): " + result.toFQNString());
         assertEquals(name, result.name);
@@ -181,7 +182,7 @@ public class Reflective_API_BuilderTest {
         T1Engine demo = getTestItem();
         Class type = demo.getClass();
         Reflective_API_Builder.ReflectiveFilter filter = null;
-        Reflective_API_Builder.buildGroup(api, group, type, filter);
+        Reflective_API_Builder.buildGroup(api, group, type, new Reflective_API_Context(filter));
         System.out.println("API: " + api);
         System.out.println("Group: " + group);
     }
@@ -197,9 +198,9 @@ public class Reflective_API_BuilderTest {
         T1Engine[] demos = new T1Engine[]{demo};
         Class type = demo.getClass();
         Reflective_API_Builder.ReflectiveFilter filter = null;
-        APIDataType result = Reflective_API_Builder.buildType(api, type, filter);
+        APIDataType result = Reflective_API_Builder.buildType(api, type, new Reflective_API_Context(filter));
         System.out.println("API 1: " + api);
-        result = Reflective_API_Builder.buildType(api, demos.getClass(), filter);
+        result = Reflective_API_Builder.buildType(api, demos.getClass(), new Reflective_API_Context(filter));
         System.out.println("API 2: " + api);
     }
 
@@ -214,8 +215,8 @@ public class Reflective_API_BuilderTest {
         Method m = type.getMethod("random");
         Method m2 = type.getMethod("random", int.class);
         Reflective_API_Builder.ReflectiveFilter filter = null;
-        APIProcedure result = Reflective_API_Builder.buildMethod(api, null, type, m, filter);
-        APIProcedure result2 = Reflective_API_Builder.buildMethod(api, null, type, m2, filter);
+        APIProcedure result = Reflective_API_Builder.buildMethod(api, null, type, m, new Reflective_API_Context(filter));
+        APIProcedure result2 = Reflective_API_Builder.buildMethod(api, null, type, m2, new Reflective_API_Context(filter));
         System.out.println("API: " + api);
         System.out.println("APIProcedure 1: " + result);
         System.out.println("APIProcedure 2: " + result2);
@@ -234,7 +235,7 @@ public class Reflective_API_BuilderTest {
     @Test
     public void test_API_Publishers() throws Exception {
         System.out.println("test API_Publishers");
-        API api = Reflective_API_Builder.buildAPI("demo2", null, T1.class, T1Engine.class);
+        API api = Reflective_API_Builder.buildAPI("demo2", new Reflective_API_Context(null), T1.class, T1Engine.class);
         System.out.println("API: " + api);
         System.out.println("Call random(): " + call(api, "T1.random", null, null, false));
         System.out.println("Call random(3): " + call(api, "T1.random", null, new HashMap() {

@@ -23,13 +23,16 @@
  */
 package ssg.lib.api.util;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import ssg.lib.api.API;
+import ssg.lib.api.APIAttr;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIParameterDirection;
@@ -54,17 +57,19 @@ public class Reflective_API_Builder {
         }
     };
 
-    public static API buildAPI(String name, ReflectiveFilter filter, Class... types) {
+    public static API buildAPI(String name, Reflective_API_Context context, Class... types) {
         API_Reflective api = new API_Reflective(name);
-
+        if (context == null) {
+            context = new Reflective_API_Context();
+        }
         if (types != null) {
             for (Class type : types) {
-                if (type == null || filter != null && !filter.allowed(type, null)) {
+                if (type == null || context.getFilter() != null && !context.getFilter().allowed(type, null)) {
                     continue;
                 }
                 String cn = type.isAnonymousClass() ? type.getName() : type.getSimpleName();
                 APIGroup group = new APIGroup(cn);
-                buildGroup(api, group, type, filter);
+                buildGroup(api, group, type, context);
                 api.groups.put(cn, group);
             }
         }
@@ -72,12 +77,12 @@ public class Reflective_API_Builder {
         return api;
     }
 
-    public static void buildGroup(API api, APIGroup group, Class type, ReflectiveFilter filter) {
+    public static void buildGroup(API api, APIGroup group, Class type, Reflective_API_Context context) {
         for (Method m : type.getMethods()) {
             if (disabledMethods.contains(m.getName())) {
                 continue;
             }
-            if (filter != null && !filter.allowed(type, m)) {
+            if (context.getFilter() != null && !context.getFilter().allowed(type, m)) {
                 continue;
             }
 
@@ -87,20 +92,20 @@ public class Reflective_API_Builder {
                 options |= APIProcedure.PO_STATIC;
             }
 
-            APIProcedure f = buildMethod(api, group, type, m, filter);
+            APIProcedure f = buildMethod(api, group, type, m, context);
             if (f == null) {
                 continue;
             }
         }
     }
 
-    public static APIProcedure buildMethod(API api, APIGroup group, Class type, Method m, ReflectiveFilter filter) {
+    public static APIProcedure buildMethod(API api, APIGroup group, Class type, Method m, Reflective_API_Context context) {
         // check if valid type/method and not in disable list
         if (m == null || type == null || disabledMethods.contains(m.getName())) {
             return null;
         }
         // check if filtered out
-        if (filter != null && !filter.allowed(type, m)) {
+        if (context.getFilter() != null && !context.getFilter().allowed(type, m)) {
             return null;
         }
         // check if type has this method!
@@ -131,7 +136,7 @@ public class Reflective_API_Builder {
         }
         if (m.getReturnType() != null && m.getReturnType() != void.class) {
             // function
-            APIDataType ret = buildType(api, m.getReturnType(), filter);
+            APIDataType ret = buildType(api, m.getReturnType(), context);
             // if result is null (disabled?), ignore method
             if (ret == null) {
                 return null;
@@ -151,7 +156,7 @@ public class Reflective_API_Builder {
             int order = 1;
             for (java.lang.reflect.Parameter p : m.getParameters()) {
                 String pn = p.getName();
-                APIDataType pt = buildType(api, p.getType(), filter);
+                APIDataType pt = buildType(api, p.getType(), context);
                 if (pt == null) {
                     allowed = false;
                     break;
@@ -194,7 +199,7 @@ public class Reflective_API_Builder {
             int order = 1;
             for (java.lang.reflect.Parameter p : m.getParameters()) {
                 String pn = p.getName();
-                APIDataType pt = buildType(api, p.getType(), filter);
+                APIDataType pt = buildType(api, p.getType(), context);
                 if (pt == null) {
                     allowed = false;
                     break;
@@ -268,15 +273,15 @@ public class Reflective_API_Builder {
         }
     }
 
-    public static APIDataType buildType(API api, Class type, ReflectiveFilter filter) {
+    public static APIDataType buildType(API api, Class type, Reflective_API_Context context) {
         APIDataType dt = null;
-        if (api == null || type == null || filter != null && !filter.allowed(type, null)) {
+        if (api == null || type == null || context.getFilter() != null && !context.getFilter().allowed(type, null)) {
             return dt;
         }
 
         String n = null;
         if (type.isArray()) {
-            APIDataType pdt = buildType(api, type.getComponentType(), filter);
+            APIDataType pdt = buildType(api, type.getComponentType(), context);
             if (pdt != null) {
                 n = pdt.name + "[]";
             }
@@ -291,8 +296,14 @@ public class Reflective_API_Builder {
         if (!api.types.containsKey(n)) {
             if (type.isPrimitive()) {
                 dt = new ReflDataType(n, type);
+            } else if (type.isArray() || Collection.class.isAssignableFrom(type)) {
+                dt = new ReflCollectionType(n, type);
+                if (type != type.getComponentType()) {
+                    ((ReflCollectionType) dt).itemType = (ReflDataType) buildType(api, type.getComponentType(), context);
+                }
             } else {
-                dt = new ReflDataType(n, type);
+                dt = new ReflObjectType(n, type);
+                context.evalTypeAttributes(api, (ReflObjectType) dt);
             }
             dt.usedIn.add(api);
             api.types.put(n, dt);
@@ -327,7 +338,186 @@ public class Reflective_API_Builder {
         public Class getJavaType() {
             return type;
         }
+    }
 
+    public static class ReflObjectType extends ReflDataType {
+
+        Map<String, APIAttr> attrs = new LinkedHashMap<>();
+
+        public ReflObjectType(String name, Class type) {
+            super(name, type);
+
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(super.toString());
+            if (!attrs.isEmpty()) {
+                sb.delete(sb.length() - 1, sb.length());
+                sb.append("\n  attrs[" + attrs.size() + "]=");
+                for (String an : attrs.keySet()) {
+                    sb.append("\n    " + an + ": ");
+                    sb.append(attrs.get(an).toString().replace("\n", "\n    "));
+                }
+                sb.append("\n}");
+            }
+            return sb.toString();
+        }
+
+        @Override
+        public String toFQNString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(super.toFQNString());
+            if (!attrs.isEmpty()) {
+                sb.delete(sb.length() - 1, sb.length());
+                sb.append("\n  attrs[" + attrs.size() + "]=");
+                for (String an : attrs.keySet()) {
+                    sb.append("\n    " + an + ": ");
+                    sb.append(attrs.get(an).toFQNString().replace("\n", "\n    "));
+                }
+                sb.append("\n}");
+            }
+            return sb.toString();
+        }
+
+    }
+
+    public static class ReflCollectionType extends ReflDataType {
+
+        ReflDataType itemType;
+
+        public ReflCollectionType(String name, Class type) {
+            super(name, type);
+
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(super.toString());
+            if (itemType != null) {
+                sb.delete(sb.length() - 1, sb.length());
+                sb.append("\n  itemType=" + itemType.toString().replace("\n", "\n  "));
+                sb.append("\n}");
+            }
+            return sb.toString();
+        }
+
+        @Override
+        public String toFQNString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(super.toFQNString());
+            if (itemType != null) {
+                sb.delete(sb.length() - 1, sb.length());
+                sb.append("\n  itemType=" + itemType.toFQNString().replace("\n", "\n  "));
+                sb.append("\n}");
+            }
+            return sb.toString();
+        }
+
+    }
+
+    public static class ReflAttr extends APIAttr {
+
+        Field fld;
+        Method setter;
+        Method getter;
+
+        public ReflAttr(String name) {
+            super(name);
+        }
+
+        public ReflAttr(String name, APIDataType type) {
+            super(name, type);
+        }
+
+    }
+
+    public static class Reflective_API_Context {
+
+        private ReflectiveFilter filter;
+
+        public Reflective_API_Context() {
+        }
+
+        public Reflective_API_Context(ReflectiveFilter filter) {
+            setFilter(filter);
+        }
+
+        /**
+         * @return the filter
+         */
+        public ReflectiveFilter getFilter() {
+            return filter;
+        }
+
+        /**
+         * @param filter the filter to set
+         */
+        public void setFilter(ReflectiveFilter filter) {
+            this.filter = filter;
+        }
+
+        public void evalTypeAttributes(API api, ReflObjectType ot) {
+            Field[] fs = ot.type.getFields();
+            if (fs != null && fs.length > 0) {
+                for (Field f : fs) {
+                    ReflAttr ra = new ReflAttr(f.getName());
+                    ra.fld = f;
+                    ra.type = buildType(api, f.getType(), this);
+                    ot.attrs.put(ra.name, ra);
+                }
+            } else {
+                Method[] ms = ot.type.getMethods();
+                Map<String, Method[]> mms = new LinkedHashMap<>();
+                for (Method m : ms) {
+                    String pn = m.getName();
+                    if ("getClass".equals(pn)) {
+                        continue;
+                    }
+                    if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().startsWith("get")) {
+                        pn = pn.substring(3);
+                        pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
+                        Method[] pms = mms.get(pn);
+                        if (pms == null) {
+                            pms = new Method[]{m, null};
+                            mms.put(pn, pms);
+                        } else {
+                            pms[0] = m;
+                        }
+                    } else if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().startsWith("is")) {
+                        pn = pn.substring(2);
+                        pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
+                        Method[] pms = mms.get(pn);
+                        if (pms == null) {
+                            pms = new Method[]{m, null};
+                            mms.put(pn, pms);
+                        } else {
+                            pms[0] = m;
+                        }
+                    } else if (m.getParameterCount() == 1 && m.getReturnType() == void.class && m.getName().startsWith("set")) {
+                        pn = pn.substring(3);
+                        pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
+                        Method[] pms = mms.get(pn);
+                        if (pms == null) {
+                            pms = new Method[]{null, m};
+                            mms.put(pn, pms);
+                        } else {
+                            pms[1] = m;
+                        }
+                    }
+                }
+                for (String an : mms.keySet()) {
+                    ReflAttr ra = new ReflAttr(an);
+                    Method[] rms = mms.get(an);
+                    ra.getter = rms[0];
+                    ra.setter = rms[1];
+                    ra.type = buildType(api, ra.getter.getReturnType(), this);
+                    ot.attrs.put(ra.name, ra);
+                }
+            }
+        }
     }
 
     public static class API_Reflective extends API {
