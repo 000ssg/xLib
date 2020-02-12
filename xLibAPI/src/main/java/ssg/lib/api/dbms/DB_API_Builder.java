@@ -530,10 +530,6 @@ public class DB_API_Builder {
                             case DatabaseMetaData.functionColumnUnknown:
                                 throw new RuntimeException("Unexpected procedure column type: " + fcCT + " for " + param + " in " + proc);
                         }
-
-                        if (param.direction == null) {
-                            int a = 0;
-                        }
                     }
                 }
 

@@ -34,10 +34,10 @@ public enum APIItemCategory {
     table, // table-like structure
     data_type, // primitive (base) data type
     attr, // named typed item: column, parameter, struct attr
-    object, // structured data /with named properties)
+    object, // structured data (with named properties)
     collection, // array or list data
     procedure, // callable: procedure or function 
-    access // access description
+    access // access restrictions description
     ;
     private static final long serialVersionUID = 1L;
 

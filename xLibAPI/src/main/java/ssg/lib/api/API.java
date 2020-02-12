@@ -25,6 +25,7 @@ package ssg.lib.api;
 
 /**
  * API is consistent hierarchical (optionally) set of functions and data types
+ * providing method execution.
  *
  * @author 000ssg
  */

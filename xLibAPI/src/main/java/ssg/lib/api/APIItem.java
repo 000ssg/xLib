@@ -29,6 +29,12 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 
 /**
+ * API item represent minimal API construction element and provides base set of
+ * properties: category (like type, group, procedure), scope (identifying
+ * context, used to evaluate fully qualified name, if applicable), item name
+ * (unique within scope), access restrictions (optional). Items location within
+ * hierarchy is marked via "usedIn" collection to be filled using "fixUsedIn"
+ * methodI.
  *
  * @author 000ssg
  */
@@ -39,6 +45,7 @@ public abstract class APIItem implements Serializable, Cloneable {
     public String[] scope; // [schema, ?catalog]
     public String name;
     public APIAccess access;
+    public APIItem prototype; // optional prototype, e.g. refers to item used as basis for creating this one...
     transient public Collection<APIItem> usedIn = new LinkedHashSet<>();
 
     public APIItem(APIItemCategory category, String name, String... scope) {
@@ -81,6 +88,10 @@ public abstract class APIItem implements Serializable, Cloneable {
             sb.append(", usedIn=");
             sb.append(usedIn.size());
         }
+        if (prototype != null) {
+            sb.append(", prototype=");
+            sb.append(prototype.fqn());
+        }
         if (access != null) {
             if (access.hasACL()) {
                 sb.append("\n  access=" + access.toString().replace("\n", "\n  "));
@@ -119,9 +130,17 @@ public abstract class APIItem implements Serializable, Cloneable {
         }
         if (parent != null && !usedIn.contains(parent)) {
             usedIn.add(parent);
-            //parent.fixUsedIn(null);
-            //return true;
         }
-        //return false;
     }
+
+    @Override
+    public APIItem clone() throws CloneNotSupportedException {
+        APIItem copy = (APIItem) super.clone();
+        if (usedIn != null) {
+            usedIn.clear();
+        }
+        fixUsedIn(null);
+        return copy;
+    }
+
 }

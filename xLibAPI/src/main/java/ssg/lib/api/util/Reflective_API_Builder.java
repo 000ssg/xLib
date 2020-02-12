@@ -149,7 +149,7 @@ public class Reflective_API_Builder {
 
             f.response = new APIParameter(null, ret);
             f.response.order = 0;
-            f.response.direction = APIParameterDirection.out;
+            f.response.direction = APIParameterDirection.ret;
             ret.usedIn.add(f.response);
             f.response.usedIn.add(f);
 

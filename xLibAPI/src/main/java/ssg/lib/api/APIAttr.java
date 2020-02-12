@@ -26,6 +26,8 @@ package ssg.lib.api;
 import ssg.lib.api.dbms.DB_SQLType;
 
 /**
+ * Named and/or ordered data type used within other conext (e.g. as object
+ * property).
  *
  * @author 000ssg
  */
