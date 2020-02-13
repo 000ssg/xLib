@@ -53,7 +53,10 @@ public class DealerCall extends Call {
     private WAMPCallStatistics statistics;
 
     // to/from callee
-    long invocationId;
+    // long invocationId;
+    long[] invocationIds;
+    AtomicInteger activeCalls = new AtomicInteger();
+
     Map<String, Object> details = WAMPTools.createDict(null);
 
     public DealerCall(DealerProcedure proc) {
@@ -62,6 +65,7 @@ public class DealerCall extends Call {
         if (statistics != null) {
             statistics.onCall();
         }
+        invocationIds = new long[(proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1];
     }
 
     public DealerCall(DealerProcedure proc, WAMPCallStatistics stat) {
@@ -74,6 +78,7 @@ public class DealerCall extends Call {
         if (statistics != null) {
             statistics.onCall();
         }
+        invocationIds = new long[(proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1];
     }
 
     /**
@@ -83,50 +88,84 @@ public class DealerCall extends Call {
         return statistics;
     }
 
-    /**
-     * Wrapper for dealer multi procedure
-     */
-    public static class DealerMultiCall extends DealerCall {
-
-        long[] invocationIds;
-        AtomicInteger activeCalls = new AtomicInteger();
-
-        public DealerMultiCall(DealerMultiProcedure proc) {
-            super(proc);
-            invocationIds = new long[proc.procs.length];
-        }
-
-        public DealerMultiCall(DealerMultiProcedure proc, WAMPCallStatistics stat) {
-            super(proc, stat);
-            invocationIds = new long[proc.procs.length];
-        }
-
-        public int getProceduresCount() {
-            return ((DealerMultiProcedure) proc).procs.length;
-        }
-
-        public DealerProcedure getProcedure(int procIdx) {
-            return ((DealerMultiProcedure) proc).procs[procIdx];
-        }
-
-        public long getInvocationId(int procIdx) {
-            return invocationIds[procIdx];
-        }
-
-        /**
-         * Returns index of completed procedure
-         * @param invocationId
-         * @return 
-         */
-        public int completed(long invocationId) {
-            for (int i = 0; i < invocationIds.length; i++) {
-                if (invocationIds[i] == invocationId) {
-                    invocationIds[i] = 0;
-                    activeCalls.decrementAndGet();
-                    return i;
-                }
-            }
-            return -1;
-        }
+    public int getProceduresCount() {
+        return (proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1;
     }
+
+    public DealerProcedure getProcedure(int procIdx) {
+        return (proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs[procIdx] : proc;
+    }
+
+    public void setInvocationId(int procIdx, long invocationId) {
+        invocationIds[procIdx] = invocationId;
+    }
+
+    public long getInvocationId(int procIdx) {
+        return invocationIds[procIdx];
+    }
+
+    /**
+     * Returns index of completed procedure
+     *
+     * @param invocationId
+     * @return
+     */
+    public int completed(long invocationId) {
+        for (int i = 0; i < invocationIds.length; i++) {
+            if (invocationIds[i] == invocationId) {
+                invocationIds[i] = 0;
+                activeCalls.decrementAndGet();
+                return i;
+            }
+        }
+        return -1;
+    }
+//
+//    /**
+//     * Wrapper for dealer multi procedure
+//     */
+//    public static class DealerMultiCall extends DealerCall {
+//
+//        long[] invocationIds;
+//        AtomicInteger activeCalls = new AtomicInteger();
+//
+//        public DealerMultiCall(DealerMultiProcedure proc) {
+//            super(proc);
+//            invocationIds = new long[proc.procs.length];
+//        }
+//
+//        public DealerMultiCall(DealerMultiProcedure proc, WAMPCallStatistics stat) {
+//            super(proc, stat);
+//            invocationIds = new long[proc.procs.length];
+//        }
+//
+//        public int getProceduresCount() {
+//            return ((DealerMultiProcedure) proc).procs.length;
+//        }
+//
+//        public DealerProcedure getProcedure(int procIdx) {
+//            return ((DealerMultiProcedure) proc).procs[procIdx];
+//        }
+//
+//        public long getInvocationId(int procIdx) {
+//            return invocationIds[procIdx];
+//        }
+//
+//        /**
+//         * Returns index of completed procedure
+//         *
+//         * @param invocationId
+//         * @return
+//         */
+//        public int completed(long invocationId) {
+//            for (int i = 0; i < invocationIds.length; i++) {
+//                if (invocationIds[i] == invocationId) {
+//                    invocationIds[i] = 0;
+//                    activeCalls.decrementAndGet();
+//                    return i;
+//                }
+//            }
+//            return -1;
+//        }
+//    }
 }

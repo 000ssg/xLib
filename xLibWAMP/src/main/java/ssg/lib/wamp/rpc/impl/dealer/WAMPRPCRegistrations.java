@@ -398,16 +398,17 @@ public class WAMPRPCRegistrations {
     }
 
     public DealerProcedure onCall(WAMPSession session, WAMPMessage msg) throws WAMPException {
-        long request = msg.getId(0);
         Map<String, Object> options = msg.getDict(1);
         String procedure = msg.getUri(2);
         RPCMeta rpc = lookup(procedure, options);
-        Long registeredId = (rpc != null) ? rpc.get() : null;
-        if (registeredId == RPCMeta.ALL) {
+
+        long[] registeredIds = (rpc != null) ? rpc.next(options) : null;
+
+        if (registeredIds != null && registeredIds.length > 1) {
             Object[] ll = rpc.registrations.toArray();
             DealerProcedure[] rpcs = new DealerProcedure[ll.length];
             int off = 0;
-            for (Object l : ll) {
+            for (long l : registeredIds) {
                 DealerProcedure proc = (DealerProcedure) procedures.get(l);
                 if (proc != null) {
                     rpcs[off++] = proc;
@@ -420,8 +421,9 @@ public class WAMPRPCRegistrations {
                 return new DealerMultiProcedure(rpcs);
             }
             return null;
-        } else {
+        } else if (registeredIds != null && registeredIds.length == 1) {
             //System.out.println("assigned CALL "+registeredId+" from "+rpc.registrations);
+            Long registeredId = registeredIds[0];
             DealerProcedure proc = (DealerProcedure) procedures.get(registeredId);
             if (rpc != null && proc == null) {
                 rpc.registrations.remove(registeredId);
@@ -435,6 +437,7 @@ public class WAMPRPCRegistrations {
             }
             return proc;
         }
+        return null;
     }
 
     public synchronized RPCMeta lookup(String procedure, Map<String, Object> options) {
@@ -595,6 +598,20 @@ public class WAMPRPCRegistrations {
 
         public int count() {
             return registrations.size();
+        }
+
+        public synchronized long[] next(Map<String, Object> details) throws WAMPException {
+            long l = get();
+            if (l == ALL) {
+                Object[] oo = registrations.toArray();
+                long[] ll = new long[oo.length];
+                for (int i = 0; i < oo.length; i++) {
+                    ll[i] = (Long) oo[i];
+                }
+                return ll;
+            } else {
+                return (l >= 0) ? new long[]{l} : null;
+            }
         }
 
         public synchronized long get() throws WAMPException {

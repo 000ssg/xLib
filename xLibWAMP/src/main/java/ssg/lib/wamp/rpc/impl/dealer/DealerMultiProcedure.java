@@ -41,4 +41,16 @@ public class DealerMultiProcedure extends DealerProcedure {
         this.procs = procs;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.delete(sb.length() - 1, sb.length());
+        sb.append(", procs=" + procs.length);
+        for (DealerProcedure p : procs) {
+            sb.append("\n  "+p.toString().replace("\n", "\n  "));
+        }
+        sb.append("\n}");
+        return sb.toString();
+    }
+
 }

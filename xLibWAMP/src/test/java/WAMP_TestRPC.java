@@ -175,17 +175,6 @@ public class WAMP_TestRPC implements Runnable {
     public static class WAMP_Callee extends WAMPClient {
 
         public WAMP_Callee(){}
-//        public WAMP_Callee(WAMPTransport transport, String agent, String realmS, WAMP.Role... roles) throws WAMPException {
-//            configure(transport, agent, realmS, roles);
-//        }
-//
-//        public WAMP_Callee(WAMPTransport transport, WAMPFeature[] features, String agent, String realmS, WAMP.Role... roles) throws WAMPException {
-//            configure(transport, features, agent, realmS, roles);
-//        }
-//
-//        public WAMP_Callee(WAMPTransport transport, String agent, WAMPRealm realm, WAMP.Role... roles) throws WAMPException {
-//            configure(transport, agent, realm, roles);
-//        }
 
         public void addProcedure(String name, WAMPCallable callable) throws WAMPException {
             addExecutor(
@@ -208,17 +197,6 @@ public class WAMP_TestRPC implements Runnable {
     public static class WAMP_Caller extends WAMPClient {
 
         public WAMP_Caller(){}
-//        public WAMP_Caller(WAMPTransport transport, String agent, String realmS, WAMP.Role... roles) throws WAMPException {
-//            super(transport, agent, realmS, roles);
-//        }
-//
-//        public WAMP_Caller(WAMPTransport transport, WAMPFeature[] features, String agent, String realmS, WAMP.Role... roles) throws WAMPException {
-//            super(transport, features, agent, realmS, roles);
-//        }
-//
-//        public WAMP_Caller(WAMPTransport transport, String agent, WAMPRealm realm, WAMP.Role... roles) throws WAMPException {
-//            super(transport, agent, realm, roles);
-//        }
 
         public WAMPRPCListener addCall(String name, CallListener cl) throws WAMPException {
             return addCall(name, null, null, cl);
