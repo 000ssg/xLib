@@ -24,6 +24,7 @@
 package ssg.lib.wamp.rpc.impl.dealer;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -52,6 +53,12 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * @author 000ssg
  */
 public class WAMPRPCRegistrations {
+
+    public static final WAMPFeature[] supports = new WAMPFeature[]{
+        WAMPFeature.registration_meta_api,
+        WAMPFeature.shared_registration,
+        WAMPFeature.sharded_registration
+    };
 
     AtomicLong nextProcedureId = new AtomicLong(1);
 
@@ -245,7 +252,27 @@ public class WAMPRPCRegistrations {
         synchronized (mp) {
             rpc = mp.all().get(procedure);
             if (rpc == null) {
-                rpc = new RPCMeta(procedure, (invocation != null) ? InvocationPolicy.valueOf(invocation) : null);
+                InvocationPolicy iPolicy = (invocation != null) ? InvocationPolicy.valueOf(invocation) : null;
+                if (iPolicy != null) {
+                    switch (iPolicy) {
+                        case sharded:
+                            if (!session.supportsFeature(WAMPFeature.sharded_registration)) {
+                                session.send(WAMPMessage.error(WAMPMessageType.T_REGISTER, request, WAMPTools.EMPTY_DICT, "sharded registrations are not supported"));
+                                return WAMPFlowStatus.failed;
+                            }
+                            break;
+                        case single:
+                            break;
+                        default:
+                            if (!session.supportsFeature(WAMPFeature.shared_registration)) {
+                                session.send(WAMPMessage.error(WAMPMessageType.T_REGISTER, request, WAMPTools.EMPTY_DICT, "shared registrations are not supported"));
+                                return WAMPFlowStatus.failed;
+                            }
+                            break;
+                    }
+                }
+
+                rpc = new RPCMeta(procedure, iPolicy);
                 if (statistics != null) {
                     rpc.statistics = statistics.createChild(null, procedure);
                 }
@@ -376,19 +403,38 @@ public class WAMPRPCRegistrations {
         String procedure = msg.getUri(2);
         RPCMeta rpc = lookup(procedure, options);
         Long registeredId = (rpc != null) ? rpc.get() : null;
-        //System.out.println("assigned CALL "+registeredId+" from "+rpc.registrations);
-        DealerProcedure proc = (DealerProcedure) procedures.get(registeredId);
-        if (rpc != null && proc == null) {
-            rpc.registrations.remove(registeredId);
-            while (!rpc.registrations.isEmpty() && rpc.registrations.size() > 1) {
-                proc = (DealerProcedure) procedures.get(registeredId);
-                if (proc == null) {
-                    rpc.registrations.remove(registeredId);
+        if (registeredId == RPCMeta.ALL) {
+            Object[] ll = rpc.registrations.toArray();
+            DealerProcedure[] rpcs = new DealerProcedure[ll.length];
+            int off = 0;
+            for (Object l : ll) {
+                DealerProcedure proc = (DealerProcedure) procedures.get(l);
+                if (proc != null) {
+                    rpcs[off++] = proc;
                 }
             }
-            int a = 0;
+            if (off < rpcs.length) {
+                rpcs = Arrays.copyOf(rpcs, off);
+            }
+            if (rpcs.length > 0) {
+                return new DealerMultiProcedure(rpcs);
+            }
+            return null;
+        } else {
+            //System.out.println("assigned CALL "+registeredId+" from "+rpc.registrations);
+            DealerProcedure proc = (DealerProcedure) procedures.get(registeredId);
+            if (rpc != null && proc == null) {
+                rpc.registrations.remove(registeredId);
+                while (!rpc.registrations.isEmpty() && rpc.registrations.size() > 1) {
+                    proc = (DealerProcedure) procedures.get(registeredId);
+                    if (proc == null) {
+                        rpc.registrations.remove(registeredId);
+                    }
+                }
+                int a = 0;
+            }
+            return proc;
         }
-        return proc;
     }
 
     public synchronized RPCMeta lookup(String procedure, Map<String, Object> options) {
@@ -502,12 +548,16 @@ public class WAMPRPCRegistrations {
 
     public static class RPCMeta {
 
+        // represents ALL procedures IDs (fro sharded mode)
+        public static Long ALL = -3L;
+
         public static enum InvocationPolicy {
             single,
             roundrobin,
             random,
             first,
-            last
+            last,
+            sharded // non-standard: Use for sharded mode...
         }
         String name;
         long created = System.currentTimeMillis();
@@ -572,6 +622,8 @@ public class WAMPRPCRegistrations {
                         return registrations.get(0);
                     case last:
                         return registrations.get(registrations.size() - 1);
+                    case sharded: // Non-standard mode, just to allow multi-node calls...
+                        return ALL;
                 }
             }
             throw new WAMPException("No registered procedure to invoke in " + this);

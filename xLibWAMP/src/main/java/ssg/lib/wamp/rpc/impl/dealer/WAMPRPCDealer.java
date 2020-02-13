@@ -42,8 +42,11 @@ import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.RPC_CANCEL_OPT_MODE_
 import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.RPC_CANCEL_OPT_MODE_KILLNOWAIT;
 import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.RPC_CANCEL_OPT_MODE_SKIP;
 import ssg.lib.wamp.rpc.WAMPDealer;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
 import ssg.lib.wamp.rpc.impl.Call;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
+import ssg.lib.wamp.rpc.impl.dealer.DealerCall.DealerMultiCall;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPCMeta;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
@@ -53,6 +56,13 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * @author 000ssg
  */
 public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
+
+    public static final WAMPFeature[] supports = new WAMPFeature[]{
+        WAMPFeature.call_canceling,
+        WAMPFeature.progressive_call_results,
+        WAMPFeature.shared_registration,
+        WAMPFeature.sharded_registration
+    };
 
     // session id -> (invocationId -> call)
     Map<Long, Map<Long, Call>> calls = WAMPTools.createSynchronizedMap();
@@ -65,7 +75,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
     }
 
     public WAMPRPCDealer(WAMPFeature... features) {
-        super(new Role[]{Role.dealer}, features);
+        super(new Role[]{Role.dealer}, WAMPFeature.intersection(supports, features));
     }
 
     public void initFeatures() {
@@ -142,15 +152,11 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
         String procedure = msg.getUri(2);
         List args = (msg.getData().length > 3) ? msg.getList(3) : null;
         Map<String, Object> argsKw = (msg.getData().length > 4) ? msg.getDict(4) : null;
-        //Long registeredId = registrations.name2procedureId.get(procedure);
+
         if (!validateProcedure(session, procedure)) {
             session.send(WAMPMessage.error(WAMPMessageType.T_CALL, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.InvalidURI));
             r = WAMPMessagesFlow.WAMPFlowStatus.failed;
         }
-//        if (registeredId == null) {
-//            session.send(WAMPMessage.error(WAMPMessageType.T_CALL, request, new HashMap(), WAMPConstantsBase.NoSuchProcedure));
-//            r = WAMPMessagesFlow.WAMPFlowStatus.failed;
-//        }
 
         if (r == WAMPMessagesFlow.WAMPFlowStatus.handled) {
             DealerProcedure proc = registrations.onCall(session, msg); // procedures.get(registeredId);
@@ -162,7 +168,6 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                     WAMPCallStatistics cs = nfcs.get(procedure);
                     if (cs == null) {
                         cs = getStatisticsForNotFound(procedure, true);
-                        //nfcs.put(procedure, cs);
                     }
                     if (cs != null) {
                         cs.onCall();
@@ -170,6 +175,29 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                     }
                 }
                 r = WAMPMessagesFlow.WAMPFlowStatus.failed;
+            } else if (proc instanceof DealerMultiProcedure) {
+                if (session.supportsFeature(WAMPFeature.call_canceling)) {
+                    if (options.containsKey(RPC_PROGRESSIVE_CALL_REQUEST) && (Boolean) options.get(RPC_PROGRESSIVE_CALL_REQUEST) && session.supportsFeature(WAMPFeature.progressive_call_results)) {
+                        DealerMultiCall call = new DealerMultiCall((DealerMultiProcedure) proc);
+                        call.session = session;
+                        call.request = request;
+                        call.options = options;
+                        call.args = args;
+                        call.argsKw = argsKw;
+                        call.cancelable = session.supportsFeature(WAMPFeature.call_canceling) && call.session.supportsFeature(WAMPFeature.call_canceling);
+                        if (!proc.getName().equals(procedure)) {
+                            call.details.put("procedure", procedure);
+                        }
+                        if (options.containsKey(RPC_PROGRESSIVE_CALL_REQUEST) && (Boolean) options.get(RPC_PROGRESSIVE_CALL_REQUEST) && call.session.supportsFeature(WAMPFeature.progressive_call_results)) {
+                            call.details.put(RPC_PROGRESSIVE_CALL_REQUEST, true);
+                        }
+                        doInvoke(call);
+                    } else {
+                        throw new WAMPException("Cannot perform multi-RPC call if partial call response is not requested/supported.");
+                    }
+                } else {
+                    throw new WAMPException("Cannot perform multi-RPC call if call cancelation is not supported.");
+                }
             } else if (proc instanceof DealerLocalProcedure) {
                 DealerLocalProcedure lproc = (DealerLocalProcedure) proc;
                 if (lproc.doResult(session, msg)) {
@@ -177,9 +205,9 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                     r = WAMPMessagesFlow.WAMPFlowStatus.handled;
                 }
             } else {
-                WAMPCallStatistics cs = (proc.owner instanceof RPCMeta)
-                        ? ((RPCMeta) proc.owner).getStatistics(procedure)
-                        : proc.getStatistics();
+//                WAMPCallStatistics cs = (proc.owner instanceof RPCMeta)
+//                        ? ((RPCMeta) proc.owner).getStatistics(procedure)
+//                        : proc.getStatistics();
                 DealerCall call = new DealerCall(proc, null);//cs);
                 call.session = session;
                 call.request = request;
@@ -194,34 +222,65 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 if (proc != null && !proc.getName().equals(procedure)) {
                     call.details.put("procedure", procedure);
                 }
+                if (options.containsKey(RPC_PROGRESSIVE_CALL_REQUEST) && (Boolean) options.get(RPC_PROGRESSIVE_CALL_REQUEST) && call.session.supportsFeature(WAMPFeature.progressive_call_results)) {
+                    call.details.put(RPC_PROGRESSIVE_CALL_REQUEST, true);
+                }
 
-                synchronized (calls) {
-                    Map<Long, Call> sessionCalls = calls.get(proc.session.getId());
-                    if (sessionCalls == null) {
-                        sessionCalls = WAMPTools.createSynchronizedMap();
-                        calls.put(proc.session.getId(), sessionCalls);
-                    }
-                    sessionCalls.put(call.invocationId, call);
-                    // add support for cancelling, if allowed: session.id -> request -> call
-                    if (call.cancelable) {
-                        sessionCalls = calls.get(session.getId());
-                        if (sessionCalls == null) {
-                            sessionCalls = WAMPTools.createSynchronizedMap();
-                            calls.put(session.getId(), sessionCalls);
-                        }
-                        sessionCalls.put(call.request, call);
-                    }
-                }
-                if (argsKw != null) {
-                    proc.session.send(WAMPMessage.invocation(call.invocationId, proc.getId(), call.details, args, argsKw));
-                } else if (args != null) {
-                    proc.session.send(WAMPMessage.invocation(call.invocationId, proc.getId(), call.details, args));
-                } else {
-                    proc.session.send(WAMPMessage.invocation(call.invocationId, proc.getId(), call.details));
-                }
+                doInvoke(call);
             }
         }
         return r;
+    }
+
+    public void doInvoke(DealerCall call) throws WAMPException {
+        if (call instanceof DealerMultiCall) {
+            DealerMultiCall mcall = (DealerMultiCall) call;
+            DealerMultiProcedure mproc = (DealerMultiProcedure) mcall.proc;
+            for (int i = 0; i < mcall.invocationIds.length; i++) {
+                if (!WAMP_DT.id.validate(mcall.invocationIds[i])) {
+                    mcall.invocationIds[i] = mproc.procs[i].session.getNextRequestId();
+                }
+                synchronized (mcall) {
+                    doInvoke(call, mproc.procs[i], mcall.invocationIds[i]);
+                    mcall.activeCalls.incrementAndGet();
+                }
+            }
+        } else {
+            if (!WAMP_DT.id.validate(call.invocationId)) {
+                call.invocationId = call.proc.session.getNextRequestId();
+            }
+            doInvoke(call, call.proc, call.invocationId);
+        }
+    }
+
+    public void doInvoke(DealerCall call, DealerProcedure proc, long invocationId) throws WAMPException {
+        Map<String, Object> details = call.details;
+        List args = call.args;
+        Map<String, Object> argsKw = call.argsKw;
+        synchronized (calls) {
+            Map<Long, Call> sessionCalls = calls.get(proc.session.getId());
+            if (sessionCalls == null) {
+                sessionCalls = WAMPTools.createSynchronizedMap();
+                calls.put(proc.session.getId(), sessionCalls);
+            }
+            sessionCalls.put(invocationId, call);
+            // add support for cancelling, if allowed: session.id -> request -> call
+            if (call.cancelable) {
+                sessionCalls = calls.get(call.session.getId());
+                if (sessionCalls == null) {
+                    sessionCalls = WAMPTools.createSynchronizedMap();
+                    calls.put(call.session.getId(), sessionCalls);
+                }
+                sessionCalls.put(call.request, call);
+            }
+        }
+        if (argsKw != null) {
+            proc.session.send(WAMPMessage.invocation(invocationId, proc.getId(), details, args, argsKw));
+        } else if (args != null) {
+            proc.session.send(WAMPMessage.invocation(invocationId, proc.getId(), details, args));
+        } else {
+            proc.session.send(WAMPMessage.invocation(invocationId, proc.getId(), details));
+        }
     }
 
     /**
@@ -248,6 +307,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
         if (r == WAMPMessagesFlow.WAMPFlowStatus.handled) {
             Map<Long, Call> sessionCalls = calls.get(session.getId());
             DealerCall call = (DealerCall) sessionCalls.remove(request);
+            DealerMultiCall mcall = (call instanceof DealerMultiCall) ? (DealerMultiCall) call : null;
             if (call != null) {
                 call.interrupted = mode;
                 if (call.getStatistics() != null) {
@@ -255,11 +315,26 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 }
                 if (RPC_CANCEL_OPT_MODE_SKIP.equals(mode) || (mode != null && !call.proc.session.supportsFeature(WAMPFeature.call_canceling))) {
                     session.send(WAMPMessage.error(WAMPMessageType.T_CALL, call.request, WAMPTools.EMPTY_DICT, "call.canceled.skip"));
+                    if (mcall != null) {
+                        mcall.completed(request);
+                    }
                 } else if (RPC_CANCEL_OPT_MODE_KILLNOWAIT.equals(mode)) {
-                    session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, call.invocationId, options));
+                    if (mcall != null) {
+                        for (int i = 0; i < mcall.getProceduresCount(); i++) {
+                            mcall.getProcedure(i).session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, mcall.getInvocationId(i), options));
+                        }
+                    } else {
+                        call.proc.session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, call.invocationId, options));
+                    }
                     session.send(WAMPMessage.error(WAMPMessageType.T_CALL, call.request, WAMPTools.EMPTY_DICT, "call.canceled.kill"));
                 } else if (RPC_CANCEL_OPT_MODE_KILL.equals(mode)) {
-                    session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, call.invocationId, options));
+                    if (mcall != null) {
+                        for (int i = 0; i < mcall.getProceduresCount(); i++) {
+                            mcall.getProcedure(i).session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, mcall.getInvocationId(i), options));
+                        }
+                    } else {
+                        call.proc.session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, call.invocationId, options));
+                    }
                 } else {
                     // unsupported CANCEL mode???
                     r = WAMPMessagesFlow.WAMPFlowStatus.failed;
@@ -286,12 +361,25 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
         List args = (msg.getData().length > 2) ? msg.getList(2) : null;
         Map<String, Object> argsKw = (msg.getData().length > 3) ? msg.getDict(3) : null;
         Map<String, Object> details = WAMPTools.createDict(null);
+        boolean partial = options.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS) && Boolean.TRUE.equals(options.get(RPC_PROGRESSIVE_CALL_PROGRESS));
         synchronized (calls) {
             Map<Long, Call> sessionCalls = calls.get(session.getId());
-            DealerCall call = (DealerCall) sessionCalls.remove(request);
+            DealerCall call = (DealerCall) (partial ? sessionCalls.get(request) : sessionCalls.remove(request));
+            DealerMultiCall mcall = (call instanceof DealerMultiCall) ? (DealerMultiCall) call : null;
             if (call != null) {
                 WAMPMessageType pending = session.getPending(request, true);
                 if (call.interrupted == null || RPC_CANCEL_OPT_MODE_KILL.equals(call.interrupted)) {
+                    if (mcall != null) {
+                        if (!partial) {
+                            // this is last response for multi-call item -> close it and check if other open items are present -> may be not last response...
+                            if (mcall.completed(request) >= 0 && mcall.activeCalls.get() > 0) {
+                                partial = true;
+                            }
+                        }
+                    }
+                    if (partial) {
+                        details.put(RPC_PROGRESSIVE_CALL_PROGRESS, true);
+                    }
                     if (argsKw != null) {
                         call.session.send(WAMPMessage.result(call.request, details, args, argsKw));
                     } else if (args != null) {
@@ -333,6 +421,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
             case WAMPMessageType.T_INVOCATION:
                 Map<Long, Call> sessionCalls = calls.get(session.getId());
                 DealerCall call = (sessionCalls != null) ? (DealerCall) sessionCalls.remove(req) : null;
+                DealerMultiCall mcall = (call instanceof DealerMultiCall) ? (DealerMultiCall) call : null;
                 if (call != null) {
                     WAMPMessageType pending = session.getPending(req, true);
 
@@ -343,6 +432,22 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                             call.session.send(WAMPMessage.error(WAMPMessageType.T_CALL, call.request, WAMPTools.EMPTY_DICT, error, args));
                         } else {
                             call.session.send(WAMPMessage.error(WAMPMessageType.T_CALL, call.request, WAMPTools.EMPTY_DICT, error));
+                        }
+
+                        if (mcall != null) {
+                            int procIdx = mcall.completed(req);
+                            if (procIdx != -1 && mcall.activeCalls.decrementAndGet() > 0) {
+                                for (int i = 0; i < mcall.getProceduresCount(); i++) {
+                                    if (i == procIdx) {
+                                        continue;
+                                    }
+                                    if (mcall.getInvocationId(i) == 0) {
+                                        continue;
+                                    }
+                                    DealerProcedure proc = mcall.getProcedure(i);
+                                    proc.session.send(new WAMPMessage(WAMPMessageTypeAdvanced.INTERRUPT, mcall.getInvocationId(i), WAMPTools.EMPTY_DICT));
+                                }
+                            }
                         }
                     }
                     if (call.getStatistics() != null) {
@@ -376,7 +481,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
 
     @Override
     public <T extends WAMPActor> T init(WAMPRealm realm) {
-        if (realm.getStatistics() != null && realm.getStatistics().getCallStatistics()!=null) {
+        if (realm.getStatistics() != null && realm.getStatistics().getCallStatistics() != null) {
             setStatistics(realm.getStatistics().getCallStatistics().createChild(null, "dealer"));
         }
         return super.init(realm);

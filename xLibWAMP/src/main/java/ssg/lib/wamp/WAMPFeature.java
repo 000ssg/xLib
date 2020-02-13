@@ -26,6 +26,7 @@ package ssg.lib.wamp;
 import ssg.lib.wamp.util.WAMPException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import static ssg.lib.wamp.WAMP.Role.broker;
 import static ssg.lib.wamp.WAMP.Role.callee;
@@ -225,6 +226,67 @@ public class WAMPFeature implements Serializable {
      */
     public static WAMPFeature[] mergeCopy(WAMPFeature[] src, WAMPFeature... features) {
         return merge(merge(null, src), features);
+    }
+
+    /**
+     * Ensures only features present both in a and fs are returned.
+     * 
+     * @param a
+     * @param fs
+     * @return 
+     */
+    public static WAMPFeature[] intersection(WAMPFeature[] a, Collection<WAMPFeature> fs) {
+        return intersection(a, (fs != null) ? fs.toArray(new WAMPFeature[fs.size()]) : null);
+    }
+
+    /**
+     * Ensures only features present both in a and fs are returned.
+     *
+     * @param a
+     * @param fs
+     * @return
+     */
+    public static WAMPFeature[] intersection(WAMPFeature[] a, WAMPFeature... fs) {
+        WAMPFeature[] r = new WAMPFeature[(fs != null) ? fs.length : 0];
+        int off = 0;
+
+        if (fs != null && a != null && a.length > 0) {
+            for (WAMPFeature f : fs) {
+                if (f == null) {
+                    continue;
+                }
+                if (off > 0) {
+                    boolean duplicate = false;
+                    for (int i = 0; i < off; i++) {
+                        if (r[i].equals(f)) {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (duplicate) {
+                        continue;
+                    }
+                }
+                boolean ok = false;
+                for (WAMPFeature fa : a) {
+                    if (fa == null) {
+                        continue;
+                    }
+                    if (fa.equals(f)) {
+                        ok = true;
+                        break;
+                    }
+                }
+                if (ok) {
+                    r[off++] = f;
+                }
+            }
+        }
+
+        if (off < r.length) {
+            r = Arrays.copyOf(r, off);
+        }
+        return r;
     }
 
     // instance

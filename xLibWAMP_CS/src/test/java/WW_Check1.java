@@ -58,6 +58,7 @@ import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.callee.WAMPRPCCallee;
 import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
+import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.websocket.WebSocket;
@@ -346,7 +347,7 @@ public class WW_Check1 {
                                     WAMPTools.createDict("invoke", "roundrobin"),
                                     "AAA", new Callee() {
                                 @Override
-                                public Future invoke(ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                                     return executor.submit(new Callable() {
                                         @Override
                                         public Object call() throws Exception {

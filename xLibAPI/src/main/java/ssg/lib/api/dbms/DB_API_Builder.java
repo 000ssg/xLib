@@ -55,7 +55,7 @@ import static ssg.lib.api.util.JDBCTools.rs2list;
  */
 public class DB_API_Builder {
 
-    public static DB_API scanJDBC(DB_API_Context context, String[] schemas, DBItemVerifier verifier) throws SQLException {
+    public static DB_API buildJDBC(DB_API_Context context, String[] schemas, DBItemVerifier verifier) throws SQLException {
         try {
             DB_API dbm = context.getDBM();
             Connection conn = context.getConnection();
@@ -706,7 +706,7 @@ public class DB_API_Builder {
         }
     }
 
-    public static DB_API scanOracle(DB_API_Context context, String[] schemas, DBItemVerifier verifier) throws SQLException {
+    public static DB_API buildOracle(DB_API_Context context, String[] schemas, DBItemVerifier verifier) throws SQLException {
         try {
             Connection conn = context.getConnection();
             Map<String, APIItem> resolved = context.getResolved();
@@ -1729,10 +1729,9 @@ public class DB_API_Builder {
     }
 
     public static List<Object[]> select(Connection conn, String sql) throws SQLException {
-        CallableStatement cs = conn.prepareCall(sql);
-        ResultSet rs = cs.executeQuery();
-        return JDBCTools.rs2list(rs, false);
-
+        try ( CallableStatement cs = conn.prepareCall(sql);  ResultSet rs = cs.executeQuery();) {
+            return JDBCTools.rs2list(rs, false);
+        }
     }
 
     public static interface ProceedRange<T extends APIDataType> {

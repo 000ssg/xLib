@@ -50,6 +50,8 @@ import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.WAMPCallee;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
 import ssg.lib.wamp.rpc.impl.Procedure;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
 import ssg.lib.wamp.util.WAMPTools;
@@ -60,6 +62,12 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * @author 000ssg
  */
 public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
+
+    public static final WAMPFeature[] supports = new WAMPFeature[]{
+        WAMPFeature.shared_registration,
+        WAMPFeature.sharded_registration,
+        WAMPFeature.progressive_call_results
+    };
 
     Map<Long, CalleeCall> calls = WAMPTools.createSynchronizedMap();
     Map<Long, Procedure> procedures = WAMPTools.createSynchronizedMap();
@@ -83,11 +91,11 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
     }
 
     public WAMPRPCCallee(WAMPFeature... features) {
-        super(new Role[]{Role.callee}, features);
+        super(new Role[]{Role.callee}, WAMPFeature.intersection(supports, features));
     }
 
     public WAMPRPCCallee(ScheduledExecutorService pool, WAMPFeature... features) {
-        super(new Role[]{Role.callee}, features);
+        super(new Role[]{Role.callee}, WAMPFeature.intersection(supports, features));
         this.pool = pool;
     }
 
@@ -236,14 +244,14 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         if (!session.hasLocalRole(WAMP.Role.callee)) {
             throw new WAMPException("Only client with role 'callee' can yield (return procedure execution results).");
         }
-        CalleeCall call = (CalleeCall) calls.remove(invocationId);
+        CalleeCall call = (CalleeCall) (lastFragment ? calls.remove(invocationId) : calls.get(invocationId));
         if (call == null) {
             throw new WAMPException("No call found with id=" + invocationId);
         }
         Map<String, Object> details = WAMPTools.createDict(null);
         if (!lastFragment) {
             if (getFeatures().contains(WAMPFeature.progressive_call_results) && call.isProgressiveResult()) {
-                details.put("progress", true);
+                details.put(RPC_PROGRESSIVE_CALL_PROGRESS, true);
             } else {
                 throw new WAMPException("Progressive result is not allowed in this call" + ((getFeatures().contains(WAMPFeature.progressive_call_results)) ? "" : "(missing feature " + WAMPFeature.progressive_call_results + ")") + ": " + call + ", " + args + ", " + argsKw);
             }
@@ -351,27 +359,27 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             }
         }
         if (WAMPMessagesFlow.WAMPFlowStatus.handled == r) {
-            CalleeCall call = null;
+            CalleeCall call = new CalleeCall(proc, details);
 
             String procedure = (details.containsKey("procedure")) ? (String) details.get("procedure") : proc.getName();
 
             // if can - run immediately, otherwise prepare for delayed call
             if ((callsWIP.get() > getMaxConcurrentTasks())) {
-                call = new CalleeCall(proc, () -> {
+                final CalleeCall ccall = call;
+                ccall.delayed = () -> {
                     callsWIP.incrementAndGet();
                     // TODO: find stardard for actual procedure name evaluation, now rely on own "procedure" in details...
-                    return (Future) proc.callee.invoke(pool, procedure, args, argsKw);
-                });
+                    return (Future) proc.callee.invoke(ccall, pool, procedure, args, argsKw);
+                };
             } else {
                 callsWIP.incrementAndGet();
-                call = new CalleeCall(proc);
             }
             call.session = session;
             call.setId(request);
             call.proc = proc;
             if (getFeatures().contains(WAMPFeature.progressive_call_results)) {
-                if (details.containsKey("receive_progressive")) {
-                    call.setProgressiveResult((Boolean) details.get("receive_progressive"));
+                if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST)) {
+                    call.setProgressiveResult((Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST));
                 }
             }
 
@@ -389,10 +397,12 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                 pcs.onCall();
             }
 
-            // TODO: find stardard for actual procedure name evaluation, now rely on own "procedure" in details...
-            call.future = (call.hasDelayed()) ? null : proc.callee.invoke(pool, procedure, args, argsKw);
-            proc.wip.add(request);
-            calls.put(request, call);
+            synchronized (calls) {
+                proc.wip.add(request);
+                // TODO: find stardard for actual procedure name evaluation, now rely on own "procedure" in details...
+                call.future = (call.hasDelayed()) ? null : proc.callee.invoke(call, pool, procedure, args, argsKw);
+                calls.put(request, call);
+            }
         }
         return r;
     }
@@ -558,7 +568,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                             call.getStatistics().onError();
                             call.getStatistics().onDuration(call.durationNano());
                         }
-                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "invocation.error"));
+                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "no_executor.invocation.error"));
                     }
                 }
             }

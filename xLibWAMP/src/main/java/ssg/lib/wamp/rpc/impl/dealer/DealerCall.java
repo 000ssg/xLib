@@ -25,6 +25,7 @@ package ssg.lib.wamp.rpc.impl.dealer;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.rpc.impl.Call;
 import ssg.lib.wamp.util.WAMPTools;
@@ -80,5 +81,52 @@ public class DealerCall extends Call {
      */
     public WAMPCallStatistics getStatistics() {
         return statistics;
+    }
+
+    /**
+     * Wrapper for dealer multi procedure
+     */
+    public static class DealerMultiCall extends DealerCall {
+
+        long[] invocationIds;
+        AtomicInteger activeCalls = new AtomicInteger();
+
+        public DealerMultiCall(DealerMultiProcedure proc) {
+            super(proc);
+            invocationIds = new long[proc.procs.length];
+        }
+
+        public DealerMultiCall(DealerMultiProcedure proc, WAMPCallStatistics stat) {
+            super(proc, stat);
+            invocationIds = new long[proc.procs.length];
+        }
+
+        public int getProceduresCount() {
+            return ((DealerMultiProcedure) proc).procs.length;
+        }
+
+        public DealerProcedure getProcedure(int procIdx) {
+            return ((DealerMultiProcedure) proc).procs[procIdx];
+        }
+
+        public long getInvocationId(int procIdx) {
+            return invocationIds[procIdx];
+        }
+
+        /**
+         * Returns index of completed procedure
+         * @param invocationId
+         * @return 
+         */
+        public int completed(long invocationId) {
+            for (int i = 0; i < invocationIds.length; i++) {
+                if (invocationIds[i] == invocationId) {
+                    invocationIds[i] = 0;
+                    activeCalls.decrementAndGet();
+                    return i;
+                }
+            }
+            return -1;
+        }
     }
 }

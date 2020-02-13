@@ -188,6 +188,10 @@ public class WAMPClient extends WAMPNode {
         return properties;
     }
 
+    public boolean supportsFeature(WAMPFeature feature) {
+        return session != null && session.supportsFeature(feature);
+    }
+
     @Override
     public void onEstablished(WAMPSession session) {
         super.onEstablished(session);
@@ -597,9 +601,11 @@ public class WAMPClient extends WAMPNode {
 
     public Collection<WAMPMessage> getLostMessages() {
         List<WAMPMessage> r = new ArrayList<>();
-        for (Entry<WAMPMessage, WAMPFlowStatus> entry : tempStat.entrySet()) {
-            if (entry.getValue() == null || WAMPFlowStatus.busy == entry.getValue()) {
-                r.add(entry.getKey());
+        synchronized (tempStat) {
+            for (Entry<WAMPMessage, WAMPFlowStatus> entry : tempStat.entrySet()) {
+                if (entry.getValue() == null || WAMPFlowStatus.busy == entry.getValue()) {
+                    r.add(entry.getKey());
+                }
             }
         }
         return r;

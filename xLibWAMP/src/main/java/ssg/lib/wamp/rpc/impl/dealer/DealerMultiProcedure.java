@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2020 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,39 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.wamp.rpc.impl.callee;
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import ssg.lib.wamp.WAMP;
-import ssg.lib.wamp.rpc.WAMPCallee;
-import ssg.lib.wamp.util.WAMPException;
-import ssg.lib.wamp.rpc.impl.Procedure;
-import ssg.lib.wamp.util.WAMPTools;
+package ssg.lib.wamp.rpc.impl.dealer;
 
 /**
  *
  * @author 000ssg
  */
-public class CalleeProcedure extends Procedure {
+public class DealerMultiProcedure extends DealerProcedure {
 
-    Callee callee;
-    List<Long> wip = WAMPTools.createSynchronizedList();
+    DealerProcedure[] procs;
 
-    public CalleeProcedure(String name, Map<String, Object> options, Callee callee) {
-        super(name, options);
-        this.callee = callee;
+    public DealerMultiProcedure(DealerProcedure... procs) {
+        super(
+                procs[0].owner,
+                procs[0].getName(),
+                procs[0].getOptions(),
+                null
+        );
+        this.procs = procs;
     }
 
-    public static interface Callee<T> {
-
-        default void partial(CalleeCall call, List args, Map<String, Object> argsKw) throws WAMPException {
-            WAMPCallee wc = call.session.getRealm().getActor(WAMP.Role.callee);
-            wc.yield(call.session, call.getId(), false, args, argsKw);
-        }
-
-        Future<T> invoke(CalleeCall call, ExecutorService executor, String name, List args, Map<String, Object> argsKw) throws WAMPException;
-    }
 }

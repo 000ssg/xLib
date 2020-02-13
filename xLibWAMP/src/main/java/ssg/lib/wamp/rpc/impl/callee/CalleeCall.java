@@ -23,9 +23,11 @@
  */
 package ssg.lib.wamp.rpc.impl.callee;
 
+import java.util.Map;
 import java.util.concurrent.Future;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPSession;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
 import ssg.lib.wamp.rpc.impl.Call;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
 
@@ -43,21 +45,18 @@ public class CalleeCall extends Call {
     DelayedCall delayed;
 
     String procedure;
+    Map<String, Object> details;
     WAMPCallStatistics callStatistics;
 
-    public CalleeCall(CalleeProcedure proc) {
+    public CalleeCall(CalleeProcedure proc, Map<String, Object> details) {
         this.proc = proc;
+        this.details = details;
+        if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST)) {
+            setProgressiveResult(true);
+        }
         if (proc != null && proc.getStatistics() != null) {
             proc.getStatistics().onCall();
         }
-    }
-
-    public CalleeCall(CalleeProcedure proc, DelayedCall delayed) {
-        this.proc = proc;
-        if (proc != null && proc.getStatistics() != null) {
-            proc.getStatistics().onCall();
-        }
-        this.delayed = delayed;
     }
 
     public boolean hasDelayed() {
@@ -70,6 +69,10 @@ public class CalleeCall extends Call {
         } finally {
             delayed = null;
         }
+    }
+
+    public String getAgent() {
+        return session.getLocal().getAgent() + "-" + session.getRemote().getAgent();
     }
 
     public static interface DelayedCall {

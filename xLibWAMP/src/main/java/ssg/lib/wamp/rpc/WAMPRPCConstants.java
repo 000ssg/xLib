@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2020 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,35 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.api;
+package ssg.lib.wamp.rpc;
 
 /**
  *
- * @author 000ssg
+ * @author sesidoro
  */
-public class APIDataType extends APIItem {
-
-    private static final long serialVersionUID = 1L;
-    public boolean mandatory;
-
-    public APIDataType(APIItemCategory category, String name, String... scope) {
-        super(category, name, scope);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(super.toString());
-        sb.delete(sb.length() - 1, sb.length());
-        //sb.append(", len=" + len + ", scale=" + scale + ", prec=" + prec + ", cs=" + cs + ", mandatory=" + mandatory);
-        sb.append(", mandatory=" + mandatory);
-        sb.append(", java=" + ((getJavaType() != null) ? getJavaType() : "<none>"));
-        sb.append('}');
-        return sb.toString();
-    }
-
-    public Class getJavaType() {
-        return Object.class;
-    }
-
+public class WAMPRPCConstants {
+    public static final String RPC_PROGRESSIVE_CALL_REQUEST = "receive_progress";
+    public static final String RPC_PROGRESSIVE_CALL_PROGRESS = "progress";
 }

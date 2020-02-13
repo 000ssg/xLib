@@ -56,6 +56,7 @@ import ssg.lib.wamp.events.WAMPBroker;
 import ssg.lib.wamp.events.WAMPEventListener.WAMPEventListenerBase;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
+import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.websocket.WebSocket;
@@ -316,7 +317,7 @@ public class WAMP_CS {
                     "PROC_1",
                     new Callee() {
                 @Override
-                public Future invoke(ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                     System.out.println(Thread.currentThread().getName() + ":invoke[" + args + "|" + argsKw + "]");
                     return executor.submit(new Callable() {
                         @Override

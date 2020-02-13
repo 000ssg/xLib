@@ -139,7 +139,6 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
                     long request = msg.getId(0);
                     WAMPMessageType rmt = session.getPending(request, false);
                     if (rmt != null && rmt.getId() == WAMPMessageType.T_CALL) {
-                        session.getPending(request, true); // mark as responded...
                         return ((WAMPCaller) session.getRealm().getActor(WAMP.Role.caller)).result(session, msg);
                     } else {
                         return WAMPFlowStatus.failed;

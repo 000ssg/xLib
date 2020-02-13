@@ -40,6 +40,7 @@ import ssg.lib.wamp.messages.WAMPMessageTypeAdvanced;
 import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.RPC_CANCEL_OPT_MODE_SKIP;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
 import ssg.lib.wamp.rpc.WAMPCaller;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
@@ -50,6 +51,11 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  */
 public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
 
+    public static final WAMPFeature[] supports = new WAMPFeature[]{
+        WAMPFeature.call_canceling,
+        WAMPFeature.progressive_call_results
+    };
+
     Map<Long, CallerCall> calls = WAMPTools.createSynchronizedMap();
     private int maxConcurrentCalls = 50;
     Map<String, WAMPCallStatistics> callStats = WAMPTools.createSynchronizedMap();
@@ -58,7 +64,7 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
     }
 
     public WAMPRPCCaller(WAMPFeature... features) {
-        super(new Role[]{Role.caller}, features);
+        super(new Role[]{Role.caller}, WAMPFeature.intersection(supports, features));
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -153,13 +159,15 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
         }
         long request = msg.getId(0);
         Map<String, Object> details = msg.getDict(1);
-        Boolean inProgress = (Boolean) details.get("progress");
+        Boolean inProgress = (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS);
         if (inProgress == null) {
             inProgress = false;
         }
         List args = (msg.getData().length > 2) ? msg.getList(2) : null;
         Map<String, Object> argsKw = (msg.getData().length > 3) ? msg.getDict(3) : null;
-        CallerCall call = (inProgress) ? calls.get(request) : calls.remove(request);
+        CallerCall call = (inProgress)
+                ? calls.get(request)
+                : calls.remove(request);
         if (call == null) {
             r = WAMPMessagesFlow.WAMPFlowStatus.ignored;
         }
@@ -167,7 +175,9 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
             call.callStatistics.onDuration(call.durationNano());
         }
         if (WAMPMessagesFlow.WAMPFlowStatus.handled == r) {
-            call.caller.onResult(call.getId(), details, args, argsKw);
+            if (call.caller.onResult(call.getId(), details, args, argsKw)) {
+                session.getPending(request, true); // mark as responded...
+            }
         }
         return r;
     }
