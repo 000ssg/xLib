@@ -38,6 +38,7 @@ import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
+import ssg.lib.wamp.rpc.WAMPDealer;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -144,20 +145,16 @@ public class WAMPRouter extends WAMPNode {
         return meta;
     }
 
+    /**
+     * Performs timeout checks and per-transport run cycles
+     *
+     * @throws WAMPException
+     */
     @Override
     public void runCycle() throws WAMPException {
         if (!sessions.isEmpty()) {
             Object[] transports = sessions.keySet().toArray();
-//            WAMPTransport[] transports = null;
-//            synchronized (sessions) {
-//                while (transports == null) {
-//                    try {
-//                        transports = sessions.keySet().toArray(new WAMPTransport[sessions.size()]);
-//                    } catch (ConcurrentModificationException cmex) {
-//                    }
-//                }
-//            }
-            // 
+
             if (transports != null) {
                 for (Object to : transports) {
                     WAMPTransport transport = (WAMPTransport) to;
@@ -200,6 +197,12 @@ public class WAMPRouter extends WAMPNode {
         if (session == WAMPSession.NO_SESSION) {
             session = null;
         }
+        
+        if(session!=null) {
+            WAMPDealer wd = session.getRealm().getActor(Role.dealer);
+            if(wd!=null) wd.checkTimeout(session);
+        }
+        
         boolean tooBusy = session != null && getMaxPendingMessagesQueue() > 0 && session.getPendingCount() > getMaxPendingMessagesQueue();
 
         // get last unhandled or next received message

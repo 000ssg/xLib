@@ -42,6 +42,7 @@ import static ssg.lib.wamp.messages.WAMPMessageType.T_WELCOME;
 import static ssg.lib.wamp.messages.WAMPMessageType.WELCOME;
 import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.WAMPFeature;
+import static ssg.lib.wamp.messages.WAMPMessageType.T_CHALLENGE;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_ERROR;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_INVOCATION;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_PUBLISHED;
@@ -50,7 +51,6 @@ import static ssg.lib.wamp.messages.WAMPMessageType.T_RESULT;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_SUBSCRIBED;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_UNREGISTERED;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_UNSUBSCRIBED;
-import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.T_CHALLENGE;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**

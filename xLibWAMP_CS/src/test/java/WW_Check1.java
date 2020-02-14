@@ -54,12 +54,15 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WebSocket_CSGroup;
 import ssg.lib.wamp.events.WAMPEventListener;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_CREATE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_DELETE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_REGISTER;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_UNREGISTER;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.callee.WAMPRPCCallee;
 import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
-import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.websocket.WebSocket;
 import ssg.lib.websocket.WebSocketExtension;
@@ -248,7 +251,7 @@ public class WW_Check1 {
         WAMPClient spy = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, null, "agent_spy", "OPENPOINT.TEST2", Role.subscriber);
         if (1 == 0) {
             spy.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_CREATE,
+                    RPC_REG_META_TOPIC_ON_CREATE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""
@@ -260,7 +263,7 @@ public class WW_Check1 {
                         );
                     }));
             spy.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_REGISTER,
+                    RPC_REG_META_TOPIC_ON_REGISTER,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""
@@ -272,7 +275,7 @@ public class WW_Check1 {
                         );
                     }));
             spy.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_UNREGISTER,
+                    RPC_REG_META_TOPIC_ON_UNREGISTER,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""
@@ -284,7 +287,7 @@ public class WW_Check1 {
                         );
                     }));
             spy.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_DELETE,
+                    RPC_REG_META_TOPIC_ON_DELETE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""

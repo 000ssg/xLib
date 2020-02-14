@@ -43,6 +43,21 @@ import ssg.lib.wamp.flows.WAMPMessagesFlow.WAMPFlowStatus;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.messages.WAMP_DT;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_INVOKE_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_MATCH_EXACT;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_MATCH_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_MATCH_PREFIX;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_MATCH_WILDCARD;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_COUNT_CALLEES;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_GET;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LIST;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LIST_CALLEES;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LOOKUP;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_MATCH;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_CREATE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_DELETE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_REGISTER;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_UNREGISTER;
 import ssg.lib.wamp.rpc.impl.Procedure;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPCMeta.InvocationPolicy;
 import ssg.lib.wamp.util.WAMPTools;
@@ -65,24 +80,9 @@ public class WAMPRPCRegistrations {
     Map<Long, DealerProcedure> procedures = WAMPTools.createSynchronizedMap();
     public static final String TIME_FORMAT_8601 = "yyyy-MM-dd'T'HH:mm:ssX";
 
-    // Subscriptions
-    public static final String TOPIC_ON_CREATE = "wamp.registration.on_create";
-    public static final String TOPIC_ON_REGISTER = "wamp.registration.on_register";
-    public static final String TOPIC_ON_UNREGISTER = "wamp.registration.on_unregister";
-    public static final String TOPIC_ON_DELETE = "wamp.registration.on_delete";
-
-    //////////////////////////////////////////////////////////////////////// RPC
-    // RPC names
-    public static final String RPC_LIST = "wamp.registration.list";
-    public static final String RPC_LOOKUP = "wamp.registration.lookup";
-    public static final String RPC_MATCH = "wamp.registration.match";
-    public static final String RPC_GET = "wamp.registration.get";
-    public static final String RPC_LIST_CALLEES = "wamp.registration.list_callees";
-    public static final String RPC_COUNT_CALLEES = "wamp.registration.count_callees";
-
     WAMPCallStatistics statistics;
     // RPC implementations
-    DealerLocalProcedure rpcList = new DealerLocalProcedure(RPC_LIST) {
+    DealerLocalProcedure rpcList = new DealerLocalProcedure(RPC_REG_META_PROC_LIST) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
@@ -99,7 +99,7 @@ public class WAMPRPCRegistrations {
             }
         }
     };
-    DealerLocalProcedure rpcLookup = new DealerLocalProcedure(RPC_LOOKUP) {
+    DealerLocalProcedure rpcLookup = new DealerLocalProcedure(RPC_REG_META_PROC_LOOKUP) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
@@ -115,13 +115,13 @@ public class WAMPRPCRegistrations {
             }
         }
     };
-    DealerLocalProcedure rpcMatch = new DealerLocalProcedure(RPC_MATCH) {
+    DealerLocalProcedure rpcMatch = new DealerLocalProcedure(RPC_REG_META_PROC_MATCH) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             return rpcLookup.doResult(session, msg);
         }
     };
-    DealerLocalProcedure rpcGet = new DealerLocalProcedure(RPC_GET) {
+    DealerLocalProcedure rpcGet = new DealerLocalProcedure(RPC_REG_META_PROC_GET) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
@@ -139,30 +139,25 @@ public class WAMPRPCRegistrations {
             }
         }
     };
-    DealerLocalProcedure rpcListCallees = new DealerLocalProcedure(RPC_LIST_CALLEES) {
+    DealerLocalProcedure rpcListCallees = new DealerLocalProcedure(RPC_REG_META_PROC_LIST_CALLEES) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             return false;
         }
     };
-    DealerLocalProcedure rpcCountCallees = new DealerLocalProcedure(RPC_COUNT_CALLEES) {
+    DealerLocalProcedure rpcCountCallees = new DealerLocalProcedure(RPC_REG_META_PROC_COUNT_CALLEES) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             return false;
         }
     };
-
-    // Registrations
-    public static final String MATCH_EXACT = "exact";
-    public static final String MATCH_PREFIX = "prefix";
-    public static final String MATCH_WILDCARD = "wildcard";
 
     Map<String, MatchPolicy> policies = WAMPTools.createMap(true);
 
     public WAMPRPCRegistrations() {
-        policies.put(MATCH_EXACT, new ExactMatchPolicy());
-        policies.put(MATCH_PREFIX, new PrefixMatchPolicy());
-        policies.put(MATCH_WILDCARD, new WildcardMatchPolicy());
+        policies.put(RPC_CALL_MATCH_EXACT, new ExactMatchPolicy());
+        policies.put(RPC_CALL_MATCH_PREFIX, new PrefixMatchPolicy());
+        policies.put(RPC_CALL_MATCH_WILDCARD, new WildcardMatchPolicy());
     }
 
     /**
@@ -191,7 +186,7 @@ public class WAMPRPCRegistrations {
      * @param features
      */
     public void registerFeatureMethods(Collection<WAMPFeature> features) {
-        MatchPolicy mp = policies.get(MATCH_EXACT);
+        MatchPolicy mp = policies.get(RPC_CALL_MATCH_EXACT);
         // ensure built-in methods registration is atomic operation
         synchronized (mp) {
             List<DealerProcedure> procs = WAMPTools.createList();
@@ -237,9 +232,9 @@ public class WAMPRPCRegistrations {
         long request = msg.getId(0);
         Map<String, Object> options = msg.getDict(1);
         String procedure = msg.getUri(2);
-        String match = (String) options.get("match");
-        String invocation = (String) options.get("invoke");
-        MatchPolicy mp = policies.get(MATCH_EXACT);
+        String match = (String) options.get(RPC_CALL_MATCH_KEY);
+        String invocation = (options.containsKey(RPC_CALL_INVOKE_KEY)) ? "" + options.get(RPC_CALL_INVOKE_KEY) : null;
+        MatchPolicy mp = policies.get(RPC_CALL_MATCH_EXACT);
         if (match != null) {
             if (policies.containsKey(match)) {
                 mp = policies.get(match);
@@ -301,10 +296,10 @@ public class WAMPRPCRegistrations {
 
             if (rpc.count() == 1) {
                 // EVENT created
-                broker.doEvent(null, session.getNextRequestId(), TOPIC_ON_CREATE, session.getId(), details, null, null);
+                broker.doEvent(null, session.getNextRequestId(), RPC_REG_META_TOPIC_ON_CREATE, session.getId(), details, null, null);
             }
             // EVENT registered
-            broker.doEvent(null, session.getNextRequestId(), TOPIC_ON_REGISTER, session.getId(), details, Collections.singletonList(registrationId), null);
+            broker.doEvent(null, session.getNextRequestId(), RPC_REG_META_TOPIC_ON_REGISTER, session.getId(), details, Collections.singletonList(registrationId), null);
         }
 
         return WAMPFlowStatus.handled;
@@ -367,10 +362,10 @@ public class WAMPRPCRegistrations {
                 WAMPBroker broker = session.getRealm().getActor(WAMP.Role.broker);
                 // EVENT send unregister
                 boolean mayAck = WAMP_DT.id.validate(request);
-                broker.doEvent(null, (mayAck) ? session.getNextRequestId() : 0, TOPIC_ON_UNREGISTER, session.getId(), WAMPTools.EMPTY_DICT, Collections.singletonList(registrationId), null);
+                broker.doEvent(null, (mayAck) ? session.getNextRequestId() : 0, RPC_REG_META_TOPIC_ON_UNREGISTER, session.getId(), WAMPTools.EMPTY_DICT, Collections.singletonList(registrationId), null);
                 if (rpc.count() == 0) {
                     // EVENT deleted
-                    broker.doEvent(null, (mayAck) ? session.getNextRequestId() : 0, TOPIC_ON_DELETE, session.getId(), WAMPTools.EMPTY_DICT, Collections.singletonList(registrationId), null);
+                    broker.doEvent(null, (mayAck) ? session.getNextRequestId() : 0, RPC_REG_META_TOPIC_ON_DELETE, session.getId(), WAMPTools.EMPTY_DICT, Collections.singletonList(registrationId), null);
                 }
             }
 
@@ -418,7 +413,9 @@ public class WAMPRPCRegistrations {
                 rpcs = Arrays.copyOf(rpcs, off);
             }
             if (rpcs.length > 0) {
-                return new DealerMultiProcedure(rpcs);
+                DealerProcedure proc = new DealerMultiProcedure(rpcs);
+                proc.setStatistics(rpc.getStatistics(procedure));
+                return proc;
             }
             return null;
         } else if (registeredIds != null && registeredIds.length == 1) {
@@ -433,7 +430,6 @@ public class WAMPRPCRegistrations {
                         rpc.registrations.remove(registeredId);
                     }
                 }
-                int a = 0;
             }
             return proc;
         }
@@ -676,10 +672,10 @@ public class WAMPRPCRegistrations {
             details.put("created", new SimpleDateFormat(TIME_FORMAT_8601).format(new Date(created))); // to ISO 8601...
             details.put("uri", name);
             if (match != null) {
-                details.put("match", match);
+                details.put(RPC_CALL_MATCH_KEY, match);
             }
             if (invocation != null) {
-                details.put("invoke", invocation);
+                details.put(RPC_CALL_INVOKE_KEY, invocation);
             }
             return details;
         }

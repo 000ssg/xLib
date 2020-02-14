@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.wamp.WAMP;
+import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.util.WAMPRuntimeException;
 import ssg.lib.wamp.util.WAMPTools;
 
@@ -73,39 +74,18 @@ public class WAMPMessageType {
     public static final int T_INVOCATION = 68;
     public static final int T_YIELD = 70;
 
+    
+    // Advanced profile message codes
+    public static final int T_CHALLENGE = 4;
+    public static final int T_AUTHENTICATE = 5;
+    public static final int T_CANCEL = 49;
+    public static final int T_INTERRUPT = 69;
+    
+    
+    
     private static int maxTypeId = 0;
     static Map<Integer, String> messageTypeNames = WAMPTools.createMap(true, (map) -> {
-        // find all static final T_* int fields and sort by value
-        Field[] fields = WAMPMessageType.class.getFields();
-        int[][] idx = new int[fields.length][];
-        int off = 0;
-        for (int i = 0; i < fields.length; i++) {
-            Field f = fields[i];
-            if (Modifier.isStatic(f.getModifiers())
-                    && Modifier.isFinal(f.getModifiers())
-                    && Modifier.isPublic(f.getModifiers())
-                    && f.getName().startsWith("T_")
-                    && f.getType() == int.class) {
-                try {
-                    idx[off++] = new int[]{i, f.getInt(null)};
-                } catch (Throwable th) {
-                }
-            }
-        }
-        idx = Arrays.copyOf(idx, off);
-        Arrays.sort(idx, new Comparator<int[]>() {
-            @Override
-            public int compare(int[] arg0, int[] arg1) {
-                Integer i0 = arg0[1];
-                return i0.compareTo(arg1[1]);
-            }
-        });
-        //
-        for (int[] ii : idx) {
-            String n = fields[ii[0]].getName();
-            n = n.substring(2);
-            map.put(ii[1], n);
-        }
+        scanTypeNames(map,WAMPMessageType.class);
     });
 
     // request message types indicate message needs response -> pending for response...
@@ -125,6 +105,41 @@ public class WAMPMessageType {
     );
 
     static final Map<Integer, WAMPMessageType[]> messageTypes = WAMPTools.createMap(true);
+
+    static synchronized void scanTypeNames(Map<Integer, String> map, Class... classes) {
+        for (Class clazz : classes) {
+            Field[] fields = clazz.getFields();
+            int[][] idx = new int[fields.length][];
+            int off = 0;
+            for (int i = 0; i < fields.length; i++) {
+                Field f = fields[i];
+                if (Modifier.isStatic(f.getModifiers())
+                        && Modifier.isFinal(f.getModifiers())
+                        && Modifier.isPublic(f.getModifiers())
+                        && f.getName().startsWith("T_")
+                        && f.getType() == int.class) {
+                    try {
+                        idx[off++] = new int[]{i, f.getInt(null)};
+                    } catch (Throwable th) {
+                    }
+                }
+            }
+            idx = Arrays.copyOf(idx, off);
+            Arrays.sort(idx, new Comparator<int[]>() {
+                @Override
+                public int compare(int[] arg0, int[] arg1) {
+                    Integer i0 = arg0[1];
+                    return i0.compareTo(arg1[1]);
+                }
+            });
+            //
+            for (int[] ii : idx) {
+                String n = fields[ii[0]].getName();
+                n = n.substring(2);
+                map.put(ii[1], n);
+            }
+        }
+    }
 
     /**
      * map of message type -> sender[0]/receiver[1] roles
@@ -453,6 +468,57 @@ public class WAMPMessageType {
         )
     };
 
+    
+    // Advanced: Authentication
+    public static WAMPMessageType CHALLENGE = new WAMPMessageType(
+            T_CHALLENGE,
+            new String[]{
+                WAMP_DT.uri.toNamed("AuthMethod"),
+                WAMP_DT.dict.toNamed("Extra")
+            },
+            new Role[]{Role.router},
+            new Role[]{Role.client}
+    );
+
+    public static WAMPMessageType AUTHENTICATE = new WAMPMessageType(
+            T_AUTHENTICATE,
+            new String[]{
+                WAMP_DT.uri.toNamed("Signature"),
+                WAMP_DT.dict.toNamed("Extra")
+            },
+            new Role[]{Role.client},
+            new Role[]{Role.router}
+    );
+
+    // Advanced: RPC
+    public static WAMPMessageType CANCEL = new WAMPMessageType(
+            T_CANCEL,
+            new String[]{
+                WAMP_DT.id.toNamed("CALL.Request"),
+                WAMP_DT.dict.toNamed("Options")
+            },
+            new Role[]{Role.caller},
+            new Role[]{Role.dealer}
+    );
+    public static WAMPMessageType INTERRUPT = new WAMPMessageType(
+            T_INTERRUPT,
+            new String[]{
+                WAMP_DT.id.toNamed("INVOCATION.Request"),
+                WAMP_DT.dict.toNamed("Options")
+            },
+            new Role[]{Role.dealer},
+            new Role[]{Role.callee}
+    );
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     static void registerType(WAMPMessageType mt) {
         if (mt == null) {
             return;
@@ -583,6 +649,20 @@ public class WAMPMessageType {
         registerType(this);
     }
 
+    public WAMPMessageType(int id, String[] signature, Role[] fromFlow, Role[] toFlow) {
+        this.id = id;
+        this.signature = signature;
+
+        // self-registration
+        registerType(this);
+
+        // publishing - publish
+        flow.put(id, new Role[][]{
+            fromFlow,
+            toFlow
+        });
+    }
+    
     public int getId() {
         return id;
     }

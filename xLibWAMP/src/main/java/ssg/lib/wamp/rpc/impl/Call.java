@@ -33,6 +33,7 @@ public class Call {
 
     private long id;
     long started = System.nanoTime();
+    long timeout = 0;
     private boolean progressiveResult = false;
 
     /**
@@ -57,12 +58,34 @@ public class Call {
         return System.nanoTime() - started;
     }
 
+    /**
+     * Returns true if timeout is set (!=0) procedure execution time exceeds
+     * timeout.
+     *
+     * @return
+     */
+    public boolean isOvertime() {
+        return hasTimeout() && timeout < (durationNano() / 1000000);
+    }
+
+    public boolean hasTimeout() {
+        return timeout != 0;
+    }
+
+    public long getTimesout() {
+        return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+        this.timeout = timeout;
+    }
+
     @Override
     public String toString() {
         return (getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName())
                 + "{"
                 + "id=" + getId()
-                + ", started=" + getStarted()
+                + ", started=" + getStarted() + " (wip" + (timeout != 0 ? "/timeout" : "") + "=" + (System.nanoTime() - started) / 1000000f + (timeout != 0 ? "/" + timeout : "") + "ms)"
                 + ", progressive result=" + isProgressiveResult()
                 + '}';
     }

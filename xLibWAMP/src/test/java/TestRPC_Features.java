@@ -10,13 +10,18 @@ import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPRouter;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
-import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_INVOKE_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_TIMEOUT;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS_KEY;
+import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerSimple;
+import static ssg.lib.wamp.rpc.impl.WAMPRPCListener.cancelCallbackDebug;
+import static ssg.lib.wamp.rpc.impl.WAMPRPCListener.errorCallbackDebug;
+import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPCMeta.InvocationPolicy;
 
 
 /*
@@ -54,21 +59,36 @@ public class TestRPC_Features {
                 WAMPFeature.sharded_registration,
                 WAMPFeature.shared_registration,
                 WAMPFeature.progressive_call_results,
-                WAMPFeature.call_canceling
+                WAMPFeature.call_canceling,
+                WAMPFeature.call_timeout
         );
 
         final WAMPClient[] callees = new WAMPClient[3];
+        WAMPFeature[][] calleeFeatures = new WAMPFeature[][]{
+            {
+                WAMPFeature.sharded_registration,
+                WAMPFeature.shared_registration,
+                WAMPFeature.progressive_call_results,
+                WAMPFeature.call_timeout
+            },
+            {
+                WAMPFeature.sharded_registration,
+                WAMPFeature.shared_registration,
+                WAMPFeature.progressive_call_results},
+            {
+                WAMPFeature.sharded_registration,
+                WAMPFeature.shared_registration,
+                //WAMPFeature.progressive_call_results,
+                WAMPFeature.call_timeout
+            }
+        };
         for (int i = 0; i < callees.length; i++) {
             WAMPTransportList.WAMPTransportLoop crt = new WAMPTransportList.WAMPTransportLoop();
             router.onNewTransport(crt.remote);
             WAMPClient callee = new WAMPClient()
                     .configure(
                             crt.local,
-                            new WAMPFeature[]{
-                                WAMPFeature.sharded_registration,
-                                WAMPFeature.shared_registration,
-                                WAMPFeature.progressive_call_results
-                            },
+                            calleeFeatures[i],
                             "callee_" + i,
                             "testRealm",
                             Role.callee
@@ -78,13 +98,18 @@ public class TestRPC_Features {
         }
 
         final WAMPClient[] callers = new WAMPClient[3];
+        WAMPFeature[][] callerFeatures = new WAMPFeature[][]{
+            {WAMPFeature.call_canceling},
+            {WAMPFeature.call_canceling, WAMPFeature.call_timeout},
+            {WAMPFeature.progressive_call_results, WAMPFeature.call_canceling}
+        };
         for (int i = 0; i < callers.length; i++) {
             WAMPTransportList.WAMPTransportLoop crt = new WAMPTransportList.WAMPTransportLoop();
             router.onNewTransport(crt.remote);
             WAMPClient caller = new WAMPClient()
                     .configure(
                             crt.local,
-                            (i == 0 || i == 2) ? new WAMPFeature[]{WAMPFeature.call_canceling} : new WAMPFeature[]{WAMPFeature.progressive_call_results, WAMPFeature.call_canceling},
+                            callerFeatures[i],
                             "caller_" + i + "_" + (((i == 0) ? "no_partial" : "partial")),
                             "testRealm",
                             Role.caller
@@ -121,7 +146,7 @@ public class TestRPC_Features {
         runner.setDaemon(true);
         runner.start();
 
-        callees[0].addExecutor(WAMPTools.createDict("invoke", "roundrobin"), "A", new Callee() {
+        callees[0].addExecutor(WAMPTools.createDict(RPC_CALL_INVOKE_KEY, InvocationPolicy.roundrobin), "A", new Callee() {
             @Override
             public Future invoke(final CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                 return executor.submit(new Callable() {
@@ -150,11 +175,13 @@ public class TestRPC_Features {
                         String[] text = ("SHARED[" + call.getAgent() + "][" + name + "] Line 1.|SHARED[" + call.getAgent() + "][" + name + "] Line 2.|SHARED[" + call.getAgent() + "][" + name + "] Line 3.").split("\\|");
                         if (call.isProgressiveResult()) {
                             for (int i = 0; i < text.length - 1; i++) {
+                                Thread.sleep((long) (Math.random() * 80));
                                 partial(call, Collections.singletonList(text[i]), null);
-                                Thread.sleep((long) (Math.random() * 100));
                             }
+                                Thread.sleep((long) (Math.random() * 80));
                             return text[text.length - 1];
                         } else {
+                                Thread.sleep((long) (Math.random() * 80));
                             return text;
                         }
                     }
@@ -170,11 +197,13 @@ public class TestRPC_Features {
                         String[] text = ("SHARDED[" + call.getAgent() + "][" + name + "] Line 1.|SHARDED[" + call.getAgent() + "][" + name + "] Line 2.|SHARDED[" + call.getAgent() + "][" + name + "] Line 3.").split("\\|");
                         if (call.isProgressiveResult()) {
                             for (int i = 0; i < text.length - 1; i++) {
-                                partial(call, Collections.singletonList(text[i]), null);
-                                Thread.sleep((long) (Math.random() * 110));
+                                Thread.sleep((long) (Math.random() * 80));
+                                partial(call, Collections.singletonList(text[i] + "[[" + call.durationNano() / 1000000f + "]]"), null);
                             }
-                            return text[text.length - 1];
+                                Thread.sleep((long) (Math.random() * 80));
+                            return text[text.length - 1] + "[[" + call.durationNano() / 1000000f + "]]";
                         } else {
+                                Thread.sleep((long) (Math.random() * 80));
                             return text;
                         }
                     }
@@ -183,98 +212,108 @@ public class TestRPC_Features {
         };
 
         for (WAMPClient c : callees) {
-            c.addExecutor(WAMPTools.createDict("invoke", "roundrobin"), "B", sharedProc);
-            c.addExecutor(WAMPTools.createDict("invoke", "sharded"), "C", shardedProc);
+            c.addExecutor(WAMPTools.createDict(RPC_CALL_INVOKE_KEY, InvocationPolicy.roundrobin), "B", sharedProc);
+            c.addExecutor(WAMPTools.createDict(RPC_CALL_INVOKE_KEY, InvocationPolicy.sharded), "C", shardedProc);
         }
 
         System.out.println(""
-                + "\n---------------------------------------"
+                + "\n-----------------------------------------------------"
                 + "\n================================ A - progressive test"
-                + "\n---------------------------------------"
+                + "\n-----------------------------------------------------"
         );
 
         for (int i = 0; i < 5; i++) {
             for (final WAMPClient c : callers) {
-                c.addWAMPRPCListener(new WAMPRPCListenerBase(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST, true), "A", null, null) {
-                    @Override
-                    public void onCancel(long callId, String reason) {
-                        System.out.println("cancelled[" + c.getAgent() + ", " + callId + "] " + reason);
-                    }
+                c.addWAMPRPCListener(new WAMPRPCListenerSimple(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST_KEY, true), "A", null, null)
+                        .configureCallback(cancelCallbackDebug, errorCallbackDebug)
+                        .configureResultCallback((long _callId, Map<String, Object> _details, List _args, Map<String, Object> _argsKw) -> {
+                            System.out.println("result[" + c.getAgent() + ", " + _callId + "] " + _details + "; " + _args + "; " + _argsKw);
+                            return !(_details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) _details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                        }));
 
-                    @Override
-                    public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                        System.out.println("result[" + c.getAgent() + ", " + callId + "] " + details + "; " + args + "; " + argsKw);
-                        return !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS));
-                    }
-
-                    @Override
-                    public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                        System.out.println("error[" + c.getAgent() + ", " + callId + "] " + error + "; " + details + "; " + args + "; " + argsKw);
-                    }
-                });
                 Thread.sleep(100);
             }
         }
 
         System.out.println(""
-                + "\n---------------------------------------"
+                + "\n------------------------------------------------"
                 + "\n================================ B - shared test"
-                + "\n---------------------------------------"
+                + "\n------------------------------------------------"
         );
 
         for (int i = 0; i < 5; i++) {
             for (final WAMPClient c : callers) {
-                c.addWAMPRPCListener(new WAMPRPCListenerBase(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST, true), "B", null, null) {
-                    @Override
-                    public void onCancel(long callId, String reason) {
-                        System.out.println("cancelled[" + c.getAgent() + ", " + callId + "] " + reason);
-                    }
-
-                    @Override
-                    public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                        System.out.println("result[" + c.getAgent() + ", " + callId + "] " + details + "; " + args + "; " + argsKw);
-                        return !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS));
-                    }
-
-                    @Override
-                    public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                        System.out.println("error[" + c.getAgent() + ", " + callId + "] " + error + "; " + details + "; " + args + "; " + argsKw);
-                    }
-                });
+                c.addWAMPRPCListener(new WAMPRPCListenerSimple(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST_KEY, true), "B", null, null)
+                        .configureCallback(cancelCallbackDebug, errorCallbackDebug)
+                        .configureResultCallback((long _callId, Map<String, Object> _details, List _args, Map<String, Object> _argsKw) -> {
+                            System.out.println("result[" + c.getAgent() + ", " + _callId + "] " + _details + "; " + _args + "; " + _argsKw);
+                            return !(_details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) _details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                        }));
+                Thread.sleep(100);
+            }
+        }
+        Thread.sleep(500);
+        System.out.println("-------------------------- with timeout: 10");
+        for (int i = 0; i < 5; i++) {
+            for (final WAMPClient c : callers) {
+                c.addWAMPRPCListener(new WAMPRPCListenerSimple(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST_KEY, true, RPC_CALL_TIMEOUT, 10), "B", null, null)
+                        .configureCallback(cancelCallbackDebug, errorCallbackDebug)
+                        .configureResultCallback((long _callId, Map<String, Object> _details, List _args, Map<String, Object> _argsKw) -> {
+                            System.out.println("result[" + c.getAgent() + ", " + _callId + "] " + _details + "; " + _args + "; " + _argsKw);
+                            return !(_details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) _details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                        }));
                 Thread.sleep(100);
             }
         }
 
         System.out.println(""
-                + "\n---------------------------------------"
+                + "\n-------------------------------------------------"
                 + "\n================================ C - sharded test"
-                + "\n---------------------------------------"
+                + "\n-------------------------------------------------"
         );
 
-        final AtomicInteger shardedCallID=new AtomicInteger();
+        final AtomicInteger shardedCallID = new AtomicInteger();
         for (int i = 0; i < 5; i++) {
             for (final WAMPClient c : callers) {
                 if (c.supportsFeature(WAMPFeature.progressive_call_results)) {
-                    System.out.println("----------------------------- "+c.getAgent());
-                    c.addWAMPRPCListener(new WAMPRPCListenerBase(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST, true), "C", null, null) {
-                        int callNum=shardedCallID.incrementAndGet();
-                        int partsCount=0;
-                        @Override
-                        public void onCancel(long callId, String reason) {
-                            System.out.println("cancelled[" + c.getAgent() + ", " + callId + "] " + reason);
-                        }
+                    System.out.println("----------------------------- " + c.getAgent());
+                    c.addWAMPRPCListener(new WAMPRPCListenerSimple(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST_KEY, true), "C", null, null) {
+                        long started = System.nanoTime();
+                        int callNum = shardedCallID.incrementAndGet();
+                        int partsCount = 0;
 
                         @Override
                         public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                            System.out.println("result[" + c.getAgent() + ", " + callId + ", "+callNum+"#"+(partsCount++)+"] " + details + "; " + args + "; " + argsKw);
-                            return !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS));
+                            boolean last = !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                            System.out.println("result[" + c.getAgent() + ", " + callId + ", " + callNum + "#" + (partsCount++) + ", time=" + (System.nanoTime() - started) / 1000000f + "] " + details + "; " + args + "; " + argsKw);
+                            return last;
                         }
+                    }.configureCallback(cancelCallbackDebug, errorCallbackDebug));
+                    Thread.sleep(100);
+                }
+            }
+        }
+
+        Thread.sleep(1000);
+
+        for (int i = 0; i < 5; i++) {
+            for (final WAMPClient c : callers) {
+                if (c.supportsFeature(WAMPFeature.progressive_call_results)) {
+                    System.out.println("----------------------------- " + c.getAgent() + " with timeout (80)");
+                    c.addWAMPRPCListener(new WAMPRPCListenerSimple(WAMPTools.createDict(RPC_PROGRESSIVE_CALL_REQUEST_KEY, true, RPC_CALL_TIMEOUT, 80), "C", null, null) {
+                        long started = System.nanoTime();
+                        int callNum = shardedCallID.incrementAndGet();
+                        int partsCount = 0;
 
                         @Override
-                        public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                            System.out.println("error[" + c.getAgent() + ", " + callId + "] " + error + "; " + details + "; " + args + "; " + argsKw);
+                        public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+//                            System.out.println("result[" + c.getAgent() + ", " + callId + ", " + callNum + "#" + (partsCount++) + "] " + details + "; " + args + "; " + argsKw);
+//                            return !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                            boolean last = !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+                            System.out.println("result[" + c.getAgent() + ", " + callId + ", " + callNum + "#" + (partsCount++) + ", time=" + (System.nanoTime() - started) / 1000000f + "] " + details + "; " + args + "; " + argsKw);
+                            return last;
                         }
-                    });
+                    }.configureCallback(cancelCallbackDebug, errorCallbackDebug));
                     Thread.sleep(100);
                 }
             }

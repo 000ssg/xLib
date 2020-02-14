@@ -287,8 +287,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
         int id = NEXT_TRANSPORT_ID.getAndIncrement();
 
         // 0 - local send, 1 - local received, 2 - remote send, 3 - remote received
-        AtomicInteger[][] typeCounts;
-        AtomicInteger[][] wtypeCounts;
+//        AtomicInteger[][] typeCounts;
+//        AtomicInteger[][] wtypeCounts;
         boolean TRACE_MSG = false;
         boolean TRACE_DATA = false;
 
@@ -296,8 +296,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // app message to send
             @Override
             public void onSend(WAMPMessage message) {
-                typeCounts[0][0].incrementAndGet();
-                typeCounts[message.getType().getId()][0].incrementAndGet();
+//                typeCounts[0][0].incrementAndGet();
+//                typeCounts[message.getType().getId()][0].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[L" + id + "].onSend    (" + message.toList() + ")");
                 }
@@ -306,8 +306,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // serialized message to send over wire
             @Override
             public void onSND(List message) {
-                wtypeCounts[0][0].incrementAndGet();
-                wtypeCounts[((Number) message.get(0)).intValue()][0].incrementAndGet();
+//                wtypeCounts[0][0].incrementAndGet();
+//                wtypeCounts[((Number) message.get(0)).intValue()][0].incrementAndGet();
                 if (TRACE_DATA) {
                     System.out.println("[L" + id + "].onSND     (" + message + ")");
                 }
@@ -316,8 +316,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // serialized message received over wire
             @Override
             public void onRCV(List message) {
-                wtypeCounts[0][1].incrementAndGet();
-                wtypeCounts[((Number) message.get(0)).intValue()][1].incrementAndGet();
+//                wtypeCounts[0][1].incrementAndGet();
+//                wtypeCounts[((Number) message.get(0)).intValue()][1].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[L" + id + "].onRCV     (" + message + ")");
                 }
@@ -326,8 +326,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // received app message
             @Override
             public void onReceived(WAMPMessage message) {
-                typeCounts[0][1].incrementAndGet();
-                typeCounts[message.getType().getId()][1].incrementAndGet();
+//                typeCounts[0][1].incrementAndGet();
+//                typeCounts[message.getType().getId()][1].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[L" + id + "].onReceived(" + message.toList() + ")");
                 }
@@ -337,8 +337,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // app message to send
             @Override
             public void onSend(WAMPMessage message) {
-                typeCounts[0][2].incrementAndGet();
-                typeCounts[message.getType().getId()][2].incrementAndGet();
+//                typeCounts[0][2].incrementAndGet();
+//                typeCounts[message.getType().getId()][2].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[R" + id + "].onSend    (" + message.toList() + ")");
                 }
@@ -347,8 +347,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // serialized message to send over wire
             @Override
             public void onSND(List message) {
-                wtypeCounts[0][2].incrementAndGet();
-                wtypeCounts[((Number) message.get(0)).intValue()][2].incrementAndGet();
+//                wtypeCounts[0][2].incrementAndGet();
+//                wtypeCounts[((Number) message.get(0)).intValue()][2].incrementAndGet();
                 if (TRACE_DATA) {
                     System.out.println("[R" + id + "].onSND     (" + message + ")");
                 }
@@ -357,8 +357,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // serialized message received over wire
             @Override
             public void onRCV(List message) {
-                wtypeCounts[0][3].incrementAndGet();
-                wtypeCounts[((Number) message.get(0)).intValue()][3].incrementAndGet();
+//                wtypeCounts[0][3].incrementAndGet();
+//                wtypeCounts[((Number) message.get(0)).intValue()][3].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[R" + id + "].onRCV     (" + message + ")");
                 }
@@ -367,8 +367,8 @@ public class WAMPTransportList<P> implements WAMPTransport {
             // received app message
             @Override
             public void onReceived(WAMPMessage message) {
-                typeCounts[0][3].incrementAndGet();
-                typeCounts[message.getType().getId()][3].incrementAndGet();
+//                typeCounts[0][3].incrementAndGet();
+//                typeCounts[message.getType().getId()][3].incrementAndGet();
                 if (TRACE_MSG) {
                     System.out.println("[R" + id + "].onReceived(" + message.toList() + ")");
                 }
@@ -376,46 +376,46 @@ public class WAMPTransportList<P> implements WAMPTransport {
         });
 
         public WAMPTransportLoop() {
-            typeCounts = new AtomicInteger[101][];
-            wtypeCounts = new AtomicInteger[101][];
-            for (int i = 0; i < typeCounts.length; i++) {
-                if (WAMPMessageType.getType(i) != null || i == 0) {
-                    typeCounts[i] = new AtomicInteger[]{
-                        new AtomicInteger(),
-                        new AtomicInteger(),
-                        new AtomicInteger(),
-                        new AtomicInteger()
-                    };
-                    wtypeCounts[i] = new AtomicInteger[]{
-                        new AtomicInteger(),
-                        new AtomicInteger(),
-                        new AtomicInteger(),
-                        new AtomicInteger()
-                    };
-                }
-            }
+//            typeCounts = new AtomicInteger[101][];
+//            wtypeCounts = new AtomicInteger[101][];
+//            for (int i = 0; i < typeCounts.length; i++) {
+//                if (WAMPMessageType.getType(i) != null || i == 0) {
+//                    typeCounts[i] = new AtomicInteger[]{
+//                        new AtomicInteger(),
+//                        new AtomicInteger(),
+//                        new AtomicInteger(),
+//                        new AtomicInteger()
+//                    };
+//                    wtypeCounts[i] = new AtomicInteger[]{
+//                        new AtomicInteger(),
+//                        new AtomicInteger(),
+//                        new AtomicInteger(),
+//                        new AtomicInteger()
+//                    };
+//                }
+//            }
         }
 
         public String getStat() {
             StringBuilder sb = new StringBuilder();
             long ts = System.currentTimeMillis();
 
-            sb.append("[" + ts + "] Counters:");
-            if (typeCounts != null) {
-                for (int i = 0; i < typeCounts.length; i++) {
-                    if (typeCounts[i] == null) {
-                        continue;
-                    }
-                    int is = typeCounts[i][0].get();
-                    int ir = typeCounts[i][1].get();
-                    int os = typeCounts[i][2].get();
-                    int or = typeCounts[i][3].get();
-                    if (is > 0 || os > 0) {
-                        WAMPMessageType[] mt = WAMPMessageType.getType(i);
-                        sb.append("\n  " + ((mt != null) ? mt[0].getName() : "ALL   ") + "\t local=" + is + "/" + ir + "\t remote=" + os + "/" + or);
-                    }
-                }
-            }
+//            sb.append("[" + ts + "] Counters:");
+//            if (typeCounts != null) {
+//                for (int i = 0; i < typeCounts.length; i++) {
+//                    if (typeCounts[i] == null) {
+//                        continue;
+//                    }
+//                    int is = typeCounts[i][0].get();
+//                    int ir = typeCounts[i][1].get();
+//                    int os = typeCounts[i][2].get();
+//                    int or = typeCounts[i][3].get();
+//                    if (is > 0 || os > 0) {
+//                        WAMPMessageType[] mt = WAMPMessageType.getType(i);
+//                        sb.append("\n  " + ((mt != null) ? mt[0].getName() : "ALL   ") + "\t local=" + is + "/" + ir + "\t remote=" + os + "/" + or);
+//                    }
+//                }
+//            }
             return sb.toString();
         }
 

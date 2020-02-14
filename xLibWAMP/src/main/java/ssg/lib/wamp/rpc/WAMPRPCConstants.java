@@ -24,10 +24,61 @@
 package ssg.lib.wamp.rpc;
 
 /**
+ * Constants defined in standard (and custom extensions) for use in RPC flow,
+ * both names (keys) and values.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRPCConstants {
-    public static final String RPC_PROGRESSIVE_CALL_REQUEST = "receive_progress";
-    public static final String RPC_PROGRESSIVE_CALL_PROGRESS = "progress";
+
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////// CALL/INVOCATION
+    ////////////////////////////////////////////////////////////////////////////
+    public static final String RPC_CALL_INVOKE_KEY = "invoke"; // values -> enum WAMPRPCRegistrations.RPCMeta.InvocationPolicy
+    public static final String RPC_CALL_MATCH_KEY = "match"; // values -> below...
+    public static final String RPC_CALL_TIMEOUT = "timeout"; // vzlues - time, ms
+    public static final String RPC_CALL_MATCH_EXACT = "exact";
+    public static final String RPC_CALL_MATCH_PREFIX = "prefix";
+    public static final String RPC_CALL_MATCH_WILDCARD = "wildcard";
+
+    ////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////// CANCEL
+    ////////////////////////////////////////////////////////////////////////////
+    public static final String RPC_CANCEL_OPT_MODE_KEY = "mode"; // values -> below...
+    public static final String RPC_CANCEL_OPT_MODE_SKIP = "skip";
+    public static final String RPC_CANCEL_OPT_MODE_KILL = "kill";
+    public static final String RPC_CANCEL_OPT_MODE_KILLNOWAIT = "killnowait";
+
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////// PRCOGRESSIVE RESULT
+    ////////////////////////////////////////////////////////////////////////////
+    public static final String RPC_PROGRESSIVE_CALL_REQUEST_KEY = "receive_progress"; // value - boolean
+    public static final String RPC_PROGRESSIVE_CALL_PROGRESS_KEY = "progress"; // value - boolean
+
+    ////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////// RPC REGISTRATIONS META
+    ////////////////////////////////////////////////////////////////////////////
+    // Subscriptions
+    public static final String RPC_REG_META_TOPIC_ON_CREATE = "wamp.registration.on_create";
+    public static final String RPC_REG_META_TOPIC_ON_REGISTER = "wamp.registration.on_register";
+    public static final String RPC_REG_META_TOPIC_ON_UNREGISTER = "wamp.registration.on_unregister";
+    public static final String RPC_REG_META_TOPIC_ON_DELETE = "wamp.registration.on_delete";
+
+    // RPC names
+    public static final String RPC_REG_META_PROC_LIST = "wamp.registration.list";
+    public static final String RPC_REG_META_PROC_LOOKUP = "wamp.registration.lookup";
+    public static final String RPC_REG_META_PROC_MATCH = "wamp.registration.match";
+    public static final String RPC_REG_META_PROC_GET = "wamp.registration.get";
+    public static final String RPC_REG_META_PROC_LIST_CALLEES = "wamp.registration.list_callees";
+    public static final String RPC_REG_META_PROC_COUNT_CALLEES = "wamp.registration.count_callees";
+
+    ////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////// NON_STANDARD
+    ////////////////////////////////////////////////////////////////////////////
+    /**
+     * Introduced to pass actually called procedure for prefix/wildcard match
+     * contexts... what is in WAMP spec?
+     */
+    public static final String RPC_INVOCATION_PROCEDURE_EXACT_KEY = "procedure"; // value - actual procedure name
+
 }

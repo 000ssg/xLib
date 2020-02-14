@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMPSession;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_TIMEOUT;
 import ssg.lib.wamp.rpc.impl.Call;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
@@ -51,25 +52,31 @@ public class DealerCall extends Call {
     // on dealer
     DealerProcedure proc;
     private WAMPCallStatistics statistics;
+    boolean callerErrorSent = false; // used to prevent multiple errors if mutli-RPC call
 
     // to/from callee
-    // long invocationId;
     long[] invocationIds;
     AtomicInteger activeCalls = new AtomicInteger();
 
     Map<String, Object> details = WAMPTools.createDict(null);
 
-    public DealerCall(DealerProcedure proc) {
+    public DealerCall(DealerProcedure proc, Map<String, Object> options) {
         this.proc = proc;
+        this.options = options;
         this.statistics = proc.getStatistics();
         if (statistics != null) {
             statistics.onCall();
         }
         invocationIds = new long[(proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1];
+        if (options.get(RPC_CALL_TIMEOUT) instanceof Number) {
+            Number n = (Number) options.get(RPC_CALL_TIMEOUT);
+            setTimeout(n.longValue());
+        }
     }
 
-    public DealerCall(DealerProcedure proc, WAMPCallStatistics stat) {
+    public DealerCall(DealerProcedure proc, Map<String, Object> options, WAMPCallStatistics stat) {
         this.proc = proc;
+        this.options = options;
         if (stat != null) {
             this.statistics = stat;
         } else {
@@ -120,52 +127,4 @@ public class DealerCall extends Call {
         }
         return -1;
     }
-//
-//    /**
-//     * Wrapper for dealer multi procedure
-//     */
-//    public static class DealerMultiCall extends DealerCall {
-//
-//        long[] invocationIds;
-//        AtomicInteger activeCalls = new AtomicInteger();
-//
-//        public DealerMultiCall(DealerMultiProcedure proc) {
-//            super(proc);
-//            invocationIds = new long[proc.procs.length];
-//        }
-//
-//        public DealerMultiCall(DealerMultiProcedure proc, WAMPCallStatistics stat) {
-//            super(proc, stat);
-//            invocationIds = new long[proc.procs.length];
-//        }
-//
-//        public int getProceduresCount() {
-//            return ((DealerMultiProcedure) proc).procs.length;
-//        }
-//
-//        public DealerProcedure getProcedure(int procIdx) {
-//            return ((DealerMultiProcedure) proc).procs[procIdx];
-//        }
-//
-//        public long getInvocationId(int procIdx) {
-//            return invocationIds[procIdx];
-//        }
-//
-//        /**
-//         * Returns index of completed procedure
-//         *
-//         * @param invocationId
-//         * @return
-//         */
-//        public int completed(long invocationId) {
-//            for (int i = 0; i < invocationIds.length; i++) {
-//                if (invocationIds[i] == invocationId) {
-//                    invocationIds[i] = 0;
-//                    activeCalls.decrementAndGet();
-//                    return i;
-//                }
-//            }
-//            return -1;
-//        }
-//    }
 }

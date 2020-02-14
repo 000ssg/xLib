@@ -34,15 +34,14 @@ import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
 import ssg.lib.wamp.WAMPConstantsBase;
-import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListenerDebug;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_COUNT_CALLEES;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_GET;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LIST;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LIST_CALLEES;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_LOOKUP;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_MATCH;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_COUNT_CALLEES;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_GET;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_LIST;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_LIST_CALLEES;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_LOOKUP;
-import static ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations.RPC_MATCH;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
@@ -240,12 +239,12 @@ public class WAMPCyleTesterRPC {
 
                 if (i > 0 && i % 17 == 0) {
                     for (WAMPClient client : callers) {
-                        String[] pns = new String[]{RPC_LIST,
-                            RPC_LOOKUP,
-                            RPC_MATCH,
-                            RPC_GET,
-                            RPC_LIST_CALLEES,
-                            RPC_COUNT_CALLEES
+                        String[] pns = new String[]{RPC_REG_META_PROC_LIST,
+                            RPC_REG_META_PROC_LOOKUP,
+                            RPC_REG_META_PROC_MATCH,
+                            RPC_REG_META_PROC_GET,
+                            RPC_REG_META_PROC_LIST_CALLEES,
+                            RPC_REG_META_PROC_COUNT_CALLEES
                         };
                         final String pn = pns[0];
 

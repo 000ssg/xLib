@@ -24,6 +24,7 @@
 package ssg.lib.wamp.rpc.impl.dealer;
 
 /**
+ * Enable multiple callee calls to perform single caller call.
  *
  * @author 000ssg
  */
@@ -47,7 +48,7 @@ public class DealerMultiProcedure extends DealerProcedure {
         sb.delete(sb.length() - 1, sb.length());
         sb.append(", procs=" + procs.length);
         for (DealerProcedure p : procs) {
-            sb.append("\n  "+p.toString().replace("\n", "\n  "));
+            sb.append("\n  " + p.toString().replace("\n", "\n  "));
         }
         sb.append("\n}");
         return sb.toString();

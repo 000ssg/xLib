@@ -36,14 +36,14 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
-import ssg.lib.wamp.messages.WAMPMessageTypeAdvanced;
-import static ssg.lib.wamp.messages.WAMPMessageTypeAdvanced.RPC_CANCEL_OPT_MODE_SKIP;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
 import ssg.lib.wamp.rpc.WAMPCaller;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CANCEL_OPT_MODE_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CANCEL_OPT_MODE_SKIP;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS_KEY;
 
 /**
  *
@@ -53,7 +53,8 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
 
     public static final WAMPFeature[] supports = new WAMPFeature[]{
         WAMPFeature.call_canceling,
-        WAMPFeature.progressive_call_results
+        WAMPFeature.progressive_call_results,
+        WAMPFeature.call_timeout
     };
 
     Map<Long, CallerCall> calls = WAMPTools.createSynchronizedMap();
@@ -141,7 +142,7 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
             if (mode == null || !session.supportsFeature(WAMPFeature.call_canceling)) {
                 mode = RPC_CANCEL_OPT_MODE_SKIP;
             }
-            session.send(new WAMPMessage(WAMPMessageTypeAdvanced.CANCEL, callId, mode));
+            session.send(WAMPMessage.cancel(callId, WAMPTools.createDict(RPC_CANCEL_OPT_MODE_KEY, mode)));
         }
     }
 
@@ -159,7 +160,7 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
         }
         long request = msg.getId(0);
         Map<String, Object> details = msg.getDict(1);
-        Boolean inProgress = (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS);
+        Boolean inProgress = (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY);
         if (inProgress == null) {
             inProgress = false;
         }
@@ -216,7 +217,6 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
                             WAMPCallStatistics cs = nfcs.get(call.procedure);
                             if (cs == null) {
                                 cs = getStatisticsForNotFound(call.procedure, true);
-                                //nfcs.put(call.procedure, cs);
                             }
                             if (cs != null) {
                                 cs.onCall();

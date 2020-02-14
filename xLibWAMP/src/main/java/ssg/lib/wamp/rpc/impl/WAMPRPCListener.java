@@ -25,6 +25,7 @@ package ssg.lib.wamp.rpc.impl;
 
 import java.util.List;
 import java.util.Map;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS_KEY;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
 import ssg.lib.wamp.util.WAMPTools;
 
@@ -135,7 +136,80 @@ public interface WAMPRPCListener extends CallListener {
         public void setState(CALL_STATE state) {
             this.state = state;
         }
+    }
 
+    public static class WAMPRPCListenerSimple extends WAMPRPCListenerBase {
+
+        ResultCallback resultCallback;
+        ErrorCallback errorCallback;
+        CancelCallback cancelCallback;
+
+        public WAMPRPCListenerSimple(Map<String, Object> options, String procedure) {
+            super(options, procedure);
+        }
+
+        public WAMPRPCListenerSimple(Map<String, Object> options, String procedure, List args) {
+            super(options, procedure, args);
+        }
+
+        public WAMPRPCListenerSimple(Map<String, Object> options, String procedure, List args, Map<String, Object> argsKw) {
+            super(options, procedure, args, argsKw);
+        }
+
+        public WAMPRPCListenerSimple configureResultCallback(ResultCallback resultCallback) {
+            this.resultCallback = resultCallback;
+            return this;
+        }
+
+        public WAMPRPCListenerSimple configureErrorCallback(ErrorCallback errorCallback) {
+            this.errorCallback = errorCallback;
+            return this;
+        }
+
+        public WAMPRPCListenerSimple configureCancelCallback(CancelCallback cancelCallback) {
+            this.cancelCallback = cancelCallback;
+            return this;
+        }
+
+        public WAMPRPCListenerSimple configureCallback(Object... callbacks) {
+            if (callbacks != null) {
+                for (Object callback : callbacks) {
+                    if (callback instanceof ResultCallback) {
+                        configureResultCallback((ResultCallback) callback);
+                    }
+                    if (callback instanceof ErrorCallback) {
+                        configureErrorCallback((ErrorCallback) callback);
+                    }
+                    if (callback instanceof CancelCallback) {
+                        configureCancelCallback((CancelCallback) callback);
+                    }
+                }
+            }
+            return this;
+        }
+
+        @Override
+        public void onCancel(long callId, String reason) {
+            if (cancelCallback != null) {
+                cancelCallback.onCallback(callId, reason);
+            }
+        }
+
+        @Override
+        public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+            if (resultCallback != null) {
+                return resultCallback.onCallback(callId, details, args, argsKw);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+            if (errorCallback != null) {
+                errorCallback.onCallback(callId, error, details, args, argsKw);
+            }
+        }
     }
 
     public static class WAMPRPCListenerWrapper implements WAMPRPCListener {
@@ -204,6 +278,33 @@ public interface WAMPRPCListener extends CallListener {
         public void setState(CALL_STATE state) {
             base.setState(state);
         }
-
     }
+
+    public static interface ResultCallback {
+
+        boolean onCallback(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw);
+    }
+
+    public static interface ErrorCallback {
+
+        void onCallback(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw);
+    }
+
+    public static interface CancelCallback {
+
+        void onCallback(long callId, String reason);
+    }
+
+    public static ResultCallback resultCallbackDebug = (long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) -> {
+        System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "] " + "result[" + callId + "]: " + details + "; " + args + "; " + argsKw);
+        return !(details.containsKey(RPC_PROGRESSIVE_CALL_PROGRESS_KEY) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_PROGRESS_KEY));
+    };
+
+    public static ErrorCallback errorCallbackDebug = (long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) -> {
+        System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "] " + "error [" + callId + "] " + error + "; " + details + "; " + args + "; " + argsKw);
+    };
+
+    public static CancelCallback cancelCallbackDebug = (long callId, String reason) -> {
+        System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "] " + "cancel[" + callId + "] " + reason);
+    };
 }

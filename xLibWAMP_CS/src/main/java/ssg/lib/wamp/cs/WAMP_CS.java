@@ -54,10 +54,12 @@ import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListenerDebug;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.events.WAMPBroker;
 import ssg.lib.wamp.events.WAMPEventListener.WAMPEventListenerBase;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_CREATE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_DELETE;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_REGISTER;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
-import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.websocket.WebSocket;
 import ssg.lib.websocket.WebSocketExtension;
@@ -277,7 +279,7 @@ public class WAMP_CS {
             rpc2.addWAMPNodeListener(new WAMPNodeListenerDebug("RPC2: "));
 
             spy.addWAMPEventListener(new WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_CREATE,
+                    RPC_REG_META_TOPIC_ON_CREATE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""
@@ -289,7 +291,7 @@ public class WAMP_CS {
                         );
                     }));
             spy.addWAMPEventListener(new WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_REGISTER,
+                    RPC_REG_META_TOPIC_ON_REGISTER,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""
@@ -301,7 +303,7 @@ public class WAMP_CS {
                         );
                     }));
             spy.addWAMPEventListener(new WAMPEventListenerBase(
-                    WAMPRPCRegistrations.TOPIC_ON_DELETE,
+                    RPC_REG_META_TOPIC_ON_DELETE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
                         System.out.println(""

@@ -50,12 +50,13 @@ import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.WAMPCallee;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_INVOCATION_PROCEDURE_EXACT_KEY;
 import ssg.lib.wamp.rpc.impl.Procedure;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST_KEY;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS_KEY;
 
 /**
  *
@@ -66,7 +67,8 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
     public static final WAMPFeature[] supports = new WAMPFeature[]{
         WAMPFeature.shared_registration,
         WAMPFeature.sharded_registration,
-        WAMPFeature.progressive_call_results
+        WAMPFeature.progressive_call_results,
+        WAMPFeature.call_timeout
     };
 
     Map<Long, CalleeCall> calls = WAMPTools.createSynchronizedMap();
@@ -250,8 +252,9 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         }
         Map<String, Object> details = WAMPTools.createDict(null);
         if (!lastFragment) {
-            if (getFeatures().contains(WAMPFeature.progressive_call_results) && call.isProgressiveResult()) {
-                details.put(RPC_PROGRESSIVE_CALL_PROGRESS, true);
+            //if (getFeatures().contains(WAMPFeature.progressive_call_results) && call.isProgressiveResult()) {
+            if (session.supportsFeature(WAMPFeature.progressive_call_results) && call.isProgressiveResult()) {
+                details.put(RPC_PROGRESSIVE_CALL_PROGRESS_KEY, true);
             } else {
                 throw new WAMPException("Progressive result is not allowed in this call" + ((getFeatures().contains(WAMPFeature.progressive_call_results)) ? "" : "(missing feature " + WAMPFeature.progressive_call_results + ")") + ": " + call + ", " + args + ", " + argsKw);
             }
@@ -340,7 +343,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         if (proc == null) {
             Map<String, WAMPCallStatistics> nfcs = getNotFoundCalls();
             synchronized (nfcs) {
-                String pn = ((details.containsKey("procedure")) ? (String) details.get("procedure") : proc.getName());
+                String pn = ((details.containsKey(RPC_INVOCATION_PROCEDURE_EXACT_KEY)) ? (String) details.get(RPC_INVOCATION_PROCEDURE_EXACT_KEY) : proc.getName());
                 WAMPCallStatistics cs = nfcs.get(pn);
                 if (cs == null) {
                     cs = getStatisticsForNotFound(pn, true);
@@ -361,7 +364,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         if (WAMPMessagesFlow.WAMPFlowStatus.handled == r) {
             CalleeCall call = new CalleeCall(proc, details);
 
-            String procedure = (details.containsKey("procedure")) ? (String) details.get("procedure") : proc.getName();
+            String procedure = (details.containsKey(RPC_INVOCATION_PROCEDURE_EXACT_KEY)) ? (String) details.get(RPC_INVOCATION_PROCEDURE_EXACT_KEY) : proc.getName();
 
             // if can - run immediately, otherwise prepare for delayed call
             if ((callsWIP.get() > getMaxConcurrentTasks())) {
@@ -377,9 +380,11 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             call.session = session;
             call.setId(request);
             call.proc = proc;
-            if (getFeatures().contains(WAMPFeature.progressive_call_results)) {
-                if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST)) {
-                    call.setProgressiveResult((Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST));
+            //if (getFeatures().contains(WAMPFeature.progressive_call_results)) {
+            call.setProgressiveResult(false);
+            if (session.supportsFeature(WAMPFeature.progressive_call_results)) {
+                if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST_KEY)) {
+                    call.setProgressiveResult((Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST_KEY));
                 }
             }
 
@@ -493,7 +498,23 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                         continue;
                     }
                     if (call.future != null) {
-                        if (call.future.isDone()) {
+                        boolean forcedTimeout = false;
+                        if (call.hasTimeout() && call.isOvertime() && !call.future.isDone()) {
+                            // cancel task if timeout is exceeded and is configured
+                            if (call.session.supportsFeature(WAMPFeature.call_timeout)) {
+                                call.future.cancel(true);
+                                forcedTimeout = true;
+                            }
+                        }
+                        if (call.future.isCancelled()) {
+                            callsWIP.decrementAndGet();
+                            this.calls.remove(call.getId());
+                            if (call.getStatistics() != null) {
+                                call.getStatistics().onError();
+                                call.getStatistics().onDuration(call.durationNano());
+                            }
+                            call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, forcedTimeout ? "timeout.invocation.error" : "cancelled.invocation.error"));
+                        } else if (call.future.isDone()) {
                             callsWIP.decrementAndGet();
                             call.proc.wip.remove(call.getId());
                             try {
@@ -542,14 +563,6 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                             } finally {
                                 this.calls.remove(call.getId());
                             }
-                        } else if (call.future.isCancelled()) {
-                            callsWIP.decrementAndGet();
-                            this.calls.remove(call.getId());
-                            if (call.getStatistics() != null) {
-                                call.getStatistics().onError();
-                                call.getStatistics().onDuration(call.durationNano());
-                            }
-                            call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "cancelled.invocation.error"));
                         } else {
                             // WIP...
                             int a = 0;

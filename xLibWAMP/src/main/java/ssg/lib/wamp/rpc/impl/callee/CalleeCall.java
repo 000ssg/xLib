@@ -27,9 +27,10 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPSession;
-import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_TIMEOUT;
 import ssg.lib.wamp.rpc.impl.Call;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_REQUEST_KEY;
 
 /**
  * Callee call context binds procedure descriptor and execution instance for a
@@ -51,11 +52,15 @@ public class CalleeCall extends Call {
     public CalleeCall(CalleeProcedure proc, Map<String, Object> details) {
         this.proc = proc;
         this.details = details;
-        if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST)) {
+        if (details.containsKey(RPC_PROGRESSIVE_CALL_REQUEST_KEY) && (Boolean) details.get(RPC_PROGRESSIVE_CALL_REQUEST_KEY)) {
             setProgressiveResult(true);
         }
         if (proc != null && proc.getStatistics() != null) {
             proc.getStatistics().onCall();
+        }
+        if (details.get(RPC_CALL_TIMEOUT) instanceof Number) {
+            Number n = (Number) details.get(RPC_CALL_TIMEOUT);
+            setTimeout(n.longValue());
         }
     }
 

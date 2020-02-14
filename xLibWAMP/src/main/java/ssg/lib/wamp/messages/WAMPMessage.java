@@ -26,6 +26,8 @@ package ssg.lib.wamp.messages;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import static ssg.lib.wamp.messages.WAMPMessageType.T_CANCEL;
+import static ssg.lib.wamp.messages.WAMPMessageType.T_INTERRUPT;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessageType.WAMPValidationResult;
 
@@ -107,6 +109,7 @@ public class WAMPMessage {
 
     public WAMPMessage(WAMPMessageType type, Object... data) throws WAMPException {
         if (type == null) {
+            try{WAMPMessageType.main(null);}catch(Throwable th){}
             throw new WAMPException("No WAMP message type");
         }
         WAMPValidationResult vr = type.validate(data);
@@ -281,4 +284,17 @@ public class WAMPMessage {
     public static WAMPMessage yield(long invocationRequest, Map<String, Object> options, List arguments, Map<String, Object> argumentsKw) throws WAMPException {
         return new WAMPMessage(WAMPMessageType.getType(WAMPMessageType.T_YIELD, 4), invocationRequest, options, arguments, argumentsKw);
     }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////// Advanced
+    ////////////////////////////////////////////////////////////////////////////
+    
+    //////////////// RPC
+    public static WAMPMessage cancel(long invocationId, Map<String, Object> options) throws WAMPException {
+        return new WAMPMessage(WAMPMessageType.getType(T_CANCEL, 2), invocationId, options);
+    }
+    public static WAMPMessage interrupt(long invocationId, Map<String, Object> options) throws WAMPException {
+        return new WAMPMessage(WAMPMessageType.getType(T_INTERRUPT, 2), invocationId, options);
+    }
+    
 }
