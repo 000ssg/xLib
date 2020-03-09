@@ -35,3 +35,8 @@ hs_err_pid*
 /xLibWAMP_CS_API/target/
 /xLibWS_CS/target/
 /xLibOAuth2/target/
+/xLibSSL/target/
+/xLibDI/target/
+/xLibHttp/target/
+/xLibNet/target/
+/xLibWAMP_CS/target/
