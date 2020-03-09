@@ -105,32 +105,34 @@ public class WebSocketFrame {
      * @throws IOException
      */
     public void read(List<ByteBuffer> is) throws IOException {
-        clear();
+        synchronized (this) {
+            clear();
 
-        long c = BufferTools.readTo(is.toArray(new ByteBuffer[is.size()]), frame.data());
-        if (c != frame.data().length) {
-            throw new IOException("Incomplete frame options/length: got " + c + ", expected " + frame.data().length);
-        }
-        len = frame.getUIntBits(1, 0, 7);
-        if (len == 127) {
-            c = BufferTools.readTo(is, len8r.data());
-            if (c != len8r.data().length) {
-                throw new IOException("Incomplete frame length: got " + c + ", expected " + len8r.data().length);
+            long c = BufferTools.readTo(is.toArray(new ByteBuffer[is.size()]), frame.data());
+            if (c != frame.data().length) {
+                throw new IOException("Incomplete frame options/length: got " + c + ", expected " + frame.data().length);
             }
-            len = len8r.getUInt(0);
-        } else if (len == 126) {
-            c = BufferTools.readTo(is, len2r.data());
-            if (c != len2r.data().length) {
-                throw new IOException("Incomplete frame length: got " + c + ", expected " + len2r.data().length);
+            len = frame.getUIntBits(1, 0, 7);
+            if (len == 127) {
+                c = BufferTools.readTo(is, len8r.data());
+                if (c != len8r.data().length) {
+                    throw new IOException("Incomplete frame length: got " + c + ", expected " + len8r.data().length);
+                }
+                len = len8r.getUInt(0);
+            } else if (len == 126) {
+                c = BufferTools.readTo(is, len2r.data());
+                if (c != len2r.data().length) {
+                    throw new IOException("Incomplete frame length: got " + c + ", expected " + len2r.data().length);
+                }
+                len = len2r.getUShort(0);
             }
-            len = len2r.getUShort(0);
-        }
-        if (hasMask()) {
-            mask = new byte[4];
-            ByteArray l0 = new ByteArray(mask);
-            c = BufferTools.readTo(is, l0.data());
-            if (c != l0.data().length) {
-                throw new IOException("Incomplete frame mask: got " + c + ", expected " + l0.data().length);
+            if (hasMask()) {
+                mask = new byte[4];
+                ByteArray l0 = new ByteArray(mask);
+                c = BufferTools.readTo(is, l0.data());
+                if (c != l0.data().length) {
+                    throw new IOException("Incomplete frame mask: got " + c + ", expected " + l0.data().length);
+                }
             }
         }
     }
@@ -143,34 +145,36 @@ public class WebSocketFrame {
      * @throws IOException
      */
     public List<ByteBuffer> write(byte[] data, int off, boolean preserveData) throws IOException {
-        List<ByteBuffer> r = new ArrayList<ByteBuffer>();
-        ByteBuffer out = ByteBuffer.allocateDirect(0
-                + 2 // flags + mask + size/size indicator
-                + ((len < 126) ? 0 : (len < 0x8FFF) ? 2 : 8) // data size + optional extra size
-                + ((hasMask() ? 4 : 0)) // mask if any
-                + (int) len // data size + optional extra size
-        );
+        synchronized (this) {
+            List<ByteBuffer> r = new ArrayList<ByteBuffer>();
+            ByteBuffer out = ByteBuffer.allocateDirect(0
+                    + 2 // flags + mask + size/size indicator
+                    + ((len < 126) ? 0 : (len < 0x8FFF) ? 2 : 8) // data size + optional extra size
+                    + ((hasMask() ? 4 : 0)) // mask if any
+                    + (int) len // data size + optional extra size
+            );
 
-        out.put(frame.data());
-        if (len > 125) {
-            if (len < 0x8FFF) {
-                len2w.setShort(0, (short) (len & 0xFFFF));
-                out.put(len2w.data());
-            } else {
-                len8w.setLong(0, len);
-                out.put(len8w.data());
+            out.put(frame.data());
+            if (len > 125) {
+                if (len < 0x8FFF) {
+                    len2w.setShort(0, (short) (len & 0xFFFF));
+                    out.put(len2w.data());
+                } else {
+                    len8w.setLong(0, len);
+                    out.put(len8w.data());
+                }
             }
-        }
-        if (hasMask() && mask != null) {
-            out.put(mask);
-        }
-        if (data != null && getLength() > 0) {
-            writePayload(data, off, preserveData, out);
-        }
-        ((Buffer) out).flip();
-        r.add(out);
+            if (hasMask() && mask != null) {
+                out.put(mask);
+            }
+            if (data != null && getLength() > 0) {
+                writePayload(data, off, preserveData, out);
+            }
+            ((Buffer) out).flip();
+            r.add(out);
 
-        return r;
+            return r;
+        }
     }
 
     /**

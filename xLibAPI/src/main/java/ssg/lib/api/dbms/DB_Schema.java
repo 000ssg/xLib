@@ -81,7 +81,6 @@ public class DB_Schema extends APIGroup {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString());
         sb.delete(sb.length() - 1, sb.length());
-        sb.append(", tables=" + tables.size() + ", packages=" + packages.size() + ", procs=" + procs.size() + ", funcs=" + funcs.size() + ", types=" + types.size());
         if (!packages.isEmpty()) {
             sb.append("\n  Packages: " + packages.keySet());
             for (Map.Entry<String, DB_Package> t : packages.entrySet()) {
@@ -98,6 +97,20 @@ public class DB_Schema extends APIGroup {
             sb.append('\n');
         }
         sb.append('}');
+        return sb.toString();
+    }
+
+    @Override
+    public String toStringInlineInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toStringInlineInfo());
+
+        if (!tables.isEmpty()) {
+            sb.append(", tables=" + tables.size());
+        }
+        if (!packages.isEmpty()) {
+            sb.append(", packages=" + packages.size());
+        }
         return sb.toString();
     }
 

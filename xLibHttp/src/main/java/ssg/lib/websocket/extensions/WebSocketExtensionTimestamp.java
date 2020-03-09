@@ -29,6 +29,8 @@ import ssg.lib.websocket.WebSocketFrame;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.common.ByteArray;
@@ -47,6 +49,11 @@ public class WebSocketExtensionTimestamp implements WebSocketExtension {
     @Override
     public String getName() {
         return "timestamp";
+    }
+
+    @Override
+    public Collection<String> getParameterNames() {
+        return Collections.singletonList("keepOffset");
     }
 
     @Override

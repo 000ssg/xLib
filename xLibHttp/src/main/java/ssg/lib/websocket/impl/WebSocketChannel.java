@@ -35,13 +35,17 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.ssl.SSLSocketChannel;
+import ssg.lib.websocket.WebSocketExtension;
 
 /**
  *
@@ -85,6 +89,13 @@ public class WebSocketChannel extends WebSocket {
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();//List<ByteBuffer> r = read();
+
+            if (getProtocolHandler() != null) {
+                WebSocketProtocolHandler wsh = getProtocolHandler();
+                if (wsh.canInitialize(this.channel, this)) {
+                    wsh.initialize(this.channel, this);
+                }
+            }
         }
     }
 
@@ -112,6 +123,13 @@ public class WebSocketChannel extends WebSocket {
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();//List<ByteBuffer> r = read();
+
+            if (getProtocolHandler() != null) {
+                WebSocketProtocolHandler wsh = getProtocolHandler();
+                if (wsh.canInitialize(this.channel, this)) {
+                    wsh.initialize(this.channel, this);
+                }
+            }
         }
     }
 
@@ -131,6 +149,13 @@ public class WebSocketChannel extends WebSocket {
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();
+
+            if (getProtocolHandler() != null) {
+                WebSocketProtocolHandler wsh = getProtocolHandler();
+                if (wsh.canInitialize(this.channel, this)) {
+                    wsh.initialize(this.channel, this);
+                }
+            }
         }
     }
 
@@ -166,6 +191,13 @@ public class WebSocketChannel extends WebSocket {
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();//List<ByteBuffer> r = read();
+
+            if (getProtocolHandler() != null) {
+                WebSocketProtocolHandler wsh = getProtocolHandler();
+                if (wsh.canInitialize(this.channel, this)) {
+                    wsh.initialize(this.channel, this);
+                }
+            }
         }
     }
 
@@ -188,6 +220,11 @@ public class WebSocketChannel extends WebSocket {
     }
 
     @Override
+    public <T> T getConnection() {
+        return (T) channel;
+    }
+
+    @Override
     public void closeConnection() throws IOException {
         if (isConnected()) {
             channel.close();
@@ -200,7 +237,7 @@ public class WebSocketChannel extends WebSocket {
         if (_async == null && channel != null) {
             _async = channel.isRegistered();
         }
-        return (_async != null) ? _async : false;//channel.isRegistered(); //!channel.isBlocking();
+        return (_async != null) ? _async : false;
     }
 
     @Override
@@ -250,7 +287,6 @@ public class WebSocketChannel extends WebSocket {
 
     @Override
     public void fetch() throws IOException {
-        //System.out.println("fetch-"+Thread.currentThread().getName());
         if (!isAsync()) {
             ByteBuffer bb = ByteBuffer.allocateDirect(1024 * 4);
             int c = channel.read(bb);
@@ -281,13 +317,15 @@ public class WebSocketChannel extends WebSocket {
      * @throws IOException
      */
     public void handshake(String version, URI uri) throws IOException {
+        String[] proposedProtocols = getAddOns()!=null ? getAddOns().getProposedProtocols() : null;
+        String[] proposedExtensions = getAddOns()!=null ? getAddOns().getProposedExtensions() : new String[]{"timestamp; keepOffset=true", "gzipped"};
         handshake(
                 version,
                 uri.getPath(),
                 uri.getHost() + ":" + uri.getPort(),
                 null,
-                null,
-                new String[]{"timestamp; keepOffset=true", "gzipped"},
+                proposedProtocols,
+                proposedExtensions,
                 0);
     }
 

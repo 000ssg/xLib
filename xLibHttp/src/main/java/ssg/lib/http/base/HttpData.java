@@ -49,6 +49,9 @@ import ssg.lib.common.buffers.ByteBufferPipeUnchunk;
  */
 public abstract class HttpData {
 
+    public static final long HF_NONE = 0x0000;
+    public static final long HF_SWITCHED = 0x0001; // non-http data flow (switched protocol)
+
     public static final String CRLF = "\r\n";
     public static final char CR = '\r';
     public static final char LF = '\n';
@@ -132,6 +135,8 @@ public abstract class HttpData {
 
     private List<Runnable> processors;
     private HttpContext context;
+
+    private long flags = HF_NONE;
 
     public HttpData() {
     }
@@ -790,4 +795,21 @@ public abstract class HttpData {
         this.context = context;
     }
 
+    /**
+     * @return the flags
+     */
+    public long getFlags() {
+        return flags;
+    }
+
+    /**
+     * @param flags the flags to set
+     */
+    public void setFlags(long flags) {
+        this.flags = flags;
+    }
+
+    public boolean hasFlags(long flags) {
+        return flags != HF_NONE && (this.flags & flags) == flags;
+    }
 }

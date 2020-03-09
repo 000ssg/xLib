@@ -30,6 +30,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -48,6 +50,11 @@ public class WebSocketExtensionGZip implements WebSocketExtension {
     @Override
     public String getName() {
         return "gzipped";
+    }
+
+    @Override
+    public Collection<String> getParameterNames() {
+        return Collections.EMPTY_LIST;
     }
 
     @Override

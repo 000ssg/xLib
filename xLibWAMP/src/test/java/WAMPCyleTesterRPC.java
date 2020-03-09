@@ -327,7 +327,7 @@ public class WAMPCyleTesterRPC {
 
             for (WAMPClient client : clients) {
                 System.out.println("CLIENT: " + client.getAgent());
-                client.disconnect(WAMPConstantsBase.SystemShutdown);
+                client.disconnect(WAMPConstantsBase.INFO_SystemShutdown);
                 for (int i = 0; i < 3; i++) {
                     try {
                         router.runCycle();

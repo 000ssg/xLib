@@ -32,6 +32,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,6 +52,11 @@ public class WebSocketExtensionMonitor implements WebSocketExtension {
     @Override
     public String getName() {
         return "monitor";
+    }
+
+    @Override
+    public Collection<String> getParameterNames() {
+        return Collections.singletonList("opcode");
     }
 
     @Override

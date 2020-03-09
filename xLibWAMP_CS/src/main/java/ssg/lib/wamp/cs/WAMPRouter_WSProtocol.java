@@ -64,8 +64,9 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                 WAMPRealm r = super.createRealm(context, name, features, roles);
                 return r;
             }
-        }.addDefaultFeatures(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);
-        wampRouter.setStatistics(new WAMPStatistics("router." + wampRouter.getAgent()));
+        }
+                .configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration)
+                .configure(new WAMPStatistics("router"));
     }
 
     public WAMPRouter_WSProtocol(Role[] roles, final WAMPFeature... routerFeatures) {
@@ -78,8 +79,9 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                 WAMPRealm r = super.createRealm(context, name, features, roles);
                 return r;
             }
-        }.addDefaultFeatures(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);;
-        wampRouter.setStatistics(new WAMPStatistics("router." + wampRouter.getAgent()));
+        }
+                .configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration)
+                .configure(new WAMPStatistics("router"));
     }
 
     public WAMPRouter_WSProtocol(WAMPRouter router) {
@@ -98,7 +100,8 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
 
     @Override
     public boolean canInitialize(Channel provider, WebSocket ws) {
-        return provider != null && provider.isOpen() && ws != null && ws.isInitialized() && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol()) && !ws.isClient();
+        //return (provider == null || provider.isOpen() && ws != null && ws.isInitialized()) && ws != null && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol()) && !ws.isClient();
+        return (provider == null || provider.isOpen()) && ws != null && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol()) && !ws.isClient();
     }
 
     @Override
@@ -161,7 +164,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         if (addOns == null) {
             addOns = new WebSocket.WebSocketAddons();
         }
-        addOns.addProtocols(WAMP.WS_SUB_PROTOCOL_JSON);
+        addOns.addProtocol(WAMP.WS_SUB_PROTOCOL_JSON, this);
         return addOns;
     }
 

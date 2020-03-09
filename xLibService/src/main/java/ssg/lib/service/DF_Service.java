@@ -49,6 +49,7 @@ import ssg.lib.di.DF;
 import ssg.lib.di.DI;
 import ssg.lib.di.DM;
 import ssg.lib.di.base.BaseDF;
+import ssg.lib.di.base.BaseDI;
 import ssg.lib.service.DF_Service.ServiceHandler;
 import ssg.lib.service.DataProcessor.HST;
 import static ssg.lib.service.DataProcessor.HST.none;
@@ -107,6 +108,65 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         }
     }
 
+    public DF_Service<P> configureFilter(DF<ByteBuffer, P> filter) {
+        filter(filter);
+        return this;
+    }
+
+    public DF_Service<P> configureExecutor(TaskExecutor taskExecutor) {
+        if (this.taskExecutor != null) {
+            this.taskExecutor.removeTaskExecutorListener(this);
+        }
+        this.taskExecutor = taskExecutor;
+        if (taskExecutor != null) {
+            taskExecutor.addTaskExecutorListener(this);
+        }
+        return this;
+    }
+
+    public DF_Service<P> configureService(int order, ServiceProcessor... services) {
+        this.services.configure(order, services);
+        return this;
+    }
+
+    public DF_Service<P> configureDataProcessor(int order, DataProcessor... dataProcessors) {
+        this.dataProcessors.configure(order, dataProcessors);
+        return this;
+    }
+
+    public DF_Service<P> configureListener(DF_ServiceListener... ls) {
+        addServiceListener(ls);
+        return this;
+    }
+
+    /**
+     * Create service-centric DI, i.e. DI with DF_Service as filter.
+     *
+     * @return
+     */
+    public DI<ByteBuffer, P> buildDI() {
+        DI<ByteBuffer, P> di = new BaseDI<ByteBuffer, P>() {
+            @Override
+            public long size(Collection<ByteBuffer>... data) {
+                return BufferTools.getRemaining(data);
+            }
+
+            @Override
+            public void consume(P provider, Collection<ByteBuffer>... data) throws IOException {
+                if (BufferTools.hasRemaining(data)) {
+                    throw new UnsupportedOperationException("Not supported: service MUST handle (consume) all data without leaving unhandled bytes.");
+                }
+            }
+
+            @Override
+            public List<ByteBuffer> produce(P provider) throws IOException {
+                return null;
+            }
+        };
+        di.filter(this);
+        return di;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////// TaskProvider impl
     ////////////////////////////////////////////////////////////////////////////
@@ -135,14 +195,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
     }
 
     @Override
-    public void onAdded(TaskProvider item) {
+    public void onAdded(Repository<TaskProvider> repository, TaskProvider item) {
         if (item != null && taskExecutor != null) {
             taskExecutor.execute(this, (List<Runnable>) (Object) item.getTasks(TaskPhase.initial));
         }
     }
 
     @Override
-    public void onRemoved(TaskProvider item) {
+    public void onRemoved(Repository<TaskProvider> repository, TaskProvider item) {
         if (item != null && taskExecutor != null) {
             taskExecutor.execute(this, (List<Runnable>) (Object) item.getTasks(TaskPhase.terminal));
         }
@@ -662,7 +722,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 @Override
                 public void onFound(Matched<DataProcessor> matched, Matcher<DataProcessor> matcher, boolean top) {
                     if (false) {
-                        matched.parameters = new Object[]{lastHST};
+                        matched.setParameters(new Object[]{lastHST});
                     }
                 }
 
@@ -821,9 +881,9 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         }
 
         public SERVICE_PROCESSING_STATE verifyProcessing() throws IOException {
-            if (processor != null) {
+            if (service != null || processor != null) {
                 try {
-                    lastSPS = processor.check(provider, di);
+                    lastSPS = (processor != null) ? processor.check(provider, di) : service.testProcessing(provider, di);
                     switch (lastSPS) {
                         case needProcess:
                             if (!processed && processing == null) {
@@ -837,6 +897,19 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                             }
                         case preparing:
                         case failed:
+                            if (processor == null) {
+                                if (error == null) {
+                                    error = new IOException("No data processor.");
+                                }
+                                if (error != reportedError) {
+                                    service.onServiceError(provider, di, error);
+                                }
+                                reportedError = error;
+                                if (hasServiceListeners()) {
+                                    notifyServiceEvent(provider, this, DF_ServiceListener.SERVICE_EVENT.verify_processing, SERVICE_PROCESSING_STATE.failed, error);
+                                }
+                                return lastSPS;
+                            }
                         case OK:
                         default:
                             if (hasServiceListeners()) {

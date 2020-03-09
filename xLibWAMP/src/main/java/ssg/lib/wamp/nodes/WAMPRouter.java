@@ -97,6 +97,9 @@ public class WAMPRouter extends WAMPNode {
                 }
             }
         }
+        if (session.getCloseReason() == null) {
+            session.setCloseReason("on.closing.transport");
+        }
         onSessionRemoved(session);
     }
 
@@ -163,10 +166,16 @@ public class WAMPRouter extends WAMPNode {
                     } catch (WAMPException wex) {
                         wex.printStackTrace();
                         WAMPSession session = sessions.remove(transport);
+                        if (session.getCloseReason() == null) {
+                            session.setCloseReason("router.runcycle.wamp.error");
+                        }
                         onSessionRemoved(session);
                     } catch (Throwable th) {
                         th.printStackTrace();
                         WAMPSession session = sessions.remove(transport);
+                        if (session.getCloseReason() == null) {
+                            session.setCloseReason("router.runcycle.generic.error");
+                        }
                         onSessionRemoved(session);
                     }
                 }
@@ -197,12 +206,14 @@ public class WAMPRouter extends WAMPNode {
         if (session == WAMPSession.NO_SESSION) {
             session = null;
         }
-        
-        if(session!=null) {
+
+        if (session != null) {
             WAMPDealer wd = session.getRealm().getActor(Role.dealer);
-            if(wd!=null) wd.checkTimeout(session);
+            if (wd != null) {
+                wd.checkTimeout(session);
+            }
         }
-        
+
         boolean tooBusy = session != null && getMaxPendingMessagesQueue() > 0 && session.getPendingCount() > getMaxPendingMessagesQueue();
 
         // get last unhandled or next received message
@@ -276,9 +287,8 @@ public class WAMPRouter extends WAMPNode {
                     }
                 } catch (WAMPException wex) {
                     wex.printStackTrace();
-                    session.send(WAMPMessage.abort(
-                            WAMPTools.createDict("message", msg.toList(), "error", WAMPTools.getStackTrace(wex)),
-                            WAMPConstantsBase.ProtocolViolation));
+                    session.send(WAMPMessage.abort(WAMPTools.createDict("message", msg.toList(), "error", WAMPTools.getStackTrace(wex)),
+                            WAMPConstantsBase.ERROR_ProtocolViolation));
                 }
             }
             tooBusy = false;//session != null && session.getPendingCount() > getMaxPendingMessagesQueue();
@@ -361,14 +371,6 @@ public class WAMPRouter extends WAMPNode {
         void onNewTransport(WAMPTransport transport);
 
         void onClosedTransport(WAMPTransport transport);
-    }
-
-    /**
-     * @param routerStatistics the routerStatistics to set
-     */
-    public <Z extends WAMPRouter> Z statistics(WAMPStatistics routerStatistics) {
-        setStatistics(routerStatistics);
-        return (Z) this;
     }
 
     /**

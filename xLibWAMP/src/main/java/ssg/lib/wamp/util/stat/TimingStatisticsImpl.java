@@ -47,6 +47,18 @@ public class TimingStatisticsImpl extends StatisticsBase implements TimingStatis
 
     private TimeUnit unit = TimeUnit.MILLISECONDS;
 
+    public TimingStatisticsImpl() {
+    }
+
+    public TimingStatisticsImpl(String name) {
+        super(name);
+    }
+    
+    public TimingStatisticsImpl unit(TimeUnit unit) {
+        setUnit(unit);
+        return this;
+    }
+
     /**
      * Disable timing data if no timing events...
      *
@@ -126,6 +138,7 @@ public class TimingStatisticsImpl extends StatisticsBase implements TimingStatis
             }
             sb.append("=");
             sb.append(toTimeValue(get(idx + duration)));
+            sb.append(" ["+get(idx + durationCount)+"]");
 
             if (!single) {
                 sb.append(" (");
@@ -184,6 +197,7 @@ public class TimingStatisticsImpl extends StatisticsBase implements TimingStatis
             case MINUTES:
             case HOURS:
             case DAYS:
+                return ""+value;
         }
         return null;
     }

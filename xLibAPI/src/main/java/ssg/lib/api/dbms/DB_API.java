@@ -66,6 +66,11 @@ public class DB_API extends API {
         super(db);
     }
 
+    public <T extends DB_API> T configure(DB_Connectable connectable) {
+        setConnectable(connectable);
+        return (T) this;
+    }
+
     public DB_Connectable getConnectable() {
         return dbConnectable;
     }

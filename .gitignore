@@ -32,3 +32,6 @@ hs_err_pid*
 /xLibService/nbproject/
 /xLibService/target/
 /xLibOAuth/target/
+/xLibWAMP_CS_API/target/
+/xLibWS_CS/target/
+/xLibOAuth2/target/

@@ -29,6 +29,7 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,8 +37,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import ssg.lib.common.Replacement;
@@ -66,19 +67,25 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
 
     public static final long UNKNOWN_SIZE = -2;
     public static long DEFAULT_DATA_PIPE_TIMEOUT = 1000 * 60 * 2;
-    Map<HttpMatcher, HttpResource> resources = new LinkedHashMap<>();
-    Map<HttpData, Runnable> runnables = new HashMap<>();
-    Collection<Runnable> initializers = new LinkedHashSet<>();
-    String localizables;
-    List<ParameterResolver> resolvers = new ArrayList<>();
+
+    String pStarter = "${";
+    String pEnder = "}";
+
+    private Map<HttpMatcher, HttpResource> resources = new LinkedHashMap<>();
+    private Map<HttpData, Runnable> runnables = new HashMap<>();
+    private Collection<Runnable> initializers = new LinkedHashSet<>();
+    private String localizables;
+    private Map<String, ParameterResolver[]> resolvers = new HashMap<>();
 
     boolean useDataPipes = true;
-    Map<HttpData, DataPipe> dataPipes = new HashMap() {
+    private Map<HttpData, DataPipe> dataPipes = new HashMap() {
         @Override
         public Object remove(Object key) {
             Object obj = super.remove(key);
             if (DEBUG_DP) {
-                System.out.println(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":removing " + key + ": " + obj);
+                System.out.println(
+                        HttpStaticDataProcessor.this.getClass().getSimpleName()
+                        + ":removing " + key + ": " + obj);
             }
             return obj;
         }
@@ -86,12 +93,15 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         @Override
         public Object put(Object key, Object value) {
             if (DEBUG_DP) {
-                System.out.println(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":adding " + key + ": " + value);
+                System.out.println(
+                        HttpStaticDataProcessor.this.getClass().getSimpleName()
+                        + ":adding " + key + ": " + value);
             }
-            return super.put(key, value); //To change body of generated methods, choose Tools | Templates.
+            return super.put(key, value);
         }
     };
-    Task dataPipeTask;
+    private Task dataPipeTask;
+    private transient Collection<P> assigned = Collections.synchronizedCollection(new HashSet<>());
 
     public HttpStaticDataProcessor() {
         super.setMatcher(new HttpMatcher.HttpMatcherComposite() {
@@ -123,15 +133,59 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         return this;
     }
 
-    public HttpStaticDataProcessor addParameterResolvers(ParameterResolver... resolvers) {
+    public HttpStaticDataProcessor addDefaultParameterResolvers() {
+        return this.addParameterResolvers(
+                new ParameterResolverSession(),
+                new ParameterResolverUser(),
+                new ParameterResolverApp()
+        );
+    }
+
+    public HttpStaticDataProcessor addParameterResolvers(
+            ParameterResolver... resolvers) {
         if (resolvers != null) {
             for (ParameterResolver pr : resolvers) {
-                if (pr != null && !this.resolvers.contains(pr)) {
-                    this.resolvers.add(pr);
+                if (pr == null) {
+                    continue;
+                }
+                String prefix = pr.getParametersPrefix();
+                if (prefix == null) {
+                    prefix = "";
+                }
+                ParameterResolver[] rs = this.resolvers.get(prefix);
+                if (rs == null) {
+                    this.resolvers.put(prefix, new ParameterResolver[]{pr});
+                } else {
+                    boolean found = false;
+                    for (ParameterResolver r : rs) {
+                        if (r.equals(pr)) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        rs = Arrays.copyOf(rs, rs.length + 1);
+                        rs[rs.length - 1] = pr;
+                        this.resolvers.put(prefix, rs);
+                    }
                 }
             }
         }
         return this;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    @Override
+    public void onDeassigned(P p, DI<?, P> di) {
+        super.onDeassigned(p, di);
+        assigned.remove(p);
+    }
+
+    @Override
+    public void onAssigned(P p, DI<?, P> di) {
+        assigned.add(p);
+        super.onAssigned(p, di);
     }
 
     @Override
@@ -139,31 +193,6 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         // do nothing: this class provides own matcher...
     }
 
-    @Override
-    public void onPrepareSend(HttpData data) throws IOException {
-        super.onPrepareSend(data);
-    }
-
-//    String getRequestQuery(HttpData data) {
-//        if (data instanceof HttpRequest) {
-//            String path = ((HttpRequest) data).getQuery();
-//            try {
-//                String pathX = URLDecoder.decode(path, "ISO-8859-1");
-//                if (!pathX.equals(path)) {
-//                    try {
-//                        String path8 = URLDecoder.decode(path, "UTF-8");
-//                        path = path8;
-//                    } catch (Throwable th) {
-//                        path = pathX;
-//                    }
-//                }
-//            } catch (Throwable th) {
-//            }
-//            return path;
-//        } else {
-//            return null;
-//        }
-//    }
     @Override
     public void onHeaderLoaded(HttpData data) throws IOException {
         super.onHeaderLoaded(data);
@@ -312,7 +341,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
     }
 
     public void onNoResource(HttpData data) throws IOException {
-        this.do500(data, "text/plain; charset=utf-8", ("No resource to match " + ((HttpRequest) data).getHostURL() + ((HttpRequest) data).getQuery()).getBytes("UTF-8"));
+        do500(data, "text/plain; charset=utf-8", ("No resource to match " + ((HttpRequest) data).getHostURL() + ((HttpRequest) data).getQuery()).getBytes("UTF-8"));
     }
 
     @Override
@@ -413,120 +442,160 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         String[] params = res.parameters();
         Map<byte[], byte[]> pvs = new LinkedHashMap<>();
         if (params != null) {
-            String pStarter = "${";
-            String pEnder = "}";
             if (base instanceof HttpResourceCollection) {
                 HttpResourceCollection hrc = (HttpResourceCollection) base;
                 pStarter = hrc.getParametersBounds()[0];
                 pEnder = hrc.getParametersBounds()[1];
             }
             for (String param : params) {
+                boolean resolved = false;
                 if (!resolvers.isEmpty()) {
                     try {
-                        boolean resolved = false;
+                        // scoped/prefix
                         String pn = param.substring(pStarter.length(), param.length() - pEnder.length());
-                        for (ParameterResolver pr : resolvers) {
-                            if (pr.canResolveParameter(data, pn)) {
-                                String v = pr.resolveParameter(data, pn);
-                                pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-                                resolved = true;
+                        for (Entry<String, ParameterResolver[]> rs : resolvers.entrySet()) {
+                            if (pn.startsWith(rs.getKey())) {
+                                String n = pn.substring(rs.getKey().length());
+                                for (ParameterResolver pr : rs.getValue()) {
+                                    if (pr.canResolveParameter(data, n)) {
+                                        String v = pr.resolveParameter(data, n);
+                                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
+                                        resolved = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (resolved) {
                                 break;
                             }
-                        }
-                        if (resolved) {
-                            continue;
                         }
                     } catch (Throwable th) {
                         th.printStackTrace();
                     }
                 }
 
-                if (param.contains("session")) {
-                    String p = param.substring(param.indexOf("session") + "session".length() + 1);
-                    if (pEnder != null) {
-                        p = p.substring(0, p.length() - pEnder.length());
-                    }
-                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-                    Object v = sess.getProperties().get(p);
-                    if (v != null) {
-                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-                    } else if ("locale".equals(p)) {
-                        Locale locale = sess.getLocale();
-                        String loc = (locale != null) ? locale.getLanguage() : "en";
-                        pvs.put(param.getBytes("UTF-8"), ("" + loc).getBytes("UTF-8"));
-                    }
-                } else if (param.contains("user.")) {
-                    String p = param.substring(param.indexOf("user") + "user".length() + 1);
-                    if (pEnder != null) {
-                        p = p.substring(0, p.length() - pEnder.length());
-                    }
-                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-                    HttpUser user = sess.getUser();
-                    if (user != null) {
-                        if ("id".equals(p)) {
-                            pvs.put(param.getBytes("UTF-8"), ("" + user.getId()).getBytes("UTF-8"));
-                        } else if ("name".equals(p)) {
-                            pvs.put(param.getBytes("UTF-8"), ("" + user.getName()).getBytes("UTF-8"));
-                        } else if ("domain".equals(p)) {
-                            pvs.put(param.getBytes("UTF-8"), ("" + user.getDomainName()).getBytes("UTF-8"));
-                        } else if ("roles".equals(p)) {
-                            StringBuilder sb = new StringBuilder();
-                            if (user.getRoles() != null) {
-                                for (String s : user.getRoles()) {
-                                    if (sb.length() > 0) {
-                                        sb.append(",");
+                if (!resolved) {
+                    try {
+                        if (param.contains("resource.name")) {
+                            String name = res.path();
+                            if (name.contains("/")) {
+                                name = name.substring(name.lastIndexOf("/") + 1);
+                            }
+                            pvs.put(param.getBytes("UTF-8"), name.getBytes("UTF-8"));
+                        } else if (param.contains("resource.path")) {
+                            pvs.put(param.getBytes("UTF-8"), res.path().getBytes("UTF-8"));
+                        } else if (param.contains("include ")) {
+                            String rn = param.substring(param.indexOf(" ", param.indexOf("include ")));
+                            if (rn.length() > 1) {
+                                rn = rn.substring(0, rn.length() - 1).trim();
+                            }
+                            HttpResource ri = base.find(rn);
+                            if (ri != null) {
+                                Replacement[] replacements = null;
+                                Map<byte[], byte[]> pvi = resolveParameters(data, ri, base);
+                                if (pvi != null && !pvi.isEmpty()) {
+                                    if (pvi != null && !pvi.isEmpty()) {
+                                        replacements = new Replacement[pvi.size()];
+                                        int off = 0;
+                                        for (Map.Entry<byte[], byte[]> entry : pvi.entrySet()) {
+                                            replacements[off++] = new Replacement(entry.getKey(), entry.getValue());
+                                        }
                                     }
-                                    sb.append(s);
                                 }
-                            }
-                            pvs.put(param.getBytes("UTF-8"), sb.toString().getBytes("UTF-8"));
-                        } else {
-                            Object v = (user != null) ? user.getProperties().get(p) : "";
-                            if (v != null) {
-                                pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
+                                pvs.put(param.getBytes("UTF-8"), ri.data(data, replacements));
                             }
                         }
-                    }
-                } else if (param.contains("app.")) {
-                    String p = param.substring(param.indexOf("app") + "app".length() + 1);
-                    if (pEnder != null) {
-                        p = p.substring(0, p.length() - pEnder.length());
-                    }
-                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-                    HttpApplication app = sess.getApplication();
-                    Object v = (app != null) ? app.getProperties().get(p) : "";
-                    if (v != null) {
-                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-                    }
-                } else if (param.contains("resource.name")) {
-                    String name = res.path();
-                    if (name.contains("/")) {
-                        name = name.substring(name.lastIndexOf("/") + 1);
-                    }
-                    pvs.put(param.getBytes("UTF-8"), name.getBytes("UTF-8"));
-                } else if (param.contains("resource.path")) {
-                    pvs.put(param.getBytes("UTF-8"), res.path().getBytes("UTF-8"));
-                } else if (param.contains("include ")) {
-                    String rn = param.substring(param.indexOf(" ", param.indexOf("include ")));
-                    if (rn.length() > 1) {
-                        rn = rn.substring(0, rn.length() - 1).trim();
-                    }
-                    HttpResource ri = base.find(rn);
-                    if (ri != null) {
-                        Replacement[] replacements = null;
-                        Map<byte[], byte[]> pvi = resolveParameters(data, ri, base);
-                        if (pvi != null && !pvi.isEmpty()) {
-                            if (pvi != null && !pvi.isEmpty()) {
-                                replacements = new Replacement[pvi.size()];
-                                int off = 0;
-                                for (Map.Entry<byte[], byte[]> entry : pvi.entrySet()) {
-                                    replacements[off++] = new Replacement(entry.getKey(), entry.getValue());
-                                }
-                            }
-                        }
-                        pvs.put(param.getBytes("UTF-8"), ri.data(data, replacements));
+                    } catch (Throwable th) {
+                        th.printStackTrace();
                     }
                 }
+
+//                if (param.contains("session")) {
+//                    String p = param.substring(param.indexOf("session") + "session".length() + 1);
+//                    if (pEnder != null) {
+//                        p = p.substring(0, p.length() - pEnder.length());
+//                    }
+//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
+//                    Object v = sess.getProperties().get(p);
+//                    if (v != null) {
+//                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
+//                    } else if ("locale".equals(p)) {
+//                        Locale locale = sess.getLocale();
+//                        String loc = (locale != null) ? locale.getLanguage() : "en";
+//                        pvs.put(param.getBytes("UTF-8"), ("" + loc).getBytes("UTF-8"));
+//                    }
+//                } else if (param.contains("user.")) {
+//                    String p = param.substring(param.indexOf("user") + "user".length() + 1);
+//                    if (pEnder != null) {
+//                        p = p.substring(0, p.length() - pEnder.length());
+//                    }
+//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
+//                    HttpUser user = sess.getUser();
+//                    if (user != null) {
+//                        if ("id".equals(p)) {
+//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getId()).getBytes("UTF-8"));
+//                        } else if ("name".equals(p)) {
+//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getName()).getBytes("UTF-8"));
+//                        } else if ("domain".equals(p)) {
+//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getDomainName()).getBytes("UTF-8"));
+//                        } else if ("roles".equals(p)) {
+//                            StringBuilder sb = new StringBuilder();
+//                            if (user.getRoles() != null) {
+//                                for (String s : user.getRoles()) {
+//                                    if (sb.length() > 0) {
+//                                        sb.append(",");
+//                                    }
+//                                    sb.append(s);
+//                                }
+//                            }
+//                            pvs.put(param.getBytes("UTF-8"), sb.toString().getBytes("UTF-8"));
+//                        } else {
+//                            Object v = (user != null) ? user.getProperties().get(p) : "";
+//                            if (v != null) {
+//                                pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
+//                            }
+//                        }
+//                    }
+//                } else if (param.contains("app.")) {
+//                    String p = param.substring(param.indexOf("app") + "app".length() + 1);
+//                    if (pEnder != null) {
+//                        p = p.substring(0, p.length() - pEnder.length());
+//                    }
+//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
+//                    HttpApplication app = sess.getApplication();
+//                    Object v = (app != null) ? app.getProperties().get(p) : "";
+//                    if (v != null) {
+//                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
+//                    }
+//                } else if (param.contains("resource.name")) {
+//                    String name = res.path();
+//                    if (name.contains("/")) {
+//                        name = name.substring(name.lastIndexOf("/") + 1);
+//                    }
+//                    pvs.put(param.getBytes("UTF-8"), name.getBytes("UTF-8"));
+//                } else if (param.contains("resource.path")) {
+//                    pvs.put(param.getBytes("UTF-8"), res.path().getBytes("UTF-8"));
+//                } else if (param.contains("include ")) {
+//                    String rn = param.substring(param.indexOf(" ", param.indexOf("include ")));
+//                    if (rn.length() > 1) {
+//                        rn = rn.substring(0, rn.length() - 1).trim();
+//                    }
+//                    HttpResource ri = base.find(rn);
+//                    if (ri != null) {
+//                        Replacement[] replacements = null;
+//                        Map<byte[], byte[]> pvi = resolveParameters(data, ri, base);
+//                        if (pvi != null && !pvi.isEmpty()) {
+//                            if (pvi != null && !pvi.isEmpty()) {
+//                                replacements = new Replacement[pvi.size()];
+//                                int off = 0;
+//                                for (Map.Entry<byte[], byte[]> entry : pvi.entrySet()) {
+//                                    replacements[off++] = new Replacement(entry.getKey(), entry.getValue());
+//                                }
+//                            }
+//                        }
+//                        pvs.put(param.getBytes("UTF-8"), ri.data(data, replacements));
+//                    }
+//                }
             }
         }
         if (localizables != null && res.localizeable() != null && res.localizeable().length > 0) {
@@ -670,25 +739,237 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         return Collections.emptyList();
     }
 
+    /**
+     * Parameter resolver provides resolution of parameters within given name
+     * space (prefix).
+     *
+     * It exposes name space (prefix), available parameters (may vary depending
+     * on context (data)).
+     *
+     * Parameter should be resolved only if it can be resolved.I
+     */
     public static interface ParameterResolver {
+
+        String getParametersPrefix();
+
+        Collection<String> getParameterNames(HttpData data, boolean withPrefix);
 
         boolean canResolveParameter(HttpData data, String parameterName);
 
         String resolveParameter(HttpData data, String parameterName);
     }
 
-    private transient Collection<P> assigned = Collections.synchronizedCollection(new HashSet<>());
+    public static class ParameterResolverSession implements ParameterResolver {
 
-    @Override
-    public void onDeassigned(P p, DI<?, P> di) {
-        super.onDeassigned(p, di);
-        assigned.remove(p);
+        HttpSession session(HttpData data) {
+            return (data instanceof HttpRequest)
+                    ? ((HttpRequest) data).getHttpSession()
+                    : null;
+        }
+
+        @Override
+        public String getParametersPrefix() {
+            return "session.";
+        }
+
+        @Override
+        public Collection<String> getParameterNames(HttpData data, boolean withPrefix) {
+            Collection<String> r = new HashSet<>();
+            r.add("id");
+
+            HttpSession session = session(data);
+            if (session != null) {
+                r.addAll(session.getProperties().keySet());
+            }
+
+            List<String> ns = new ArrayList<>(r.size());
+            ns.addAll(r);
+            Collections.sort(ns);
+            if (withPrefix) {
+                String pfx = getParametersPrefix();
+                for (int i = 0; i < ns.size(); i++) {
+                    ns.set(i, pfx + ns.get(i));
+                }
+            }
+
+            return ns;
+        }
+
+        @Override
+        public boolean canResolveParameter(HttpData data, String parameterName) {
+            return session(data) instanceof HttpSession && parameterName != null;
+        }
+
+        @Override
+        public String resolveParameter(HttpData data, String parameterName) {
+            if (canResolveParameter(data, parameterName)) {
+                HttpSession sess = session(data);
+
+                if ("id".equals(parameterName)) {
+                    return "" + sess.getId();
+                } else {
+                    Object v = sess.getProperties().get(parameterName);
+                    if (v != null) {
+                        return "" + v;
+                    }
+                }
+            }
+            return null;
+        }
     }
 
-    @Override
-    public void onAssigned(P p, DI<?, P> di) {
-        assigned.add(p);
-        super.onAssigned(p, di);
+    public static class ParameterResolverUser implements ParameterResolver {
+
+        static Collection<String> names = new HashSet<String>() {
+            {
+                add("id");
+                add("name");
+                add("domain");
+                add("roles");
+            }
+        };
+
+        HttpUser user(HttpData data) {
+            return data instanceof HttpRequest && ((HttpRequest) data).getHttpSession() != null
+                    ? ((HttpRequest) data).getHttpSession().getUser()
+                    : null;
+        }
+
+        @Override
+        public String getParametersPrefix() {
+            return "user.";
+        }
+
+        @Override
+        public Collection<String> getParameterNames(HttpData data, boolean withPrefix) {
+            Collection<String> r = new HashSet<>();
+            r.addAll(names);
+
+            HttpUser user = user(data);
+            if (user != null) {
+                r.addAll(user.getProperties().keySet());
+            }
+
+            List<String> ns = new ArrayList<>(r.size());
+            ns.addAll(r);
+            Collections.sort(ns);
+            if (withPrefix) {
+                String pfx = getParametersPrefix();
+                for (int i = 0; i < ns.size(); i++) {
+                    ns.set(i, pfx + ns.get(i));
+                }
+            }
+
+            return ns;
+        }
+
+        @Override
+        public boolean canResolveParameter(HttpData data, String parameterName) {
+            if (user(data) instanceof HttpUser && parameterName != null) {
+                if (names.contains(parameterName)) {
+                    return true;
+                }
+                HttpUser user = user(data);
+                if (user.getProperties().containsKey(parameterName)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public String resolveParameter(HttpData data, String parameterName) {
+            if (canResolveParameter(data, parameterName)) {
+                HttpUser user = user(data);
+                if ("id".equals(parameterName)) {
+                    return user.getId();
+                } else if ("name".equals(parameterName)) {
+                    return user.getName();
+                } else if ("domain".equals(parameterName)) {
+                    return user.getDomainName();
+                } else if ("roles".equals(parameterName)) {
+                    StringBuilder sb = new StringBuilder();
+                    if (user.getRoles() != null) {
+                        for (String s : user.getRoles()) {
+                            if (sb.length() > 0) {
+                                sb.append(",");
+                            }
+                            sb.append(s);
+                        }
+                    }
+                    return sb.toString();
+                } else {
+                    Object v = (user != null) ? user.getProperties().get(parameterName) : "";
+                    if (v != null) {
+                        return "" + v;
+                    }
+                }
+            }
+            return null;
+        }
+
+    }
+
+    public static class ParameterResolverApp implements ParameterResolver {
+
+        HttpApplication app(HttpData data) {
+            return data instanceof HttpRequest && ((HttpRequest) data).getHttpSession() != null
+                    ? ((HttpRequest) data).getHttpSession().getApplication()
+                    : null;
+        }
+
+        @Override
+        public String getParametersPrefix() {
+            return "app";
+        }
+
+        @Override
+        public boolean canResolveParameter(HttpData data, String parameterName) {
+            return app(data) instanceof HttpApplication && parameterName != null;
+        }
+
+        @Override
+        public Collection<String> getParameterNames(HttpData data, boolean withPrefix) {
+            Collection<String> r = new HashSet<>();
+            r.add("name");
+            r.add("root");
+
+            HttpApplication app = app(data);
+            if (app != null) {
+                r.addAll(app.getProperties().keySet());
+            }
+
+            List<String> ns = new ArrayList<>(r.size());
+            ns.addAll(r);
+            Collections.sort(ns);
+            if (withPrefix) {
+                String pfx = getParametersPrefix();
+                for (int i = 0; i < ns.size(); i++) {
+                    ns.set(i, pfx + ns.get(i));
+                }
+            }
+
+            return ns;
+        }
+
+        @Override
+        public String resolveParameter(HttpData data, String parameterName) {
+            if (canResolveParameter(data, parameterName)) {
+                HttpApplication app = app(data);
+
+                if ("name".equals(parameterName)) {
+                    return "" + app.getName();
+                } else if ("root".equals(parameterName)) {
+                    return "" + app.getRoot();
+                } else {
+                    Object v = app.getProperties().get(parameterName);
+                    if (v != null) {
+                        return "" + v;
+                    }
+                }
+            }
+            return null;
+        }
     }
 
     /**

@@ -34,7 +34,7 @@ import java.io.IOException;
  */
 public interface HttpConnectionUpgrade<P> {
 
-    boolean testUpgrade(Head head);
+    boolean testUpgrade(String root, Head head);
 
     HttpData doUpgrade(P provider, HttpData data) throws IOException;
 }

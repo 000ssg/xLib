@@ -38,37 +38,39 @@ import ssg.lib.http.base.HttpResponse;
  * @author 000ssg
  */
 public class FunctionalTests {
-
+    
     public static void main(String... args) throws Exception {
-        HttpStaticDataProcessor dp = new HttpStaticDataProcessor();
+        HttpStaticDataProcessor dp = new HttpStaticDataProcessor().addDefaultParameterResolvers();
         //dp.DEBUG = true;
-        //dp.useDataPipes=false;
+        //dp.useDataPipes = false;
         HttpResourceCollection rc = new HttpResourceCollection("/", "src/test/resources/replacements/");
         rc.contentTypes.put(".txt", "text/plain");
         dp.add(rc);
-
+        
         HttpApplication app = new HttpApplication("Test App", "/appl");
         HttpSession sess = new HttpSession("/", app);
         HttpRequest req = new HttpRequest(ByteBuffer.wrap("GET /A.txt HTTP/1.1\r\n\r\n".getBytes()));
         req.setContext(sess);
         dp.onHeaderLoaded(req);
-
+        
         TaskExecutor te = new TaskExecutor.TaskExecutorSimple();
         if (dp.useDataPipes) {
+            dp.onAssigned(null, null); // simulate there's provider used for optimization...
             te.execute(dp, dp.getTasks(TaskPhase.initial));
         } else {
             te.execute(dp, dp.fetchRunnable(req));
         }
-
+        
         System.out.println("\nOUTPUT: ");
         HttpResponse res = req.getResponse();
         List<ByteBuffer> bbs = null;
         while (true) {
             bbs = res.get();
+            System.out.println("STATUS: req.done=" + req.isDone() + ", res.sent=" + res.isSent() + ", data=" + BufferTools.getRemaining(bbs));
             if (BufferTools.hasRemaining(bbs)) {
                 System.out.println("BLOCK:\n  | " + BufferTools.toText("ISO-8859-1", bbs).replace("\n", "\n  | "));
             } else {
-                if (res.isSent()) {
+                if (req.isDone() || res.isSent()) {
                     break;
                 }
             }

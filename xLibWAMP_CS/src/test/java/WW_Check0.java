@@ -113,7 +113,8 @@ public class WW_Check0 {
 
         Thread runner;
 
-        WAMPRouter router = new WAMPRouter(Role.broker, Role.dealer).addDefaultFeatures(WAMPFeature.shared_registration, WAMPFeature.registration_meta_api);
+        WAMPRouter router = new WAMPRouter(Role.broker, Role.dealer)
+                .configure(WAMPFeature.shared_registration, WAMPFeature.registration_meta_api);
         List<WAMPClient> clients = new ArrayList<>();
 
         public void start() {
@@ -317,7 +318,7 @@ public class WW_Check0 {
         Arrays.fill(registered, false);
         boolean hasRegistered = false;
         long startedAt = System.currentTimeMillis();
-        for (int k = 0; k < 1000; k++) {
+        for (int k = 0; k < 100; k++) {
             for (int i = 0; i < callers.length; i++) {
                 if (callers[i].isSessionEstablished()) {
                     established[i] = true;
@@ -452,8 +453,8 @@ public class WW_Check0 {
         System.out.println(sb.toString());
         dumpCalls(established, registered, calls);
 
-        System.out.println(sb.toString() + "\nwait 15 sec...");
-        NetTools.delay(1000 * 15);
+        System.out.println(sb.toString() + "\nwait 5 sec...");
+        NetTools.delay(1000 * 5);
         dumpCalls(established, registered, calls);
 
         // disconnect

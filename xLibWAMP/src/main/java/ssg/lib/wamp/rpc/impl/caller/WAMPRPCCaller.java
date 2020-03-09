@@ -211,7 +211,7 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
                     }
                     session.onError(msg);
                     call.caller.onError(call.getId(), error, details, args, argsKw);
-                    if (WAMPConstantsBase.NoSuchProcedure.equals(error)) {
+                    if (WAMPConstantsBase.ERROR_NoSuchProcedure.equals(error)) {
                         Map<String, WAMPCallStatistics> nfcs = getNotFoundCalls();
                         synchronized (nfcs) {
                             WAMPCallStatistics cs = nfcs.get(call.procedure);

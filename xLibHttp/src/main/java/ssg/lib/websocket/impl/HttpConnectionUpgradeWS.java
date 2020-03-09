@@ -31,19 +31,40 @@ import static ssg.lib.http.base.HttpData.HUPGR_WEBSOCKET;
 import java.io.IOException;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import ssg.lib.service.Repository;
+import ssg.lib.service.Repository.RepositoryListener;
+import ssg.lib.websocket.WebSocketProcessor;
 
 /**
  *
  * @author 000ssg
  */
-public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectionUpgrade<P> {
+public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectionUpgrade<P>, RepositoryListener<HttpConnectionUpgrade> {
+
+    Collection<Repository<HttpConnectionUpgrade>> owners = Collections.synchronizedCollection(new HashSet<>());
+
+    WebSocketProcessor wsp;
+    WebSocketProcessor.WebSocketMessageListener wsl;
+
+    public HttpConnectionUpgradeWS<P> configure(WebSocketProcessor wsp) {
+        this.wsp = wsp;
+        return this;
+    }
+
+    public HttpConnectionUpgradeWS<P> configure(WebSocketProcessor.WebSocketMessageListener wsl) {
+        this.wsl = wsl;
+        return this;
+    }
 
     @Override
-    public boolean testUpgrade(Head head) {
+    public boolean testUpgrade(String root, Head head) {
         if (head != null && head.isConnectionUpgrade()) {
             String upgradeTo = head.getHeader1(HH_UPGRADE);
             if (HUPGR_WEBSOCKET.equalsIgnoreCase(upgradeTo)) {
-                if (testWSPath(head)) {
+                if (testWSPath(root, head)) {
                     return true;
                 }
             }
@@ -58,6 +79,11 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
             return data;
         }
         HttpWS httpws = createWSHttp(provider, data);
+        if (wsp != null) {
+            httpws.ws.setProcessor(wsp);
+        } else if (wsl != null) {
+            httpws.ws.getProcessor().addWebSocketMessageListener(wsl);
+        }
         return httpws;
     }
 
@@ -69,7 +95,7 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
      * @param head
      * @return
      */
-    public boolean testWSPath(Head head) {
+    public boolean testWSPath(String root, Head head) {
         return head != null && head.isHeadCompleted() && head.getProtocolInfo() != null && head.getProtocolInfo()[1].startsWith("/");
     }
 
@@ -85,5 +111,23 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
     public HttpWS createWSHttp(P provider, HttpData data) throws IOException {
         HttpWS httpws = new HttpWS(new WebSocketChannel((SocketChannel) provider, data.getHead()));
         return httpws;
+    }
+
+    @Override
+    public void onAdded(Repository<HttpConnectionUpgrade> repository, HttpConnectionUpgrade item) {
+        if (repository != null && item == this) {
+            owners.add(repository);
+        }
+    }
+
+    @Override
+    public void onRemoved(Repository<HttpConnectionUpgrade> repository, HttpConnectionUpgrade item) {
+        if (repository != null && item == this) {
+            owners.remove(repository);
+        }
+    }
+
+    public Collection<Repository<HttpConnectionUpgrade>> getOwners() {
+        return Collections.unmodifiableCollection(owners);
     }
 }

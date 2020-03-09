@@ -66,6 +66,63 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         getProperties().put("root", root);
     }
 
+    public <T extends HttpApplication> T configureName(String name) {
+        this.name = name;
+        getProperties().put("name", name);
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureBasicAuthentication(boolean enable) {
+        setBasicAuthEnabled(enable);
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureRoot(String root) throws IOException {
+        if (this.root == null || this.root.equals(root)) {
+            this.root = root;
+        } else {
+            throw new IOException("Cannot change root from '" + this.root + "' to '" + root + "'.");
+        }
+        getProperties().put("root", root);
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureDataProcessors(Repository<DataProcessor> dataProcessors) {
+        this.dataProcessors = dataProcessors;
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureDataProcessor(int order, DataProcessor... dataProcessors) {
+        if (this.dataProcessors == null) {
+            this.dataProcessors = new Repository<DataProcessor>();
+        }
+        if (dataProcessors != null) {
+            this.dataProcessors.addItem(order, dataProcessors);
+        }
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureProperty(String name, Object value) throws IOException {
+        if ("name".equals(name)) {
+            configureName((String) value);
+        } else if ("root".equals(name)) {
+            configureRoot((String) value);
+        } else {
+            getProperties().put(name, value);
+        }
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureAuthentication(HttpAuthenticator auth) throws IOException {
+        if (this.auth == null || this.auth.equals(auth)) {
+            this.auth = auth;
+        } else {
+            throw new IOException("Cannot override HttpAuthenticator.");
+        }
+        return (T) this;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
     /**
      * @return the name
      */
@@ -114,20 +171,6 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         this.dataProcessors = dataPorcessors;
     }
 
-    public HttpApplication addDataProcessors(DataProcessor... dps) {
-        if (dataProcessors == null) {
-            dataProcessors = new Repository<DataProcessor>();
-        }
-        if (dps != null) {
-            for (DataProcessor dp : dps) {
-                if (dp != null) {
-                    dataProcessors.addItem(dp);
-                }
-            }
-        }
-        return this;
-    }
-
     @Override
     public List<Task> getTasks(TaskPhase... phases) {
         if (phases == null || phases.length == 0) {
@@ -159,12 +202,11 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
             HttpSession sess = req.getHttpSession();
             HttpResponse resp = req.getResponse();
             resp.setResponseCode(401, "Access denied");
-            String dn = sess.getBaseURL(); // "localhost/app/"; // domain.getName()
+            String dn = sess.getBaseURL();
             if (dn.contains("//")) {
                 dn = dn.substring(dn.indexOf("//") + 2);
             }
             resp.setHeader("WWW-Authenticate", "Basic realm=\"" + dn + "\", charset=\"UTF-8\"");
-            //resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + buf.length);
             resp.onHeaderLoaded();
             resp.onLoaded();
             return true;

@@ -51,7 +51,6 @@ import ssg.lib.http.rest.annotations.XMethod;
 import ssg.lib.http.rest.annotations.XParameter;
 import ssg.lib.http.rest.annotations.XType;
 import ssg.lib.service.DF_Service;
-import ssg.lib.service.DataProcessor;
 
 /**
  *
@@ -81,6 +80,9 @@ public class FlowTests {
 
         @Override
         public int read(ByteBuffer dst) throws IOException {
+            if (!isOpen()) {
+                throw new IOException("Cannot read from closed channel: " + this);
+            }
             if (input != null && !input.isEmpty()) {
                 int c = 0;
                 Iterator<ByteBuffer> it = input.iterator();
@@ -104,6 +106,9 @@ public class FlowTests {
 
         @Override
         public int write(ByteBuffer src) throws IOException {
+            if (!isOpen()) {
+                throw new IOException("Cannot write to closed channel: " + this);
+            }
             if (src != null && src.hasRemaining()) {
                 ByteBuffer bb = ByteBuffer.allocate(src.remaining());
                 int c = 0;
@@ -222,28 +227,50 @@ public class FlowTests {
                 return r;
             }
         };
-        DF_Service service = new DF_Service(new TaskExecutorSimple());
-        transport.filter(service);
-        HttpService https = new HttpService();
-        service.getServices().addItem(https);
-
-        HttpApplication app = new HttpApplication();
-        https.getApplications().addItem(app);
-
-        HttpStaticDataProcessor httpsdp = new HttpStaticDataProcessor();
-        app.addDataProcessors(httpsdp);
-
-        HttpResourceCollection httprc = new HttpResourceCollection("/aaa/*", "resource:aaa");
-        httpsdp.add(httprc);
 
         ARest rest = new ARest();
-        DataProcessor restdp = new RESTHttpDataProcessor(
-                "/api",
-                new MethodsProvider[]{new XMethodsProvider()},
-                rest);
-        app.addDataProcessors(restdp);
 
+        DF_Service service = new DF_Service()
+                .configureExecutor(new TaskExecutorSimple())
+                .configureService(-1,
+                        new HttpService()
+                                .configureApplication(-1,
+                                        new HttpApplication()
+                                                .configureRoot("/")
+                                                .configureDataProcessor(-1,
+                                                        new HttpStaticDataProcessor()
+                                                                .add(new HttpResourceCollection("/aaa/*", "resource:aaa")),
+                                                        new RESTHttpDataProcessor(
+                                                                "/api",
+                                                                new MethodsProvider[]{new XMethodsProvider()},
+                                                                rest)
+                                                )
+                                )
+                );
+        transport.filter(service);
+
+//        DF_Service service = new DF_Service(new TaskExecutorSimple());
+//        transport.filter(service);
+//        HttpService https = new HttpService();
+//        service.getServices().addItem(https);
+//
+//        HttpApplication app = new HttpApplication();
+//        https.getApplications().addItem(app);
+//
+//        HttpStaticDataProcessor httpsdp = new HttpStaticDataProcessor();
+//        app.configureDataProcessor(-1, httpsdp);
+//
+//        HttpResourceCollection httprc = new HttpResourceCollection("/aaa/*", "resource:aaa");
+//        httpsdp.add(httprc);
+//
+//        DataProcessor restdp = new RESTHttpDataProcessor(
+//                "/api",
+//                new MethodsProvider[]{new XMethodsProvider()},
+//                rest);
+//        app.configureDataProcessor(-1, restdp);
+        // open pseudo-channel
         AChannel ch = new AChannel();
+        // inform service of new data channel
         service.onProviderEvent(ch, DM.PN_OPENED, System.currentTimeMillis());
         File folder = new File("./src/test/resources");
         Map resp = new LinkedHashMap();
@@ -275,9 +302,16 @@ public class FlowTests {
                 System.out.println("  | " + BufferTools.toText("ISO-8859-1", bb).replace("\n", "\n  | "));
             }
         }
+
+        // close pseudo-channel
+        ch.close();
         service.delete(ch);
+        System.out.println("--------------- channel closed: no requests should be handled from now");
+
         call(transport, ch, folder, new Object[]{"/aaa/1.html"}, false);
         call(transport, ch, folder, new Object[]{"/aaa/1.html"}, false);
+        
+        System.out.println("--------------- stat");
         Map sts = service.getStatistics();
         for (Object key : sts.keySet()) {
             Object obj = sts.get(key);

@@ -23,12 +23,14 @@
  */
 package ssg.lib.api;
 
+import java.util.ArrayList;
 import ssg.lib.api.util.APIException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.api.util.APISearchable.APIMatcher;
@@ -50,19 +52,19 @@ public class API_Publisher {
     Collection<String> missing = new HashSet<>();
     Object defaultContext = NO_CONTEXT;
 
-    public API_Publisher(API api) {
+    public <T extends API_Publisher> T configure(API api) {
         this.api = api;
+        return (T) this;
     }
 
-    public API_Publisher(API api, APIMatcher restrictions) {
-        this.api = api;
+    public <T extends API_Publisher> T configureRestrictions(APIMatcher restrictions) {
         this.restrictions = restrictions;
+        return (T) this;
     }
 
-    public API_Publisher(API api, APIMatcher restrictions, Object defaultContext) {
-        this.api = api;
-        this.restrictions = restrictions;
-        this.defaultContext = defaultContext;
+    public <T extends API_Publisher> T configureContext(Object defaultContext) {
+        this.defaultContext = (defaultContext != null) ? defaultContext : NO_CONTEXT;
+        return (T) this;
     }
 
     public <T extends API> T getAPI() {
@@ -285,7 +287,7 @@ public class API_Publisher {
                 if (name == null) {
                     name = api.name;
                 }
-                apis.put(name, new API_Publisher(api));
+                apis.put(name, new API_Publisher().configure(api));
             }
             return this;
         }
@@ -323,5 +325,36 @@ public class API_Publisher {
             }
         }
 
+        public Collection<String> getNames(final String apiName) {
+            API api = getAPI(apiName);
+
+            Collection<APIProcedure> alls = api.find((item) -> {
+                switch (APIMatcher.matchFQN(item, apiName)) {
+                    case exact:
+                        return (item instanceof APIProcedure) ? API_MATCH.exact : API_MATCH.partial;
+                    case over:
+                        return (item instanceof APIProcedure) ? API_MATCH.exact : (item instanceof APIGroup) ? API_MATCH.partial : API_MATCH.none;
+                    case partial:
+                        return API_MATCH.partial;
+                    case none:
+                        return API_MATCH.none;
+                }
+                return API_MATCH.none;
+            }, APIProcedure.class, null);
+
+            if (alls == null || alls.isEmpty()) {
+                return null;
+            }
+            List<APIProcedure> all = new ArrayList<>(alls.size());
+            all.addAll(alls);
+            Collections.sort(all, (p1, p2) -> {
+                return p1.fqn().compareTo(p2.fqn());
+            });
+            Collection<String> procNames = new LinkedHashSet<>();
+            for (APIProcedure p : all) {
+                procNames.add(p.fqn());
+            }
+            return procNames;
+        }
     }
 }

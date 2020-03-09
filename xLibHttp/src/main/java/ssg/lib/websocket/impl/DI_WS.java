@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -47,6 +48,7 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
     Collection<WebSocketProtocolHandler> protocols = new LinkedHashSet<>();
     Map<P, WebSocket> webSockets = new HashMap<>();
     Map<P, WebSocketHandshakeListener> pendingClients = new HashMap<>();
+    WebSocketAddons[] addOns = new WebSocketAddons[2]; // 0 - client, 1 - server addons if any
 
     private int maxMessagesInInputQueue = 10;
     private long maxMessagesSizeInInputQueue = 200000;
@@ -62,6 +64,7 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
                 }
             }
         }
+        updateAddons();
         return this;
     }
 
@@ -73,7 +76,30 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
                 }
             }
         }
+        updateAddons();
         return this;
+    }
+
+    void updateAddons() {
+        if (!protocols.isEmpty()) {
+            synchronized (protocols) {
+                WebSocketAddons[] a = new WebSocketAddons[]{new WebSocketAddons(), new WebSocketAddons()};
+                for (WebSocketProtocolHandler ph : protocols) {
+                    try {
+                        a[0] = ph.prepareAddons(null, true, a[0]);
+                    } catch (IOException ioex) {
+                    }
+                    try {
+                        a[1] = ph.prepareAddons(null, false, a[1]);
+                    } catch (IOException ioex) {
+                    }
+                }
+                addOns[0] = a[0];
+                addOns[1] = a[1];
+            }
+        } else {
+            Arrays.fill(addOns, null);
+        }
     }
 
     public WebSocketProtocolHandler[] getWebSocketProtocolHandler() {
@@ -88,7 +114,8 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
     public void healthCheck(P provider) throws IOException {
         WebSocket ws = websocket(provider);
         if (ws != null && ws.isConnected() && ws.isInitialized()) {
-            ws.pong(("DI_WS healthcheck " + provider).getBytes());
+            //System.out.println(""+getClass().getName()+".healthCheck: "+provider);
+            ws.pong(("DI_WS healthcheck " + System.identityHashCode(provider)).getBytes());
         }
         super.healthCheck(provider);
     }
@@ -125,7 +152,7 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
 
         // init server-side WebSocket, if possible.
         if (ws == null && c > 0) {
-            ws = createWebSocket(provider, false, null);
+            ws = createWebSocket(provider, false, addOns[1]);
             if (ws == null) {
                 return;
             }
@@ -173,7 +200,7 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
         WebSocket ws = websocket(provider);
 
         if (ws == null) {
-            ws = createWebSocket(provider, true, null);
+            ws = createWebSocket(provider, true, addOns[0]);
             if (ws != null) {
                 webSockets.put(provider, ws);
             }
@@ -247,15 +274,23 @@ public class DI_WS<P extends Channel> extends BaseDI<ByteBuffer, P> {
         if (protocols.isEmpty()) {
             initialized = true;
         } else {
-            for (WebSocketProtocolHandler wsh : protocols) {
-                if (wsh == null) {
-                    continue;
-                }
+            if (ws.getProtocolHandler() != null) {
+                WebSocketProtocolHandler wsh = ws.getProtocolHandler();
                 if (wsh.canInitialize(provider, ws)) {
                     wsh.initialize(provider, ws);
                     initialized = true;
-                    ws.setProtocolHandler(wsh);
                 }
+//            } else {
+//                for (WebSocketProtocolHandler wsh : protocols) {
+//                    if (wsh == null) {
+//                        continue;
+//                    }
+//                    if (wsh.canInitialize(provider, ws)) {
+//                        wsh.initialize(provider, ws);
+//                        initialized = true;
+//                        ws.setProtocolHandler(wsh);
+//                    }
+//                }
             }
         }
 

@@ -106,6 +106,9 @@ public class DB_API_Builder {
                     resolved.put(dbs.fqn(), dbs);
                     //System.out.println("Pre-added schema (explicitly): PUBLIC");
                 }
+                if (schemas == null) {
+                    schemas = dbm.groups.keySet().toArray(new String[dbm.groups.size()]);
+                }
             }
 
             int itN = indexOf(rsTypes, "TYPE_NAME");
@@ -150,13 +153,14 @@ public class DB_API_Builder {
             }
 
             for (String schema : schemas) {
-                String cat = null;
-                List<Object[]> rsTables = rs2list(md.getTables(cat, schema, null, null), true);
-                List<Object[]> rsColumns = rs2list(md.getColumns(cat, schema, null, null), true);
-                List<Object[]> rsProcs = rs2list(md.getProcedures(cat, schema, null), true);
-                List<Object[]> rsProcCols = rs2list(md.getProcedureColumns(cat, schema, null, null), true);
-                List<Object[]> rsFuncs = rs2list(md.getFunctions(cat, schema, null), true);
-                List<Object[]> rsFuncCols = rs2list(md.getFunctionColumns(cat, schema, null, null), true);
+                try {
+                    String cat = null;
+                    List<Object[]> rsTables = rs2list(md.getTables(cat, schema, null, null), true);
+                    List<Object[]> rsColumns = rs2list(md.getColumns(cat, schema, null, null), true);
+                    List<Object[]> rsProcs = rs2list(md.getProcedures(cat, schema, null), true);
+                    List<Object[]> rsProcCols = rs2list(md.getProcedureColumns(cat, schema, null, null), true);
+                    List<Object[]> rsFuncs = rs2list(md.getFunctions(cat, schema, null), true);
+                    List<Object[]> rsFuncCols = rs2list(md.getFunctionColumns(cat, schema, null, null), true);
 //                // extra meta-data
 //                List<Object[]> rsPColumns = null;
 //                try {
@@ -196,497 +200,500 @@ public class DB_API_Builder {
 //                            + ((rsUDTs != null) ? "\n      UDTs          : " + rsUDTs.size() + "\n    " + JDBCTools.dumpRSList(rsUDTs, true, null, true, (String[]) null).replace("\n", "\n    ") : "")
 //                    );
 //                }
-                DB_Schema dbs = (DB_Schema) resolved.get(schema);
-                if (dbs == null) {
-                    dbs = new DB_Schema(schema);
-                    dbm.groups.put(schema, dbs);
-                    dbs.fixUsedIn(dbm);
-                    resolved.put(dbs.fqn(), dbs);
-                }
+                    DB_Schema dbs = (DB_Schema) resolved.get(schema);
+                    if (dbs == null) {
+                        dbs = new DB_Schema(schema);
+                        dbm.groups.put(schema, dbs);
+                        dbs.fixUsedIn(dbm);
+                        resolved.put(dbs.fqn(), dbs);
+                    }
 
-                // tables
-                int ittCat = indexOf(rsTables, "TABLE_CAT");
-                int ittSch = indexOf(rsTables, "TABLE_SCHEM");
-                int ittN = indexOf(rsTables, "TABLE_NAME");
-                int ittT = indexOf(rsTables, "TABLE_TYPE");
-                int ittRem = indexOf(rsTables, "REMARKS");
+                    // tables
+                    int ittCat = indexOf(rsTables, "TABLE_CAT");
+                    int ittSch = indexOf(rsTables, "TABLE_SCHEM");
+                    int ittN = indexOf(rsTables, "TABLE_NAME");
+                    int ittT = indexOf(rsTables, "TABLE_TYPE");
+                    int ittRem = indexOf(rsTables, "REMARKS");
 
-                // table cols
-                int itcCat = indexOf(rsColumns, "TABLE_CAT");
-                int itcSch = indexOf(rsColumns, "TABLE_SCHEM");
-                int itcTbl = indexOf(rsColumns, "TABLE_NAME");
-                int itcN = indexOf(rsColumns, "COLUMN_NAME");
-                int itcDT = indexOf(rsColumns, "DATA_TYPE");
-                int itcTN = indexOf(rsColumns, "TYPE_NAME");
-                int itcSz = indexOf(rsColumns, "COLUMN_SIZE");
-                int itcBufLen = indexOf(rsColumns, "BUFFER_LENGTH");
-                int itcDecDigs = indexOf(rsColumns, "DECIMAL_DIGITS");
-                int itcNumPrecRad = indexOf(rsColumns, "NUM_PREC_RADIX");
-                int itcNulable = indexOf(rsColumns, "NULLABLE");
-                int itcRem = indexOf(rsColumns, "REMARKS");
-                int itcDef = indexOf(rsColumns, "COLUMN_DEF");
-                int itcSDT = indexOf(rsColumns, "SQL_DATA_TYPE");
-                int itcSDTSub = indexOf(rsColumns, "SQL_DATETIME_SUB");
-                int itcCOLen = indexOf(rsColumns, "CHAR_OCTET_LENGTH");
-                int itcOrder = indexOf(rsColumns, "ORDINAL_POSITION");
-                int itcNullable2 = indexOf(rsColumns, "IS_NULLABLE");
-                int itcSCat = indexOf(rsColumns, "SCOPE_CATALOG");
-                int itcSSch = indexOf(rsColumns, "SCOPE_SCHEMA");
-                int itcSTbl = indexOf(rsColumns, "SCOPE_TABLE");
-                int itcSDT2 = indexOf(rsColumns, "SOURCE_DATA_TYPE");
-                int itcAutoIncr = indexOf(rsColumns, "IS_AUTOINCREMENT");
+                    // table cols
+                    int itcCat = indexOf(rsColumns, "TABLE_CAT");
+                    int itcSch = indexOf(rsColumns, "TABLE_SCHEM");
+                    int itcTbl = indexOf(rsColumns, "TABLE_NAME");
+                    int itcN = indexOf(rsColumns, "COLUMN_NAME");
+                    int itcDT = indexOf(rsColumns, "DATA_TYPE");
+                    int itcTN = indexOf(rsColumns, "TYPE_NAME");
+                    int itcSz = indexOf(rsColumns, "COLUMN_SIZE");
+                    int itcBufLen = indexOf(rsColumns, "BUFFER_LENGTH");
+                    int itcDecDigs = indexOf(rsColumns, "DECIMAL_DIGITS");
+                    int itcNumPrecRad = indexOf(rsColumns, "NUM_PREC_RADIX");
+                    int itcNulable = indexOf(rsColumns, "NULLABLE");
+                    int itcRem = indexOf(rsColumns, "REMARKS");
+                    int itcDef = indexOf(rsColumns, "COLUMN_DEF");
+                    int itcSDT = indexOf(rsColumns, "SQL_DATA_TYPE");
+                    int itcSDTSub = indexOf(rsColumns, "SQL_DATETIME_SUB");
+                    int itcCOLen = indexOf(rsColumns, "CHAR_OCTET_LENGTH");
+                    int itcOrder = indexOf(rsColumns, "ORDINAL_POSITION");
+                    int itcNullable2 = indexOf(rsColumns, "IS_NULLABLE");
+                    int itcSCat = indexOf(rsColumns, "SCOPE_CATALOG");
+                    int itcSSch = indexOf(rsColumns, "SCOPE_SCHEMA");
+                    int itcSTbl = indexOf(rsColumns, "SCOPE_TABLE");
+                    int itcSDT2 = indexOf(rsColumns, "SOURCE_DATA_TYPE");
+                    int itcAutoIncr = indexOf(rsColumns, "IS_AUTOINCREMENT");
 
-                for (int i = 3; i < rsTables.size(); i++) {
-                    Object[] oo = rsTables.get(i);
+                    for (int i = 3; i < rsTables.size(); i++) {
+                        Object[] oo = rsTables.get(i);
 
-                    String tCat = (String) oo[ittCat];
-                    String tSch = (String) oo[ittSch];
-                    String tN = (String) oo[ittN];
-                    String tT = (String) oo[ittT];
-                    String tRem = (String) oo[ittRem];
-                    if ("TABLE".equals(tT)) {
-                        DB_Table dbt = new DB_Table(tN, tSch);
-                        dbs.tables.put(tN, dbt);
-                        dbt.fixUsedIn(dbs);
-                        resolved.put(dbt.fqn(), dbt);
+                        String tCat = (String) oo[ittCat];
+                        String tSch = (String) oo[ittSch];
+                        String tN = (String) oo[ittN];
+                        String tT = (String) oo[ittT];
+                        String tRem = (String) oo[ittRem];
+                        if ("TABLE".equals(tT)) {
+                            DB_Table dbt = new DB_Table(tN, tSch);
+                            dbs.tables.put(tN, dbt);
+                            dbt.fixUsedIn(dbs);
+                            resolved.put(dbt.fqn(), dbt);
 
-                        // cols
-                        int[] tii = rangeOf(rsColumns, new String[]{"TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME"}, new Object[]{null, schema, tN});
-                        for (int j = tii[0]; j <= tii[1]; j++) {
-                            if (j == -1) {
+                            // cols
+                            int[] tii = rangeOf(rsColumns, new String[]{"TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME"}, new Object[]{null, schema, tN});
+                            for (int j = tii[0]; j <= tii[1]; j++) {
+                                if (j == -1) {
+                                    break;
+                                }
+                                Object[] oc = rsColumns.get(j);
+                                String cTCat = (String) oc[itcCat];
+                                String cTSch = (String) oc[itcSch];
+                                String cTbl = (String) oc[itcTbl];
+                                String cn = (String) oc[itcN];
+                                Number cdt = (Number) oc[itcDT];
+                                String ctn = (String) oc[itcTN];
+                                Number cSz = (Number) oc[itcSz];
+                                Number cBufLen = (Number) oc[itcBufLen];
+                                Number cDecDig = (Number) oc[itcDecDigs];
+                                Number cNumPrecRad = (Number) oc[itcNumPrecRad];
+                                boolean cNullable = oc[itcNulable] instanceof Number && ((Number) oc[itcNulable]).intValue() == 1;
+                                String cRem = (String) oc[itcRem];
+                                Object cDef = oc[itcDef];
+                                Number cSDT = (Number) oc[itcSDT];
+                                Number cSDTSub = (Number) oc[itcSDTSub];
+                                Number cCOLen = (Number) oc[itcCOLen];
+                                Number cOrder = (Number) oc[itcOrder];
+                                boolean cNullable2 = oc[itcNullable2] instanceof Number && ((Number) oc[itcNullable2]).intValue() == 1;
+                                String csCat = (String) oc[itcSCat];
+                                String csSch = (String) oc[itcSSch];
+                                String csTbl = (String) oc[itcSTbl];
+                                Number cSDT2 = (Number) oc[itcSDT2];
+                                boolean cAutoIncr = oc[itcAutoIncr] instanceof Number && ((Number) oc[itcAutoIncr]).intValue() == 1;
+
+                                DB_Type t = context.smartPrepare(resolved, unresolved, ctn, cdt, cDecDig, cCOLen, cNullable);
+
+                                DB_Col dbCol = new DB_Col(cn, t);
+                                dbCol.order = cOrder.intValue();
+                                dbt.columns.put(cn, dbCol);
+                                dbCol.fixUsedIn(dbt);
+                                t.fixUsedIn(dbCol);
+                            }
+                        }
+                    }
+
+                    // proc
+                    int ipCat = indexOf(rsProcs, "PROCEDURE_CAT");
+                    int ipSch = indexOf(rsProcs, "PROCEDURE_SCHEM");
+                    int ipN = indexOf(rsProcs, "PROCEDURE_NAME");
+                    int ipRem = indexOf(rsProcs, "REMARKS");
+                    int ipRet = indexOf(rsProcs, "PROCEDURE_TYPE");
+                    int ipSN = indexOf(rsProcs, "SPECIFIC_NAME");
+
+                    // proc cols
+                    int ipcCat = indexOf(rsProcCols, "PROCEDURE_CAT");
+                    int ipcSch = indexOf(rsProcCols, "PROCEDURE_SCHEM");
+                    int ipcFN = indexOf(rsProcCols, "PROCEDURE_NAME");
+                    int ipcN = indexOf(rsProcCols, "COLUMN_NAME");
+                    int ipcCT = indexOf(rsProcCols, "COLUMN_TYPE");
+                    int ipcDT = indexOf(rsProcCols, "DATA_TYPE");
+                    int ipcTN = indexOf(rsProcCols, "TYPE_NAME");
+                    int ipcPrec = indexOf(rsProcCols, "PRECISION");
+                    int ipcLen = indexOf(rsProcCols, "LENGTH");
+                    int ipcScale = indexOf(rsProcCols, "SCALE");
+                    int ipcRad = indexOf(rsProcCols, "RADIX");
+                    int ipcNullable = indexOf(rsProcCols, "NULLABLE");
+                    int ipcRem = indexOf(rsProcCols, "REMARKS");
+                    int ipcColDef = indexOf(rsProcCols, "COLUMN_DEF");
+                    int ipcSDT = indexOf(rsProcCols, "SQL_DATA_TYPE");
+                    int ipcSDTSub = indexOf(rsProcCols, "SQL_DATETIME_SUB");
+                    int ipcCOLen = indexOf(rsProcCols, "CHAR_OCTET_LENGTH");
+                    int ipcOrder = indexOf(rsProcCols, "ORDINAL_POSITION");
+                    int ipcNullable2 = indexOf(rsProcCols, "IS_NULLABLE");
+                    int ipcSN = indexOf(rsProcCols, "SPECIFIC_NAME");
+                    int ipcSeq = indexOf(rsProcCols, "SEQUENCE");
+                    int ipcOverload = indexOf(rsProcCols, "OVERLOAD");
+                    int ipcDef2 = indexOf(rsProcCols, "DEFAULT_VALUE");
+
+                    // func
+                    int ifCat = indexOf(rsFuncs, "FUNCTION_CAT");
+                    int ifSch = indexOf(rsFuncs, "FUNCTION_SCHEM");
+                    int ifN = indexOf(rsFuncs, "FUNCTION_NAME");
+                    int ifRem = indexOf(rsFuncs, "REMARKS");
+                    int ifRet = indexOf(rsFuncs, "FUNCTION_TYPE");
+                    int ifSN = indexOf(rsFuncs, "SPECIFIC_NAME");
+
+                    // func cols
+                    int ifcCat = indexOf(rsFuncCols, "FUNCTION_CAT");
+                    int ifcSch = indexOf(rsFuncCols, "FUNCTION_SCHEM");
+                    int ifcFN = indexOf(rsFuncCols, "FUNCTION_NAME");
+                    int ifcN = indexOf(rsFuncCols, "COLUMN_NAME");
+                    int ifcCT = indexOf(rsFuncCols, "COLUMN_TYPE");
+                    int ifcDT = indexOf(rsFuncCols, "DATA_TYPE");
+                    int ifcTN = indexOf(rsFuncCols, "TYPE_NAME");
+                    int ifcPrec = indexOf(rsFuncCols, "PRECISION");
+                    int ifcLen = indexOf(rsFuncCols, "LENGTH");
+                    int ifcScale = indexOf(rsFuncCols, "SCALE");
+                    int ifcRad = indexOf(rsFuncCols, "RADIX");
+                    int ifcNullable = indexOf(rsFuncCols, "NULLABLE");
+                    int ifcRem = indexOf(rsFuncCols, "REMARKS");
+                    int ifcColDef = indexOf(rsFuncCols, "COLUMN_DEF");
+                    int ifcSDT = indexOf(rsFuncCols, "SQL_DATA_TYPE");
+                    int ifcSDTSub = indexOf(rsFuncCols, "SQL_DATETIME_SUB");
+                    int ifcCOLen = indexOf(rsFuncCols, "CHAR_OCTET_LENGTH");
+                    int ifcOrder = indexOf(rsFuncCols, "ORDINAL_POSITION");
+                    int ifcNullable2 = indexOf(rsFuncCols, "IS_NULLABLE");
+                    int ifcSN = indexOf(rsFuncCols, "SPECIFIC_NAME");
+                    int ifcSeq = indexOf(rsFuncCols, "SEQUENCE");
+                    int ifcOverload = indexOf(rsFuncCols, "OVERLOAD");
+                    int ifcDef2 = indexOf(rsFuncCols, "DEFAULT_VALUE");
+
+                    // scan for UDTs in parameters
+                    {
+
+                        for (int i = 3; i < rsProcCols.size(); i++) {
+                            Object[] oc = rsProcCols.get(i);
+                            Number fcDT = (Number) oc[ipcDT];
+                            String fcTN = (String) oc[ipcTN];
+                            Number fcScale = (Number) oc[ipcScale];
+                            Number fcCOLen = (Number) oc[ipcCOLen];
+                            boolean fcNullable = oc[ipcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
+
+                            DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, fcCOLen, fcNullable);
+                            if (verifier != null) {
+                                verifier.onItem(conn, t, dbs);
+                            }
+                        }
+                        for (int i = 3; i < rsFuncCols.size(); i++) {
+                            Object[] oc = rsFuncCols.get(i);
+                            Number fcDT = (Number) oc[ifcDT];
+                            String fcTN = (String) oc[ifcTN];
+                            Number fcScale = (Number) oc[ifcScale];
+                            Number fcCOLen = (Number) oc[ifcCOLen];
+                            boolean fcNullable = oc[ifcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
+
+                            DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, fcCOLen, fcNullable);
+                            if (verifier != null) {
+                                verifier.onItem(conn, t, dbs);
+                            }
+                        }
+
+                        context.prepareExtraTypes(dbs);
+                    }
+
+                    for (int i = 3; i < rsProcs.size(); i++) {
+                        Object[] oo = rsProcs.get(i);
+                        String fCat = (String) oo[ipCat];
+                        String fSch = (String) oo[ipSch];
+                        String fn = (String) oo[ipN];
+                        String rem = (String) oo[ipRem];
+                        Number fRet = ((Number) oo[ipRet]).intValue();
+                        String fsn = (String) oo[ipSN];
+
+                        Object p3 = oo[3];
+                        Object p4 = oo[4];
+                        Object p5 = oo[5];
+
+                        // detect if this is not procedure, but function
+                        boolean isFunction = false;
+                        int[] tii = scan(rsProcCols, new String[]{"PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME"}, new Object[]{fCat, fSch, fn});
+                        for (int j : tii) {
+                            Object[] oc = rsProcCols.get(j);
+                            String fcN = (String) oc[ipcN];
+                            if (null == fcN) {
+                                isFunction = true;
                                 break;
                             }
-                            Object[] oc = rsColumns.get(j);
-                            String cTCat = (String) oc[itcCat];
-                            String cTSch = (String) oc[itcSch];
-                            String cTbl = (String) oc[itcTbl];
-                            String cn = (String) oc[itcN];
-                            Number cdt = (Number) oc[itcDT];
-                            String ctn = (String) oc[itcTN];
-                            Number cSz = (Number) oc[itcSz];
-                            Number cBufLen = (Number) oc[itcBufLen];
-                            Number cDecDig = (Number) oc[itcDecDigs];
-                            Number cNumPrecRad = (Number) oc[itcNumPrecRad];
-                            boolean cNullable = oc[itcNulable] instanceof Number && ((Number) oc[itcNulable]).intValue() == 1;
-                            String cRem = (String) oc[itcRem];
-                            Object cDef = oc[itcDef];
-                            Number cSDT = (Number) oc[itcSDT];
-                            Number cSDTSub = (Number) oc[itcSDTSub];
-                            Number cCOLen = (Number) oc[itcCOLen];
-                            Number cOrder = (Number) oc[itcOrder];
-                            boolean cNullable2 = oc[itcNullable2] instanceof Number && ((Number) oc[itcNullable2]).intValue() == 1;
-                            String csCat = (String) oc[itcSCat];
-                            String csSch = (String) oc[itcSSch];
-                            String csTbl = (String) oc[itcSTbl];
-                            Number cSDT2 = (Number) oc[itcSDT2];
-                            boolean cAutoIncr = oc[itcAutoIncr] instanceof Number && ((Number) oc[itcAutoIncr]).intValue() == 1;
-
-                            DB_Type t = context.smartPrepare(resolved, unresolved, ctn, cdt, cDecDig, cCOLen, cNullable);
-
-                            DB_Col dbCol = new DB_Col(cn, t);
-                            dbCol.order = cOrder.intValue();
-                            dbt.columns.put(cn, dbCol);
-                            dbCol.fixUsedIn(dbt);
-                            t.fixUsedIn(dbCol);
                         }
-                    }
-                }
 
-                // proc
-                int ipCat = indexOf(rsProcs, "PROCEDURE_CAT");
-                int ipSch = indexOf(rsProcs, "PROCEDURE_SCHEM");
-                int ipN = indexOf(rsProcs, "PROCEDURE_NAME");
-                int ipRem = indexOf(rsProcs, "REMARKS");
-                int ipRet = indexOf(rsProcs, "PROCEDURE_TYPE");
-                int ipSN = indexOf(rsProcs, "SPECIFIC_NAME");
+                        APIProcedure proc = (isFunction) ? new APIFunction(fn, fSch, fCat) : new APIProcedure(fn, fSch, fCat);
 
-                // proc cols
-                int ipcCat = indexOf(rsProcCols, "PROCEDURE_CAT");
-                int ipcSch = indexOf(rsProcCols, "PROCEDURE_SCHEM");
-                int ipcFN = indexOf(rsProcCols, "PROCEDURE_NAME");
-                int ipcN = indexOf(rsProcCols, "COLUMN_NAME");
-                int ipcCT = indexOf(rsProcCols, "COLUMN_TYPE");
-                int ipcDT = indexOf(rsProcCols, "DATA_TYPE");
-                int ipcTN = indexOf(rsProcCols, "TYPE_NAME");
-                int ipcPrec = indexOf(rsProcCols, "PRECISION");
-                int ipcLen = indexOf(rsProcCols, "LENGTH");
-                int ipcScale = indexOf(rsProcCols, "SCALE");
-                int ipcRad = indexOf(rsProcCols, "RADIX");
-                int ipcNullable = indexOf(rsProcCols, "NULLABLE");
-                int ipcRem = indexOf(rsProcCols, "REMARKS");
-                int ipcColDef = indexOf(rsProcCols, "COLUMN_DEF");
-                int ipcSDT = indexOf(rsProcCols, "SQL_DATA_TYPE");
-                int ipcSDTSub = indexOf(rsProcCols, "SQL_DATETIME_SUB");
-                int ipcCOLen = indexOf(rsProcCols, "CHAR_OCTET_LENGTH");
-                int ipcOrder = indexOf(rsProcCols, "ORDINAL_POSITION");
-                int ipcNullable2 = indexOf(rsProcCols, "IS_NULLABLE");
-                int ipcSN = indexOf(rsProcCols, "SPECIFIC_NAME");
-                int ipcSeq = indexOf(rsProcCols, "SEQUENCE");
-                int ipcOverload = indexOf(rsProcCols, "OVERLOAD");
-                int ipcDef2 = indexOf(rsProcCols, "DEFAULT_VALUE");
-
-                // func
-                int ifCat = indexOf(rsFuncs, "FUNCTION_CAT");
-                int ifSch = indexOf(rsFuncs, "FUNCTION_SCHEM");
-                int ifN = indexOf(rsFuncs, "FUNCTION_NAME");
-                int ifRem = indexOf(rsFuncs, "REMARKS");
-                int ifRet = indexOf(rsFuncs, "FUNCTION_TYPE");
-                int ifSN = indexOf(rsFuncs, "SPECIFIC_NAME");
-
-                // func cols
-                int ifcCat = indexOf(rsFuncCols, "FUNCTION_CAT");
-                int ifcSch = indexOf(rsFuncCols, "FUNCTION_SCHEM");
-                int ifcFN = indexOf(rsFuncCols, "FUNCTION_NAME");
-                int ifcN = indexOf(rsFuncCols, "COLUMN_NAME");
-                int ifcCT = indexOf(rsFuncCols, "COLUMN_TYPE");
-                int ifcDT = indexOf(rsFuncCols, "DATA_TYPE");
-                int ifcTN = indexOf(rsFuncCols, "TYPE_NAME");
-                int ifcPrec = indexOf(rsFuncCols, "PRECISION");
-                int ifcLen = indexOf(rsFuncCols, "LENGTH");
-                int ifcScale = indexOf(rsFuncCols, "SCALE");
-                int ifcRad = indexOf(rsFuncCols, "RADIX");
-                int ifcNullable = indexOf(rsFuncCols, "NULLABLE");
-                int ifcRem = indexOf(rsFuncCols, "REMARKS");
-                int ifcColDef = indexOf(rsFuncCols, "COLUMN_DEF");
-                int ifcSDT = indexOf(rsFuncCols, "SQL_DATA_TYPE");
-                int ifcSDTSub = indexOf(rsFuncCols, "SQL_DATETIME_SUB");
-                int ifcCOLen = indexOf(rsFuncCols, "CHAR_OCTET_LENGTH");
-                int ifcOrder = indexOf(rsFuncCols, "ORDINAL_POSITION");
-                int ifcNullable2 = indexOf(rsFuncCols, "IS_NULLABLE");
-                int ifcSN = indexOf(rsFuncCols, "SPECIFIC_NAME");
-                int ifcSeq = indexOf(rsFuncCols, "SEQUENCE");
-                int ifcOverload = indexOf(rsFuncCols, "OVERLOAD");
-                int ifcDef2 = indexOf(rsFuncCols, "DEFAULT_VALUE");
-
-                // scan for UDTs in parameters
-                {
-
-                    for (int i = 3; i < rsProcCols.size(); i++) {
-                        Object[] oc = rsProcCols.get(i);
-                        Number fcDT = (Number) oc[ipcDT];
-                        String fcTN = (String) oc[ipcTN];
-                        Number fcScale = (Number) oc[ipcScale];
-                        Number fcCOLen = (Number) oc[ipcCOLen];
-                        boolean fcNullable = oc[ipcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
-
-                        DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, fcCOLen, fcNullable);
-                        if (verifier != null) {
-                            verifier.onItem(conn, t, dbs);
-                        }
-                    }
-                    for (int i = 3; i < rsFuncCols.size(); i++) {
-                        Object[] oc = rsFuncCols.get(i);
-                        Number fcDT = (Number) oc[ifcDT];
-                        String fcTN = (String) oc[ifcTN];
-                        Number fcScale = (Number) oc[ifcScale];
-                        Number fcCOLen = (Number) oc[ifcCOLen];
-                        boolean fcNullable = oc[ifcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
-
-                        DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, fcCOLen, fcNullable);
-                        if (verifier != null) {
-                            verifier.onItem(conn, t, dbs);
-                        }
-                    }
-
-                    context.prepareExtraTypes(dbs);
-                }
-
-                for (int i = 3; i < rsProcs.size(); i++) {
-                    Object[] oo = rsProcs.get(i);
-                    String fCat = (String) oo[ipCat];
-                    String fSch = (String) oo[ipSch];
-                    String fn = (String) oo[ipN];
-                    String rem = (String) oo[ipRem];
-                    Number fRet = ((Number) oo[ipRet]).intValue();
-                    String fsn = (String) oo[ipSN];
-
-                    Object p3 = oo[3];
-                    Object p4 = oo[4];
-                    Object p5 = oo[5];
-
-                    // detect if this is not procedure, but function
-                    boolean isFunction = false;
-                    int[] tii = scan(rsProcCols, new String[]{"PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME"}, new Object[]{fCat, fSch, fn});
-                    for (int j : tii) {
-                        Object[] oc = rsProcCols.get(j);
-                        String fcN = (String) oc[ipcN];
-                        if (null == fcN) {
-                            isFunction = true;
-                            break;
-                        }
-                    }
-
-                    APIProcedure proc = (isFunction) ? new APIFunction(fn, fSch, fCat) : new APIProcedure(fn, fSch, fCat);
-
-                    if (fCat != null) {
-                        DB_Package pkg = new DB_Package(fCat, fSch);
-                        if (resolved.containsKey(pkg.fqn())) {
-                            APIItem obj = resolved.get(pkg.fqn());
-                            if (obj instanceof DB_ObjectType) {
-                                DB_ObjectType ot = (DB_ObjectType) obj;
-                                ot.methods.put(proc.name, proc);
-                                proc.fixUsedIn(ot);
-                            } else if (obj instanceof DB_Package) {
-                                pkg = (DB_Package) obj;
+                        if (fCat != null) {
+                            DB_Package pkg = new DB_Package(fCat, fSch);
+                            if (resolved.containsKey(pkg.fqn())) {
+                                APIItem obj = resolved.get(pkg.fqn());
+                                if (obj instanceof DB_ObjectType) {
+                                    DB_ObjectType ot = (DB_ObjectType) obj;
+                                    ot.methods.put(proc.name, proc);
+                                    proc.fixUsedIn(ot);
+                                } else if (obj instanceof DB_Package) {
+                                    pkg = (DB_Package) obj;
+                                    pkg.content.put(proc.name, proc);
+                                    proc.fixUsedIn(pkg);
+                                } else if (obj instanceof APIGroup) {
+                                    APIGroup group = (APIGroup) obj;
+                                    if (isFunction) {
+                                        APIFunction[] procs = group.funcs.get(proc.name);
+                                        if (procs == null) {
+                                            procs = new APIFunction[]{(APIFunction) proc};
+                                        } else {
+                                            procs = Arrays.copyOf(procs, procs.length + 1);
+                                            procs[procs.length - 1] = (APIFunction) proc;
+                                        }
+                                        group.funcs.put(proc.name, procs);
+                                    } else {
+                                        APIProcedure[] procs = group.procs.get(proc.name);
+                                        if (procs == null) {
+                                            procs = new APIProcedure[]{proc};
+                                        } else {
+                                            procs = Arrays.copyOf(procs, procs.length + 1);
+                                            procs[procs.length - 1] = proc;
+                                        }
+                                        group.procs.put(proc.name, procs);
+                                    }
+                                    proc.fixUsedIn(group);
+                                }
+                            } else {
+                                dbs.packages.put(pkg.name, pkg);
+                                pkg.fixUsedIn(dbs);
+                                resolved.put(pkg.fqn(), pkg);
                                 pkg.content.put(proc.name, proc);
                                 proc.fixUsedIn(pkg);
-                            } else if (obj instanceof APIGroup) {
-                                APIGroup group = (APIGroup) obj;
-                                if (isFunction) {
+                            }
+                        } else {
+                            if (isFunction) {
+                                dbs.funcs.put(proc.name, new APIFunction[]{(APIFunction) proc});
+                            } else {
+                                dbs.procs.put(proc.name, new APIProcedure[]{proc});
+                            }
+                            proc.fixUsedIn(dbs);
+                        }
+
+                        // cols
+                        for (int j : tii) {
+                            Object[] oc = rsProcCols.get(j);
+
+                            String fcCat = (String) oc[ipcCat];
+                            String fcSch = (String) oc[ipcSch];
+                            String fcFN = (String) oc[ipcFN];
+                            String fcN = (String) oc[ipcN];
+                            Number fcCT = (Number) oc[ipcCT];
+                            Number fcDT = (Number) oc[ipcDT];
+                            String fcTN = (String) oc[ipcTN];
+                            Number fcPrec = (Number) oc[ipcPrec];
+                            Number fcLen = (Number) oc[ipcLen];
+                            Number fcScale = (Number) oc[ipcScale];
+                            Number fcRad = (Number) oc[ipcRad];
+                            boolean fcNullable = oc[ipcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
+                            String fcRem = (String) oc[ipcRem];
+                            Object fcColDef = oc[ipcColDef];
+                            Number fcSDT = (Number) oc[ipcSDT];
+                            Number fcSDTSub = (Number) oc[ipcSDTSub];
+                            Number fcCOLen = (Number) oc[ipcCOLen];
+                            Number fcOrder = (Number) oc[ipcOrder];
+                            boolean fcNullable2 = oc[ipcNullable2] instanceof Number && ((Number) oc[ipcNullable2]).intValue() == 1;
+                            String fcSN = (String) oc[ipcSN];
+                            Number fcSeq = (Number) oc[ipcSeq];
+                            Object fcOverload = oc[ipcOverload];
+                            Object fcDef2 = oc[ipcDef2];
+
+                            String key = (fSch != null ? fSch : "") + (fCat != null ? "." + fCat : "") + (fcFN != null ? "." + fcFN : "") + (fcN != null ? "." + fcN : "#");
+                            DB_Type t = context.getMappedType(key);
+                            if (t == null) {
+                                if ("TABLE".equals(fcTN)) {
+                                    System.out.println("unresolved table param: " + key);
+                                }
+                                t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
+                            }
+
+                            APIParameter param = new APIParameter(fcN, t);
+                            if (fcN == null) {
+                                ((APIFunction) proc).response = param;
+                            } else {
+                                proc.params.put(fcN, param);
+                            }
+                            param.fixUsedIn(proc);
+                            switch (fcCT.intValue()) {
+                                case DatabaseMetaData.functionColumnIn:
+                                    param.direction = APIParameterDirection.in;
+                                    break;
+                                case DatabaseMetaData.functionColumnInOut:
+                                    param.direction = APIParameterDirection.in_out;
+                                    break;
+                                case DatabaseMetaData.functionColumnOut:
+                                    param.direction = APIParameterDirection.out;
+                                    break;
+                                //case DatabaseMetaData.functionColumnResult:
+                                case DatabaseMetaData.functionReturn:
+                                    param.direction = APIParameterDirection.ret;
+                                    break;
+                                case DatabaseMetaData.functionColumnUnknown:
+                                    throw new RuntimeException("Unexpected procedure column type: " + fcCT + " for " + param + " in " + proc);
+                            }
+                        }
+                    }
+
+                    for (int i = 3; i < rsFuncs.size(); i++) {
+                        Object[] oo = rsFuncs.get(i);
+                        String fCat = (String) oo[ifCat];
+                        String fSch = (String) oo[ifSch];
+                        String fn = (String) oo[ifN];
+                        String rem = (String) oo[ifRem];
+                        Number fRet = ((Number) oo[ifRet]).intValue();
+                        String fsn = (String) oo[ifSN];
+//                    System.out.println("Function: " + fSch + "." + fCat + "." + fn + "():" + fRet);
+
+                        APIFunction proc = new APIFunction(fn, fSch, fCat);
+
+                        if (fCat != null) {
+                            DB_Package pkg = new DB_Package(fCat, fSch);
+                            if (resolved.containsKey(pkg.fqn())) {
+                                APIItem obj = resolved.get(pkg.fqn());
+                                if (obj instanceof DB_ObjectType) {
+                                    DB_ObjectType ot = (DB_ObjectType) obj;
+                                    ot.methods.put(proc.name, proc);
+                                    if (proc.name.equals(ot.name) && fRet.intValue() == DatabaseMetaData.functionNoTable) {
+                                        APIParameter p = new APIParameter(null, ot);
+                                        proc.response = p;
+                                        p.fixUsedIn(proc);
+                                    }
+                                    proc.fixUsedIn(ot);
+                                } else if (obj instanceof DB_Package) {
+                                    pkg = (DB_Package) obj;
+                                    if (pkg.content.containsKey(proc.name)) {
+                                        APIItem tmp = pkg.content.get(proc.name);
+                                        if (tmp instanceof APIFunction) {
+                                            continue;
+                                        } else {
+                                            throw new SQLException("Duplicated package item mismatch:\n  found: " + tmp + "\n  new  : " + proc);
+                                        }
+                                    }
+                                    pkg.content.put(proc.name, proc);
+                                    proc.fixUsedIn(pkg);
+                                } else if (obj instanceof APIGroup) {
+                                    APIGroup group = (APIGroup) obj;
                                     APIFunction[] procs = group.funcs.get(proc.name);
                                     if (procs == null) {
-                                        procs = new APIFunction[]{(APIFunction) proc};
-                                    } else {
-                                        procs = Arrays.copyOf(procs, procs.length + 1);
-                                        procs[procs.length - 1] = (APIFunction) proc;
-                                    }
-                                    group.funcs.put(proc.name, procs);
-                                } else {
-                                    APIProcedure[] procs = group.procs.get(proc.name);
-                                    if (procs == null) {
-                                        procs = new APIProcedure[]{proc};
+                                        procs = new APIFunction[]{proc};
                                     } else {
                                         procs = Arrays.copyOf(procs, procs.length + 1);
                                         procs[procs.length - 1] = proc;
                                     }
-                                    group.procs.put(proc.name, procs);
+                                    group.funcs.put(proc.name, procs);
+                                    proc.fixUsedIn(group);
                                 }
-                                proc.fixUsedIn(group);
-                            }
-                        } else {
-                            dbs.packages.put(pkg.name, pkg);
-                            pkg.fixUsedIn(dbs);
-                            resolved.put(pkg.fqn(), pkg);
-                            pkg.content.put(proc.name, proc);
-                            proc.fixUsedIn(pkg);
-                        }
-                    } else {
-                        if (isFunction) {
-                            dbs.funcs.put(proc.name, new APIFunction[]{(APIFunction) proc});
-                        } else {
-                            dbs.procs.put(proc.name, new APIProcedure[]{proc});
-                        }
-                        proc.fixUsedIn(dbs);
-                    }
-
-                    // cols
-                    for (int j : tii) {
-                        Object[] oc = rsProcCols.get(j);
-
-                        String fcCat = (String) oc[ipcCat];
-                        String fcSch = (String) oc[ipcSch];
-                        String fcFN = (String) oc[ipcFN];
-                        String fcN = (String) oc[ipcN];
-                        Number fcCT = (Number) oc[ipcCT];
-                        Number fcDT = (Number) oc[ipcDT];
-                        String fcTN = (String) oc[ipcTN];
-                        Number fcPrec = (Number) oc[ipcPrec];
-                        Number fcLen = (Number) oc[ipcLen];
-                        Number fcScale = (Number) oc[ipcScale];
-                        Number fcRad = (Number) oc[ipcRad];
-                        boolean fcNullable = oc[ipcNullable] instanceof Number && ((Number) oc[ipcNullable]).intValue() == 1;
-                        String fcRem = (String) oc[ipcRem];
-                        Object fcColDef = oc[ipcColDef];
-                        Number fcSDT = (Number) oc[ipcSDT];
-                        Number fcSDTSub = (Number) oc[ipcSDTSub];
-                        Number fcCOLen = (Number) oc[ipcCOLen];
-                        Number fcOrder = (Number) oc[ipcOrder];
-                        boolean fcNullable2 = oc[ipcNullable2] instanceof Number && ((Number) oc[ipcNullable2]).intValue() == 1;
-                        String fcSN = (String) oc[ipcSN];
-                        Number fcSeq = (Number) oc[ipcSeq];
-                        Object fcOverload = oc[ipcOverload];
-                        Object fcDef2 = oc[ipcDef2];
-
-                        String key = (fSch != null ? fSch : "") + (fCat != null ? "." + fCat : "") + (fcFN != null ? "." + fcFN : "") + (fcN != null ? "." + fcN : "#");
-                        DB_Type t = context.getMappedType(key);
-                        if (t == null) {
-                            if ("TABLE".equals(fcTN)) {
-                                System.out.println("unresolved table param: " + key);
-                            }
-                            t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
-                        }
-
-                        APIParameter param = new APIParameter(fcN, t);
-                        if (fcN == null) {
-                            ((APIFunction) proc).response = param;
-                        } else {
-                            proc.params.put(fcN, param);
-                        }
-                        param.fixUsedIn(proc);
-                        switch (fcCT.intValue()) {
-                            case DatabaseMetaData.functionColumnIn:
-                                param.direction = APIParameterDirection.in;
-                                break;
-                            case DatabaseMetaData.functionColumnInOut:
-                                param.direction = APIParameterDirection.in_out;
-                                break;
-                            case DatabaseMetaData.functionColumnOut:
-                                param.direction = APIParameterDirection.out;
-                                break;
-                            //case DatabaseMetaData.functionColumnResult:
-                            case DatabaseMetaData.functionReturn:
-                                param.direction = APIParameterDirection.ret;
-                                break;
-                            case DatabaseMetaData.functionColumnUnknown:
-                                throw new RuntimeException("Unexpected procedure column type: " + fcCT + " for " + param + " in " + proc);
-                        }
-                    }
-                }
-
-                for (int i = 3; i < rsFuncs.size(); i++) {
-                    Object[] oo = rsFuncs.get(i);
-                    String fCat = (String) oo[ifCat];
-                    String fSch = (String) oo[ifSch];
-                    String fn = (String) oo[ifN];
-                    String rem = (String) oo[ifRem];
-                    Number fRet = ((Number) oo[ifRet]).intValue();
-                    String fsn = (String) oo[ifSN];
-//                    System.out.println("Function: " + fSch + "." + fCat + "." + fn + "():" + fRet);
-
-                    APIFunction proc = new APIFunction(fn, fSch, fCat);
-
-                    if (fCat != null) {
-                        DB_Package pkg = new DB_Package(fCat, fSch);
-                        if (resolved.containsKey(pkg.fqn())) {
-                            APIItem obj = resolved.get(pkg.fqn());
-                            if (obj instanceof DB_ObjectType) {
-                                DB_ObjectType ot = (DB_ObjectType) obj;
-                                ot.methods.put(proc.name, proc);
-                                if (proc.name.equals(ot.name) && fRet.intValue() == DatabaseMetaData.functionNoTable) {
-                                    APIParameter p = new APIParameter(null, ot);
-                                    proc.response = p;
-                                    p.fixUsedIn(proc);
-                                }
-                                proc.fixUsedIn(ot);
-                            } else if (obj instanceof DB_Package) {
-                                pkg = (DB_Package) obj;
-                                if (pkg.content.containsKey(proc.name)) {
-                                    APIItem tmp = pkg.content.get(proc.name);
-                                    if (tmp instanceof APIFunction) {
-                                        continue;
-                                    } else {
-                                        throw new SQLException("Duplicated package item mismatch:\n  found: " + tmp + "\n  new  : " + proc);
-                                    }
-                                }
+                            } else {
+                                dbs.packages.put(pkg.name, pkg);
+                                pkg.fixUsedIn(dbs);
+                                resolved.put(pkg.fqn(), pkg);
                                 pkg.content.put(proc.name, proc);
                                 proc.fixUsedIn(pkg);
-                            } else if (obj instanceof APIGroup) {
-                                APIGroup group = (APIGroup) obj;
-                                APIFunction[] procs = group.funcs.get(proc.name);
-                                if (procs == null) {
-                                    procs = new APIFunction[]{proc};
-                                } else {
-                                    procs = Arrays.copyOf(procs, procs.length + 1);
-                                    procs[procs.length - 1] = proc;
-                                }
-                                group.funcs.put(proc.name, procs);
-                                proc.fixUsedIn(group);
                             }
                         } else {
-                            dbs.packages.put(pkg.name, pkg);
-                            pkg.fixUsedIn(dbs);
-                            resolved.put(pkg.fqn(), pkg);
-                            pkg.content.put(proc.name, proc);
-                            proc.fixUsedIn(pkg);
+                            if (dbs.funcs.containsKey(proc.name)) {
+                                APIFunction[] tmp = dbs.funcs.get(proc.name);
+                                if (tmp != null && tmp.length > 0) {
+                                    continue;
+                                } else {
+                                    throw new SQLException("Duplicated schema item mismatch:\n  found: " + tmp + "\n  new  : " + proc);
+                                }
+                            }
+
+                            dbs.funcs.put(proc.name, new APIFunction[]{proc});
+                            proc.fixUsedIn(dbs);
                         }
-                    } else {
-                        if (dbs.funcs.containsKey(proc.name)) {
-                            APIFunction[] tmp = dbs.funcs.get(proc.name);
-                            if (tmp != null && tmp.length > 0) {
-                                continue;
-                            } else {
-                                throw new SQLException("Duplicated schema item mismatch:\n  found: " + tmp + "\n  new  : " + proc);
+
+                        switch (fRet.intValue()) {
+                            case DatabaseMetaData.functionResultUnknown:
+                                break;
+                            case DatabaseMetaData.functionReturnsTable:
+                                break;
+                            case DatabaseMetaData.functionNoTable:
+                                break;
+                        }
+
+                        // cols
+                        List<Object[]> lst = rsFuncCols;
+                        int[] tii = scan(lst, new String[]{"FUNCTION_CAT", "FUNCTION_SCHEM", "FUNCTION_NAME"}, new Object[]{fCat, fSch, fn});
+                        if (tii.length == 0) {
+                            tii = scan(rsProcCols, new String[]{"PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME"}, new Object[]{fCat, fSch, fn});
+                            if (tii.length > 0) {
+                                lst = rsProcCols;
                             }
                         }
+                        for (int j : tii) {
+                            Object[] oc = lst.get(j);
 
-                        dbs.funcs.put(proc.name, new APIFunction[]{proc});
-                        proc.fixUsedIn(dbs);
-                    }
+                            String fcCat = (String) oc[ifcCat];
+                            String fcSch = (String) oc[ifcSch];
+                            String fcFN = (String) oc[ifcFN];
+                            String fcN = (String) oc[ifcN];
+                            Number fcCT = (Number) oc[ifcCT];
+                            Number fcDT = (Number) oc[ifcDT];
+                            String fcTN = (String) oc[ifcTN];
+                            Number fcPrec = (Number) oc[ifcPrec];
+                            Number fcLen = (Number) oc[ifcLen];
+                            Number fcScale = (Number) oc[ifcScale];
+                            Number fcRad = (Number) oc[ifcRad];
+                            boolean fcNullable = oc[ifcNullable] instanceof Number && ((Number) oc[ifcNullable]).intValue() == 1;
+                            String fcRem = (String) oc[ifcRem];
+                            Object fcColDef = oc[ifcColDef];
+                            Number fcSDT = (Number) oc[ifcSDT];
+                            Number fcSDTSub = (Number) oc[ifcSDTSub];
+                            Number fcCOLen = (Number) oc[ifcCOLen];
+                            Number fcOrder = (Number) oc[ifcOrder];
+                            boolean fcNullable2 = oc[ifcNullable2] instanceof Number && ((Number) oc[ifcNullable2]).intValue() == 1;
+                            String fcSN = (String) oc[ifcSN];
+                            Number fcSeq = (Number) oc[ifcSeq];
+                            Object fcOverload = oc[ifcOverload];
+                            Object fcDef2 = oc[ifcDef2];
 
-                    switch (fRet.intValue()) {
-                        case DatabaseMetaData.functionResultUnknown:
-                            break;
-                        case DatabaseMetaData.functionReturnsTable:
-                            break;
-                        case DatabaseMetaData.functionNoTable:
-                            break;
-                    }
-
-                    // cols
-                    List<Object[]> lst = rsFuncCols;
-                    int[] tii = scan(lst, new String[]{"FUNCTION_CAT", "FUNCTION_SCHEM", "FUNCTION_NAME"}, new Object[]{fCat, fSch, fn});
-                    if (tii.length == 0) {
-                        tii = scan(rsProcCols, new String[]{"PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME"}, new Object[]{fCat, fSch, fn});
-                        if (tii.length > 0) {
-                            lst = rsProcCols;
-                        }
-                    }
-                    for (int j : tii) {
-                        Object[] oc = lst.get(j);
-
-                        String fcCat = (String) oc[ifcCat];
-                        String fcSch = (String) oc[ifcSch];
-                        String fcFN = (String) oc[ifcFN];
-                        String fcN = (String) oc[ifcN];
-                        Number fcCT = (Number) oc[ifcCT];
-                        Number fcDT = (Number) oc[ifcDT];
-                        String fcTN = (String) oc[ifcTN];
-                        Number fcPrec = (Number) oc[ifcPrec];
-                        Number fcLen = (Number) oc[ifcLen];
-                        Number fcScale = (Number) oc[ifcScale];
-                        Number fcRad = (Number) oc[ifcRad];
-                        boolean fcNullable = oc[ifcNullable] instanceof Number && ((Number) oc[ifcNullable]).intValue() == 1;
-                        String fcRem = (String) oc[ifcRem];
-                        Object fcColDef = oc[ifcColDef];
-                        Number fcSDT = (Number) oc[ifcSDT];
-                        Number fcSDTSub = (Number) oc[ifcSDTSub];
-                        Number fcCOLen = (Number) oc[ifcCOLen];
-                        Number fcOrder = (Number) oc[ifcOrder];
-                        boolean fcNullable2 = oc[ifcNullable2] instanceof Number && ((Number) oc[ifcNullable2]).intValue() == 1;
-                        String fcSN = (String) oc[ifcSN];
-                        Number fcSeq = (Number) oc[ifcSeq];
-                        Object fcOverload = oc[ifcOverload];
-                        Object fcDef2 = oc[ifcDef2];
-
-                        //DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
-                        String key = (fSch != null ? fSch : "") + (fCat != null ? "." + fCat : "") + (fcFN != null ? "." + fcFN : "") + (fcN != null ? "." + fcN : "#");
-                        DB_Type t = context.getMappedType(key);
-                        if (t == null) {
-                            if ("TABLE".equals(fcTN)) {
-                                System.out.println("unresolved table param: " + key);
+                            //DB_Type t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
+                            String key = (fSch != null ? fSch : "") + (fCat != null ? "." + fCat : "") + (fcFN != null ? "." + fcFN : "") + (fcN != null ? "." + fcN : "#");
+                            DB_Type t = context.getMappedType(key);
+                            if (t == null) {
+                                if ("TABLE".equals(fcTN)) {
+                                    System.out.println("unresolved table param: " + key);
+                                }
+                                t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
                             }
-                            t = context.smartPrepare(resolved, unresolved, fcTN, fcDT, fcScale, (fcLen != null) ? fcLen : fcCOLen, fcNullable);
-                        }
 
-                        APIParameter param = new APIParameter(fcN, t);
-                        param.fixUsedIn(proc);
+                            APIParameter param = new APIParameter(fcN, t);
+                            param.fixUsedIn(proc);
 
-                        switch (fcCT.intValue()) {
-                            //case DatabaseMetaData.functionColumnResult:
-                            case DatabaseMetaData.functionReturn:
-                                param.direction = APIParameterDirection.ret;
-                                proc.response = param;
-                                break;
-                            case DatabaseMetaData.functionColumnIn:
-                                param.direction = APIParameterDirection.in;
-                                proc.params.put(fcN, param);
-                                break;
-                            case DatabaseMetaData.functionColumnInOut:
-                                param.direction = APIParameterDirection.in_out;
-                                proc.params.put(fcN, param);
-                                break;
-                            case DatabaseMetaData.functionColumnOut:
-                                param.direction = APIParameterDirection.out;
-                                proc.params.put(fcN, param);
-                                break;
-                            case DatabaseMetaData.functionColumnUnknown:
-                                throw new RuntimeException("Unexpected function column type: " + fcCT + " for " + param + " in " + proc);
-                        }
+                            switch (fcCT.intValue()) {
+                                //case DatabaseMetaData.functionColumnResult:
+                                case DatabaseMetaData.functionReturn:
+                                    param.direction = APIParameterDirection.ret;
+                                    proc.response = param;
+                                    break;
+                                case DatabaseMetaData.functionColumnIn:
+                                    param.direction = APIParameterDirection.in;
+                                    proc.params.put(fcN, param);
+                                    break;
+                                case DatabaseMetaData.functionColumnInOut:
+                                    param.direction = APIParameterDirection.in_out;
+                                    proc.params.put(fcN, param);
+                                    break;
+                                case DatabaseMetaData.functionColumnOut:
+                                    param.direction = APIParameterDirection.out;
+                                    proc.params.put(fcN, param);
+                                    break;
+                                case DatabaseMetaData.functionColumnUnknown:
+                                    throw new RuntimeException("Unexpected function column type: " + fcCT + " for " + param + " in " + proc);
+                            }
 
-                        if (param.direction == null) {
-                            int a = 0;
+                            if (param.direction == null) {
+                                int a = 0;
+                            }
                         }
                     }
+                } catch (SQLException sex) {
+                    System.err.println("WARNING: skip schema '" + schema + "': " + sex);
                 }
             }
 
@@ -1855,6 +1862,23 @@ public class DB_API_Builder {
             setConnection(connection);
             setTypeResolver(typeResolver);
             initTypes();
+        }
+
+        public <T extends DB_API_Context> T configure(DB_API dbm) {
+            this.dbm = dbm;
+            return (T) this;
+        }
+
+        public <T extends DB_API_Context> T configure(Connection connection) {
+            this.connection = connection;
+            initTypes();
+            return (T) this;
+        }
+
+        public <T extends DB_API_Context> T configure(DB_TypeResolver typeResolver) {
+            this.typeResolver = typeResolver;
+            initTypes();
+            return (T) this;
         }
 
         public void initTypes() {

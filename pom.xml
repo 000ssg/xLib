@@ -16,6 +16,7 @@
     <modules>
         <module>xLibAPI</module>
         <module>xLibWAMP</module>
+        <module>xLibOAuth2</module>
         <module>xLibSSLTestData</module>
         <module>xLibCommon</module>
         <module>xLibSSL</module>
@@ -23,8 +24,9 @@
         <module>xLibService</module>
         <module>xLibHttp</module>
         <module>xLibNet</module>
+        <module>xLibWS_CS</module>
         <module>xLibWAMP_CS</module>
-        <module>xLibOAuth</module>
+        <module>xLibWAMP_CS_API</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

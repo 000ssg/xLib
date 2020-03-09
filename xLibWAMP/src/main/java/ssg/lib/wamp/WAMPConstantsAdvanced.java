@@ -30,11 +30,11 @@ package ssg.lib.wamp;
 public interface WAMPConstantsAdvanced {
 
     // Advanced profile
-    public static final String Canceled = "wamp.error.canceled";
-    public static final String OptionNotAllowed = "wamp.error.option_not_allowed";
-    public static final String NoEligibleCallee = "wamp.error.no_eligible_callee";
-    public static final String RejectedIdentityDisclose = "wamp.error.option_disallowed.disclose_me";
-    public static final String NetworkFailure = "wamp.error.network_failure";
+    public static final String ERROR_Canceled = "wamp.error.canceled";
+    public static final String ERROR_OptionNotAllowed = "wamp.error.option_not_allowed";
+    public static final String ERROR_NoEligibleCallee = "wamp.error.no_eligible_callee";
+    public static final String ERROR_RejectedIdentityDisclose = "wamp.error.option_disallowed.disclose_me";
+    public static final String ERROR_NetworkFailure = "wamp.error.network_failure";
 
     // Advanced feature option constants
     // RPC Features

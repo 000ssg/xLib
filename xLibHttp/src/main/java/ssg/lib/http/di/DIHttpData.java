@@ -35,9 +35,13 @@ import java.util.List;
 import java.util.Map;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.di.base.BaseDI;
-import ssg.lib.di.base.BufferingDI;
 
 /**
+ * Provides DI for HttpService operations. Keeps track of providers with "new"
+ * requests.
+ *
+ * Requests for "new" providers are checked by HttpDataProcessor to ensure
+ * request-response life-cycle events.
  *
  * @author 000ssg
  */
@@ -45,7 +49,6 @@ public class DIHttpData<P extends Channel> extends BaseDI<ByteBuffer, P> {
 
     Map<P, HttpData> httpData = new HashMap<>();
     Collection<P> isNew = new HashSet<>();
-    BufferingDI<ByteBuffer, P> buffers = new BufferingDI<>();
 
     public DIHttpData() {
     }
@@ -124,7 +127,6 @@ public class DIHttpData<P extends Channel> extends BaseDI<ByteBuffer, P> {
 
         http.add(data);
 
-        //System.out.println(Thread.currentThread().getName() + ":toInternal: " + http);
         if (http instanceof HttpRequest) {
             HttpRequest req = (HttpRequest) http;
             if (req.isDone()) {
@@ -141,7 +143,6 @@ public class DIHttpData<P extends Channel> extends BaseDI<ByteBuffer, P> {
         } else {
             r = http.get();
 
-            //System.out.println(Thread.currentThread().getName() + ":toExternal: " + http);
             if (http instanceof HttpRequest) {
                 HttpRequest req = (HttpRequest) http;
                 if (req.isDone()) {
@@ -151,46 +152,4 @@ public class DIHttpData<P extends Channel> extends BaseDI<ByteBuffer, P> {
         }
         return r;
     }
-
-//    @Override
-//    public List<ByteBuffer> onGet(P provider, Collection<ByteBuffer>... data) throws IOException {
-//        List<ByteBuffer> r = null;
-//        long c = 0;
-//        HttpData http = http(provider);
-//        if (http == null) {
-//        } else {
-//            c += http.add(data);
-//            r = http.get();
-//
-//            //System.out.println(Thread.currentThread().getName() + ":toExternal: " + http);
-//            if (http instanceof HttpRequest) {
-//                HttpRequest req = (HttpRequest) http;
-//                if (req.isDone()) {
-//                    unregisterHttp(provider);
-//                }
-//            }
-//        }
-//        return r;
-//    }
-//    @Override
-//    public long onPut(P provider, Collection<ByteBuffer>... data) throws IOException {
-//        long c = BufferTools.getRemaining(data);
-//        HttpData http = http(provider);
-//
-//        if (http == null) {
-//            return 0;
-//        }
-//
-//        http.add(data);
-//
-//        //System.out.println(Thread.currentThread().getName() + ":toInternal: " + http);
-//        if (http instanceof HttpRequest) {
-//            HttpRequest req = (HttpRequest) http;
-//            if (req.isDone()) {
-//                unregisterHttp(provider);
-//            }
-//        }
-//
-//        return c - BufferTools.getRemaining(data);
-//    }
 }

@@ -46,6 +46,7 @@ public class HttpWS extends HttpData {
     public HttpWS(WebSocket ws) {
         this.ws = ws;
         matcher = new HttpMatcher(ws.getPath());
+        setFlags(HF_SWITCHED);
     }
 
     public HttpWS(WebSocket ws, HttpData http) throws IOException {
@@ -55,6 +56,7 @@ public class HttpWS extends HttpData {
         if (http instanceof HttpRequest) {
             matcher = new HttpMatcher(http.getHead().getProtocolInfo()[1]);
         }
+        setFlags(HF_SWITCHED);
     }
 
     @Override
@@ -99,6 +101,11 @@ public class HttpWS extends HttpData {
 
     public WebSocket getWebSocket() {
         return ws;
+    }
+
+    @Override
+    public boolean isCompleted() {
+        return !ws.isConnected();
     }
 
 }

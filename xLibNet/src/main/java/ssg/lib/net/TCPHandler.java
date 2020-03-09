@@ -61,10 +61,11 @@ public class TCPHandler implements Handler {
     }
 
     public TCPHandler defaultHandler(DI<ByteBuffer, SocketChannel> dh) {
-        this.defaultHandler = dh;
+        setDefaultHandler(dh);
         return this;
     }
 
+    @Override
     public boolean isRegistered() {
         return selector != null && selector.isOpen();
     }
@@ -217,7 +218,13 @@ public class TCPHandler implements Handler {
      * @param defaultHandler the defaultHandler to set
      */
     public void setDefaultHandler(DI<ByteBuffer, SocketChannel> defaultHandler) {
+        if (this.defaultHandler instanceof DataHandlerListener) {
+            ((DataHandlerListener) this.defaultHandler).onUnassociated(this);
+        }
         this.defaultHandler = defaultHandler;
+        if (defaultHandler instanceof DataHandlerListener) {
+            ((DataHandlerListener) defaultHandler).onAssociated(this);
+        }
     }
 
     @Override

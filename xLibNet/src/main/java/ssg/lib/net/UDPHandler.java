@@ -85,6 +85,11 @@ public class UDPHandler implements Handler {
     }
 
     @Override
+    public boolean isRegistered() {
+        return selector != null && selector.isOpen();
+    }
+
+    @Override
     public void register(Selector selector) throws IOException {
         this.selector = selector;
         try {
@@ -136,6 +141,10 @@ public class UDPHandler implements Handler {
 
     @Override
     public void unregister(Selector selector) throws IOException {
+        if (this.selector == null) {
+            return;
+        }
+        selector = null;
         if (providers.isEmpty() && !handlers.isEmpty()) {
             synchronized (providers) {
                 SocketAddress[] ps = providers.toArray(new SocketAddress[providers.size()]);

@@ -30,7 +30,7 @@ package ssg.lib.service;
 public enum SERVICE_FLOW_STATE {
     in, // accepts data
     out, // produces data
-    in_out, // accepts/prodices data
+    in_out, // accepts/produces data
     completed, // success
     failed // failure
 

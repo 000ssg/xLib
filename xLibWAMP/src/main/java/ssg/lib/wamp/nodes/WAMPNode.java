@@ -58,6 +58,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
 public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealmListener {
 
     private static AtomicInteger NEXT_NODE_ID = new AtomicInteger(1);
+    public static boolean DUMP_ESTABLISH_CLOSE = true;
 
     final int nodeId = NEXT_NODE_ID.getAndIncrement();
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
@@ -65,6 +66,26 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
     private String agent;
     private WAMPStatistics statistics;
     private WAMPRealmFactory realmFactory;
+
+    public <T extends WAMPNode> T configureAgent(String agent) {
+        this.agent = agent;
+        return (T) this;
+    }
+
+    public <T extends WAMPNode> T configure(WAMPFeature... features) {
+        defaultFeatures = WAMPFeature.merge(defaultFeatures, features);
+        return (T) this;
+    }
+
+    public <T extends WAMPNode> T configure(WAMPStatistics statistics) {
+        this.statistics = statistics;
+        return (T) this;
+    }
+
+    public <T extends WAMPNode> T configure(WAMPRealmFactory realmFactory) {
+        this.realmFactory = realmFactory;
+        return (T) this;
+    }
 
     /**
      * Regular actions to process input messages and errors.
@@ -93,18 +114,17 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         this.agent = agent;
     }
 
-    /**
-     * Builder-style default features adder.
-     *
-     * @param <T>
-     * @param features
-     * @return
-     */
-    public <T extends WAMPNode> T addDefaultFeatures(WAMPFeature... features) {
-        defaultFeatures = WAMPFeature.merge(defaultFeatures, features);
-        return (T) this;
-    }
-
+//    /**
+//     * Builder-style default features adder.
+//     *
+//     * @param <T>
+//     * @param features
+//     * @return
+//     */
+//    public <T extends WAMPNode> T addDefaultFeatures(WAMPFeature... features) {
+//        defaultFeatures = WAMPFeature.merge(defaultFeatures, features);
+//        return (T) this;
+//    }
     /**
      * WAMP Realm builder. Override to validate.
      *
@@ -171,12 +191,15 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
      */
     public WAMPSession createSession(WAMPTransport transport, WAMPRealm realm, Role... roles) throws WAMPException {
         try {
-            WAMPSession session = new WAMPSession(realm, roles) {
+            final WAMPSession session = new WAMPSession(realm, roles) {
                 @Override
                 public void onSend(WAMPMessage msg) throws WAMPException {
                     if (transport.isOpen()) {
                         transport.send(msg);
                     } else {
+                        if (getCloseReason() == null) {
+                            setCloseReason("node.transport.closed");
+                        }
                         setState(WAMPSessionState.closed);
                     }
                 }
@@ -223,7 +246,9 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
                 }
             }
         }
-        System.out.println("ESTABLISHED SESSION:\n    " + session.toString().replace("\n", "\n    "));
+        if (DUMP_ESTABLISH_CLOSE) {
+            System.out.println("ESTABLISHED SESSION: " + session.getId() + ", '" + session.getRealm().getName() + "'\n    " + session.toString().replace("\n", "\n    "));
+        }
     }
 
     /**
@@ -241,6 +266,9 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
                     this.onListenerError(session, null, null, l, th);
                 }
             }
+        }
+        if (DUMP_ESTABLISH_CLOSE) {
+            System.out.println("CLOSED      SESSION: " + session.getId() + ", '" + session.getRealm().getName() + "', reason=" + session.getCloseReason() + "\n    " + session.toString().replace("\n", "\n    "));
         }
     }
 

@@ -30,6 +30,8 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +72,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
 
     @Override
     public boolean canInitialize(Channel provider, WebSocket ws) {
-        return provider != null && ws != null && ws.isClient() && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol());
+        return (provider == null || provider.isOpen()) && ws != null && ws.isClient() && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol());
     }
 
     @Override
@@ -150,7 +152,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         if (addOns == null) {
             addOns = new WebSocket.WebSocketAddons();
         }
-        addOns.addProtocols(WAMP.WS_SUB_PROTOCOL_JSON);
+        addOns.addProtocol(WAMP.WS_SUB_PROTOCOL_JSON, this);
         return addOns;
     }
 
@@ -280,9 +282,10 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
      */
     public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String agent, String realm, WAMP.Role... roles) throws IOException {
         WAMPClient client = new WAMPClient()
-                .statistics((statistics != null) ? statistics.createChild(null, agent) : null)
-                .configure(null, features, agent, realm, roles);
+                .configure(null, features, agent, realm, roles)
+                .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null));
         Map<String, Object> props = client.getProperties();
+        props.put("version", "0.1");
         props.put("uri", uri);
         props.put("protocols", new String[]{(protocol != null) ? protocol : WAMP.WS_SUB_PROTOCOL_JSON});
         int port = uri.getPort();
@@ -302,17 +305,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
                 public void onWebSocketClientHandshake(Channel provider, WebSocket ws) throws IOException {
                     WAMPClient client = clients.get(provider);
                     URI uri = (URI) client.getProperties().get("uri");
-                    String[] protocols = (client.getProperties().get("protocols") instanceof String[]) ? (String[]) client.getProperties().get("protocols") : new String[]{WAMP.WS_SUB_PROTOCOL_JSON};
-                    String[] extensions = new String[]{"timestamp; keepOffset=true", "gzipped"};
-                    if (ws.getAddOns() != null) {
-                        if (ws.getAddOns().getProtocols() != null && !ws.getAddOns().getProtocols().isEmpty()) {
-                            protocols = ws.getAddOns().getProtocols().toArray(new String[ws.getAddOns().getProtocols().size()]);
-                        }
-                        if (ws.getAddOns().getExtensions() != null && !ws.getAddOns().getExtensions().isEmpty()) {
-                            extensions = ws.getAddOns().getExtensions().keySet().toArray(new String[ws.getAddOns().getExtensions().size()]);
-                        }
-                    }
-                    String version = "0.1";
+                    String[] protocols = ws.getAddOns().getProposedProtocols();
+                    String[] extensions = ws.getAddOns().getProposedExtensions();
+                    String version = (String) client.getProperties().get("version");
                     int wsVersion = 0;
                     String origin = null;
                     ws.handshake(version, uri.getPath(), uri.getHost(), origin, protocols, extensions, wsVersion);
@@ -332,6 +327,14 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
      * @throws IOException
      */
     public void onClientCreated(WAMPClient client) throws IOException {
+    }
+
+    public Collection<WAMPClient> getClients() {
+        synchronized (clients) {
+            List<WAMPClient> r = new ArrayList<>();
+            r.addAll(clients.values());
+            return r;
+        }
     }
 
     /**

@@ -143,7 +143,7 @@ public class Reflective_API_BuilderTest {
         assertEquals(name, result.name);
         //
         Collection<APIProcedure> procs = result.find((item) -> {
-            return APIMatcher.matchAPIProcedure(item, "T1Engine.first");
+            return APIMatcher.matchAPIProcedure(item, name+".T1Engine.first");
         }, APIProcedure.class, null);
         APICallable caller = result.createCallable(procs.iterator().next(), demo);
 
@@ -158,13 +158,13 @@ public class Reflective_API_BuilderTest {
             aex.printStackTrace();
         }
 
-        System.out.println("Call first('A'): " + call(result, "T1Engine.first", demo, new HashMap() {
+        System.out.println("Call first('A'): " + call(result, name+".T1Engine.first", demo, new HashMap() {
             {
                 put("a", "A");
             }
         }, false));
 
-        System.out.println("Call find(,'B'): " + call(result, "T1Engine.find", demo, new HashMap() {
+        System.out.println("Call find(,'B'): " + call(result, name+".T1Engine.find", demo, new HashMap() {
             {
                 put("b", "B");
             }
@@ -178,7 +178,7 @@ public class Reflective_API_BuilderTest {
     public void testBuildGroup() {
         System.out.println("buildGroup");
         API api = new API_Reflective("demo");
-        APIGroup group = new APIGroup("test");
+        APIGroup group = new APIGroup("test",api.getScopeForChild());
         T1Engine demo = getTestItem();
         Class type = demo.getClass();
         Reflective_API_Builder.ReflectiveFilter filter = null;
@@ -237,8 +237,8 @@ public class Reflective_API_BuilderTest {
         System.out.println("test API_Publishers");
         API api = Reflective_API_Builder.buildAPI("demo2", new Reflective_API_Context(null), T1.class, T1Engine.class);
         System.out.println("API: " + api);
-        System.out.println("Call random(): " + call(api, "T1.random", null, null, false));
-        System.out.println("Call random(3): " + call(api, "T1.random", null, new HashMap() {
+        System.out.println("Call random(): " + call(api, "demo2.T1.random", null, null, false));
+        System.out.println("Call random(3): " + call(api, "demo2.T1.random", null, new HashMap() {
             {
                 put("count", 3);
             }

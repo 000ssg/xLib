@@ -384,6 +384,19 @@ public interface HttpAuthenticator<P> {
             this.store = store;
         }
 
+        public <T extends Domain> T configure(UserStore userStore) throws IOException {
+            if (userStore == null) {
+                throw new IOException("cannot configure null user store.");
+            }
+            this.store = userStore;
+            return (T) this;
+        }
+
+        public <T extends Domain> T configureUser(String name, String pwd, String dn, RAT rat) {
+            store.registerUser(name, (pwd != null) ? new PasswordVerifier(pwd) : null, dn != null ? new CertificateKey(dn) : null, rat);
+            return (T) this;
+        }
+
         public UserStore getUserStore() {
             return store;
         }
@@ -869,6 +882,27 @@ public interface HttpAuthenticator<P> {
         public UserStoreSimple() {
         }
 
+        public <T extends UserStoreSimple> T configureCertificates(KeyManager km) {
+            if (km != null) {
+                resolveCertificates(km);
+            }
+            return (T) this;
+        }
+
+        public <T extends UserStoreSimple> T configureUser(String name, Object... parameters) {
+            registerUser(name, parameters);
+            return (T) this;
+        }
+
+        public <T extends UserStoreSimple> T configureRemoveUser(String... names) {
+            if (names != null) {
+                for (String name : names) {
+                    unregisterUser(name);
+                }
+            }
+            return (T) this;
+        }
+
         @Override
         public Iterable<String> names() {
             return userAccess.keySet();
@@ -1039,7 +1073,6 @@ public interface HttpAuthenticator<P> {
             sb.append('}');
             return sb.toString();
         }
-
     }
 
 }

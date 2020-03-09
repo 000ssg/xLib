@@ -41,7 +41,7 @@ import java.nio.channels.SocketChannel;
 public class HttpConnectionUpgradeHTTP2<P extends Channel> implements HttpConnectionUpgrade<P> {
 
     @Override
-    public boolean testUpgrade(Head head) {
+    public boolean testUpgrade(String root, Head head) {
         if (head != null && head.isConnectionUpgrade()) {
             String upgradeTo = head.getHeader1(HH_UPGRADE);
             if (HUPGR_HTTP2.equalsIgnoreCase(upgradeTo)) {

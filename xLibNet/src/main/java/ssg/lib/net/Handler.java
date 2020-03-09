@@ -34,6 +34,13 @@ import java.nio.channels.Selector;
 public interface Handler {
 
     /**
+     * Is handler registered for selector.
+     *
+     * @return
+     */
+    boolean isRegistered();
+
+    /**
      * Register handler for selector.
      *
      * @param selector
@@ -59,4 +66,11 @@ public interface Handler {
      * @throws IOException
      */
     SelectionKey[] onHandle(SelectionKey key) throws IOException;
+
+    public static interface DataHandlerListener {
+
+        void onAssociated(Handler handler);
+
+        void onUnassociated(Handler handler);
+    }
 }

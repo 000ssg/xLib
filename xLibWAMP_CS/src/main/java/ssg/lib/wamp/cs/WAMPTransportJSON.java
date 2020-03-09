@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.common.JSON;
 import ssg.lib.common.JSON.STATE;
+import ssg.lib.common.Refl;
+import ssg.lib.common.Refl.ReflImpl;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.WAMPTransport;
@@ -46,10 +48,11 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
 public class WAMPTransportJSON<P> implements WAMPTransport {
 
     private static final AtomicInteger NEXT_ID = new AtomicInteger(1);
+    private static Refl refl=new ReflImpl();
 
     public final int id = NEXT_ID.getAndIncrement();
-    JSON.Encoder encoder = new JSON.Encoder();
-    JSON.Decoder decoder = new JSON.Decoder();
+    JSON.Encoder encoder = new JSON.Encoder(refl);
+    JSON.Decoder decoder = new JSON.Decoder(refl);
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     P provider;

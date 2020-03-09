@@ -138,6 +138,9 @@ public class WAMPClient extends WAMPNode {
                 if (WAMPClient.this.transport != null && WAMPClient.this.transport.isOpen()) {
                     WAMPClient.this.transport.send(msg);
                 } else {
+                    if (session.getCloseReason() == null) {
+                        session.setCloseReason("client.transport." + ((WAMPClient.this.transport == null) ? "none" : "closed"));
+                    }
                     setState(WAMPSessionState.closed);
                 }
             }
@@ -145,21 +148,6 @@ public class WAMPClient extends WAMPNode {
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
         return (T) this;
-    }
-
-    /**
-     * Pre-configuration builder-style method to prepare statistics.
-     *
-     * Use to ensure statistics is assigned to node -> realm -> session as
-     * hierarchy in subsequent "configure" call.
-     *
-     * @param <Z>
-     * @param statistics
-     * @return
-     */
-    public <Z extends WAMPClient> Z statistics(WAMPStatistics statistics) {
-        setStatistics(statistics);
-        return (Z) this;
     }
 
     public void setTransport(WAMPTransport transport) throws WAMPException {
@@ -237,7 +225,7 @@ public class WAMPClient extends WAMPNode {
             for (WAMPRPCListener l : rpcListeners) {
                 // invalidate call
                 if (l != null) {
-                    l.onCancel(0, WAMPConstantsBase.CloseRealm);
+                    l.onCancel(0, WAMPConstantsBase.INFO_CloseRealm);
                 }
             }
         }
@@ -404,9 +392,8 @@ public class WAMPClient extends WAMPNode {
                         }
                     } catch (WAMPException wex) {
                         wex.printStackTrace();
-                        session.send(WAMPMessage.abort(
-                                WAMPTools.createDict("message", msg.toList(), "error", WAMPTools.getStackTrace(wex)),
-                                WAMPConstantsBase.ProtocolViolation));
+                        session.send(WAMPMessage.abort(WAMPTools.createDict("message", msg.toList(), "error", WAMPTools.getStackTrace(wex)),
+                                WAMPConstantsBase.ERROR_ProtocolViolation));
                     }
                 }
             }

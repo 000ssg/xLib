@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.WAMPTransport;
-import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
 

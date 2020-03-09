@@ -169,11 +169,15 @@ public class WebSocketProcessor {
             }
 
             if (text != null || data != null) {
-                for (WebSocketMessageListener l : ls) {
-                    try {
-                        l.onMessage(ws, text, data);
-                    } catch (Throwable th) {
-                        onProcessError(l, th, text, data, message);
+                if (ws.getProtocolHandler() != null) {
+                    ws.getProtocolHandler().onConsume(ws.getConnection(), ws, message);
+                } else {
+                    for (WebSocketMessageListener l : ls) {
+                        try {
+                            l.onMessage(ws, text, data);
+                        } catch (Throwable th) {
+                            onProcessError(l, th, text, data, message);
+                        }
                     }
                 }
             } else {

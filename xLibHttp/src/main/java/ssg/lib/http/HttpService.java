@@ -51,6 +51,7 @@ import ssg.lib.service.SERVICE_FLOW_STATE;
 import ssg.lib.service.SERVICE_MODE;
 import static ssg.lib.service.SERVICE_MODE.request;
 import static ssg.lib.service.SERVICE_MODE.response;
+import ssg.lib.service.SERVICE_PROCESSING_STATE;
 import ssg.lib.service.ServiceProcessor;
 import static ssg.lib.service.ServiceProcessor.SPO_NO_OPTIONS;
 import ssg.lib.service.ServiceProcessor.ServiceProviderMeta;
@@ -82,8 +83,8 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     private long options = SPO_NO_OPTIONS;
     private Repository<DataProcessor> dataProcessors;
     private Repository<HttpConnectionUpgrade> connectionUpgrades;
-    private Repository<HttpApplication> applications = new Repository<>();
-    HttpMatcher serviceMatcher;
+    private Repository<HttpApplication> applications = new Repository<HttpApplication>().addOwner(this);
+    //HttpMatcher serviceMatcher;
     String root;
     int maxURILength = 1024 * 64 + 10 + protocolVersion.length() + 2;
     String sessionIdCookie = "0x01";
@@ -105,6 +106,68 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (auth != null) {
             this.auth = auth;
         }
+    }
+
+    public <T extends HttpService> T configureDataProcessors(Repository<DataProcessor> dataProcessors) {
+        this.dataProcessors = dataProcessors;
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureConnectionUpgrades(Repository<HttpConnectionUpgrade> connectionUpgrades) {
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureDataProcessor(int order, DataProcessor... dataProcessors) {
+        if (this.dataProcessors == null) {
+            this.dataProcessors = new Repository<>();
+        }
+        this.dataProcessors.configure(order, dataProcessors);
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureConnectionUpgrade(int order, HttpConnectionUpgrade... connectionUpgrades) {
+        if (this.connectionUpgrades == null) {
+            this.connectionUpgrades = new Repository<>();
+        }
+        this.connectionUpgrades.configure(order, connectionUpgrades);
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureApplication(int order, HttpApplication... applications) {
+        if (this.applications == null) {
+            this.applications = new Repository<>();
+        }
+        this.applications.configure(order, applications);
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureServiceOptions(long options) {
+        this.setOptions(options);
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureRoot(String root) throws IOException {
+        if (this.root == null && root != null) {
+            this.root = root;
+        } else {
+            throw new IOException("Cannot modify root: '" + this.root + "' to '" + root + "'.");
+        }
+        this.setOptions(options);
+        return (T) this;
+    }
+
+    public <T extends HttpService> T configureAuthentication(HttpAuthenticator<P> auth) throws IOException {
+        this.auth = auth;
+        return (T) this;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    public HttpService root(String root) {
+        if (root != null && !root.startsWith("/")) {
+            root = "/" + root;
+        }
+        this.root = root;
+        return this;
     }
 
     public HttpAuthenticator<P> getAuthenticator() {
@@ -369,7 +432,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                 List<HttpConnectionUpgrade> cus = cur.find(new Matcher<HttpConnectionUpgrade>() {
                     @Override
                     public float match(HttpConnectionUpgrade t) {
-                        if (t != null && t.testUpgrade(http.getHead())) {
+                        if (t != null && t.testUpgrade(root != null ? root : "", http.getHead())) {
                             return 1;
                         } else {
                             return 0;
@@ -415,6 +478,17 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
             }
         }
         return SERVICE_FLOW_STATE.failed;
+    }
+
+    @Override
+    public SERVICE_PROCESSING_STATE testProcessing(P provider, DI<ByteBuffer, P> pd) throws IOException {
+        HttpData http = ((DIHttpData) pd).http(provider);
+        if (http != null && http.hasFlags(HttpData.HF_SWITCHED)) {
+            return (http.isCompleted())
+                    ? SERVICE_PROCESSING_STATE.OK
+                    : SERVICE_PROCESSING_STATE.processing;
+        }
+        return SERVICE_PROCESSING_STATE.failed;
     }
 
     public void onHttpDataCreated(P provider, HttpData http) {
@@ -476,7 +550,13 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
      * @param dataProcessors the dataProcessors to set
      */
     public void setDataProcessors(Repository<DataProcessor> dataProcessors) {
+        if (this.dataProcessors != null) {
+            this.dataProcessors.removeOwner(this);
+        }
         this.dataProcessors = dataProcessors;
+        if (dataProcessors != null) {
+            dataProcessors.addOwner(this);
+        }
     }
 
     public boolean isAllowedProvider(P provider) {
@@ -508,7 +588,13 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
      * @param connectionUpgrades the connectionUpgrades to set
      */
     public void setConnectionUpgrades(Repository<HttpConnectionUpgrade> connectionUpgrades) {
+        if (this.connectionUpgrades != null) {
+            this.connectionUpgrades.removeOwner(this);
+        }
         this.connectionUpgrades = connectionUpgrades;
+        if (connectionUpgrades != null) {
+            connectionUpgrades.addOwner(this);
+        }
     }
 
     @Override
@@ -540,5 +626,4 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         Collections.sort(r, TaskProvider.getTaskComparator(true));
         return r;
     }
-
 }

@@ -142,6 +142,25 @@ public class APIGroup extends APIItem implements APISearchable {
     }
 
     @Override
+    public String toStringInlineInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toStringInlineInfo());
+        if (!groups.isEmpty()) {
+            sb.append(", groups=" + groups.size());
+        }
+        if (!procs.isEmpty()) {
+            sb.append(", procs=" + procs.size());
+        }
+        if (!funcs.isEmpty()) {
+            sb.append(", funcs=" + funcs.size());
+        }
+        if (!types.isEmpty()) {
+            sb.append(", types=" + types.size());
+        }
+        return sb.toString();
+    }
+
+    @Override
     public String toFQNString() {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toFQNString());

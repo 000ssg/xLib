@@ -23,6 +23,7 @@
  */
 package ssg.lib.wamp.rpc.impl.dealer;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,10 +53,12 @@ public class DealerCall extends Call {
     // on dealer
     DealerProcedure proc;
     private WAMPCallStatistics statistics;
-    boolean callerErrorSent = false; // used to prevent multiple errors if mutli-RPC call
+    boolean callerErrorSent = false; // used to prevent multiple call errors if mutli-RPC call
+    private boolean dealerTimeout = false;
 
     // to/from callee
     long[] invocationIds;
+    boolean[] interruptSent;
     AtomicInteger activeCalls = new AtomicInteger();
 
     Map<String, Object> details = WAMPTools.createDict(null);
@@ -68,6 +71,8 @@ public class DealerCall extends Call {
             statistics.onCall();
         }
         invocationIds = new long[(proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1];
+        interruptSent = new boolean[invocationIds.length];
+        Arrays.fill(interruptSent, false);
         if (options.get(RPC_CALL_TIMEOUT) instanceof Number) {
             Number n = (Number) options.get(RPC_CALL_TIMEOUT);
             setTimeout(n.longValue());
@@ -86,6 +91,8 @@ public class DealerCall extends Call {
             statistics.onCall();
         }
         invocationIds = new long[(proc instanceof DealerMultiProcedure) ? ((DealerMultiProcedure) proc).procs.length : 1];
+        interruptSent = new boolean[invocationIds.length];
+        Arrays.fill(interruptSent, false);
     }
 
     /**
@@ -111,6 +118,25 @@ public class DealerCall extends Call {
         return invocationIds[procIdx];
     }
 
+    public synchronized void setInterruptSent(int procIdx) {
+        if (procIdx >= 0 && procIdx < interruptSent.length) {
+            interruptSent[procIdx] = true;
+        }
+    }
+
+    public synchronized boolean isInterruptSent(int procIdx) {
+        return (procIdx >= 0 && procIdx < interruptSent.length) ? interruptSent[procIdx] : false;
+    }
+
+    public int getProcedureIdx(long invocationId) {
+        for (int i = 0; i < invocationIds.length; i++) {
+            if (invocationIds[i] == invocationId) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /**
      * Returns index of completed procedure
      *
@@ -126,5 +152,19 @@ public class DealerCall extends Call {
             }
         }
         return -1;
+    }
+
+    /**
+     * @return the dealerTimeout
+     */
+    public boolean isDealerTimeout() {
+        return dealerTimeout;
+    }
+
+    /**
+     * @param dealerTimeout the dealerTimeout to set
+     */
+    public void setDealerTimeout(boolean dealerTimeout) {
+        this.dealerTimeout = dealerTimeout;
     }
 }

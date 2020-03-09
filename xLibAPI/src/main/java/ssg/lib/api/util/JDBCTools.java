@@ -564,6 +564,10 @@ public class JDBCTools {
         return sb.toString();
     }
 
+    public static List<Object[]> rs2list(ResultSet rs, boolean includeTypesInfo) throws SQLException {
+        return rs2list(rs, includeTypesInfo, true);
+    }
+
     /**
      *
      * @param rs
@@ -571,7 +575,7 @@ public class JDBCTools {
      * @return
      * @throws SQLException
      */
-    public static List<Object[]> rs2list(ResultSet rs, boolean includeTypesInfo) throws SQLException {
+    public static List<Object[]> rs2list(ResultSet rs, boolean includeTypesInfo, boolean closeRS) throws SQLException {
         List<Object[]> r = new ArrayList<>();
 
         ResultSetMetaData meta = rs.getMetaData();
@@ -666,6 +670,12 @@ public class JDBCTools {
         } catch (Throwable th) {
             th.printStackTrace();
         } finally {
+            if (rs != null && closeRS) {
+                try {
+                    rs.close();
+                } catch (SQLException sex) {
+                }
+            }
         }
         return r;
     }

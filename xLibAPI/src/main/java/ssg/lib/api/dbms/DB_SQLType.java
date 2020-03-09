@@ -74,7 +74,9 @@ public class DB_SQLType extends DB_Type {
 
     @Override
     public int getSQLType() {
-        if (name.startsWith("VARCHAR")) {
+        if (name == null) {
+            return Types.NULL;
+        } else if (name.startsWith("VARCHAR")) {
             return Types.VARCHAR;
         } else if (name.startsWith("NUMBER")) {
             return Types.DECIMAL;
@@ -91,7 +93,9 @@ public class DB_SQLType extends DB_Type {
 
     @Override
     public Class getJavaType() {
-        if (name.startsWith("VARCHAR")) {
+        if (name == null) {
+            return null;
+        } else if (name.startsWith("VARCHAR")) {
             return String.class;
         } else if (name.startsWith("NUMBER")) {
             return Number.class;

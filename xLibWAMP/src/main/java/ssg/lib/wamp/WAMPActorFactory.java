@@ -64,12 +64,6 @@ public class WAMPActorFactory {
     Map<Role, Class> actors = new EnumMap<Role, Class>(Role.class);
 
     private WAMPActorFactory() {
-//        actors.put(Role.broker, WAMPSubscriptionBroker.class);
-//        actors.put(Role.publisher, WAMPSubscriptionPublisher.class);
-//        actors.put(Role.subscriber, WAMPSubscriptionSubscriber.class);
-//        actors.put(Role.dealer, WAMPRPCDealer.class);
-//        actors.put(Role.callee, WAMPRPCCallee.class);
-//        actors.put(Role.caller, WAMPRPCCaller.class);
         init(
                 WAMPSubscriptionBroker.class,
                 WAMPSubscriptionPublisher.class,

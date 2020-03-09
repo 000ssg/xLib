@@ -223,7 +223,8 @@ public abstract class StatisticsBase implements Statistics {
 
     @Override
     public String dumpStatistics(int idx, boolean compact) {
-        return "";
+        long v=getData().counters().get(idx);
+        return name(idx)+"="+v;
     }
 
     /**

@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.common.CommonTools;
 import ssg.lib.common.net.NetTools;
@@ -294,6 +295,9 @@ public abstract class WebSocket implements WebSocketConstants {
             }
         }
         List<ByteBuffer> r = new ArrayList<ByteBuffer>();
+        if (getProtocolHandler() != null) {
+            getProtocolHandler().onProduce(getConnection(), this);
+        }
         synchronized (output) {
             r.addAll(output);
             output.clear();
@@ -391,6 +395,8 @@ public abstract class WebSocket implements WebSocketConstants {
      * Once closed the input/output streams are unavialable.
      */
     public abstract void closeConnection() throws IOException;
+
+    public abstract <T> T getConnection();
 
     ///////////////////////////////////////////////////////////////
     //// Common operational and utility methods.
@@ -857,6 +863,15 @@ public abstract class WebSocket implements WebSocketConstants {
         }
         if (addOns != null && addOns.getProtocols() != null && addOns.getProtocols().contains(protocol)) {
             this.protocol = protocol;
+            WebSocketProtocolHandler[] ps = addOns.getWebSocketProtocolHandler(protocol);
+            if (ps != null) {
+                for (WebSocketProtocolHandler p : ps) {
+                    if (p.canInitialize(getConnection(), this)) {
+                        this.protocolHandler = p;
+                        break;
+                    }
+                }
+            }
             return true;
         }
         if (allProtocols.contains(protocol)) {
@@ -1068,24 +1083,26 @@ public abstract class WebSocket implements WebSocketConstants {
     public static class WebSocketAddons {
         // instance-specific allowed protocols/extensions
 
-        private Collection<String> protocols;
+        //private Collection<String> protocols;
+        private Map<String, WebSocketProtocolHandler[]> protocols;
         private Map<String, WebSocketExtension> extensions;
 
         public WebSocketAddons() {
         }
 
-        public WebSocketAddons addProtocols(String... protocols) {
-            if (protocols != null) {
-                for (String p : protocols) {
-                    if (p != null) {
-                        if (this.protocols == null) {
-                            this.protocols = new HashSet<>();
-                        }
-                        if (!this.protocols.contains(p)) {
-                            this.protocols.add(p);
-                        }
-                    }
+        public WebSocketAddons addProtocol(String protocol, WebSocketProtocolHandler... phs) {
+            if (protocol != null) {
+                if (this.protocols == null) {
+                    this.protocols = new LinkedHashMap<>();
                 }
+                WebSocketProtocolHandler[] ps = this.protocols.get(protocol);
+                if (ps == null) {
+                    ps = new WebSocketProtocolHandler[0];
+                }
+                if (phs != null) {
+                    ps = merge(ps, phs);
+                }
+                this.protocols.put(protocol, ps);
             }
             return this;
         }
@@ -1107,11 +1124,113 @@ public abstract class WebSocket implements WebSocketConstants {
         }
 
         public Collection<String> getProtocols() {
-            return protocols;
+            return protocols.keySet();
         }
 
         public Map<String, WebSocketExtension> getExtensions() {
             return extensions;
+        }
+
+        public WebSocketProtocolHandler[] getWebSocketProtocolHandler(String protocol) {
+            return (protocols != null) ? protocols.get(protocol) : null;
+        }
+
+        public WebSocketProtocolHandler[] merge(WebSocketProtocolHandler[] a, WebSocketProtocolHandler... b) {
+            WebSocketProtocolHandler[] r = new WebSocketProtocolHandler[(a != null ? a.length : 0) + (b != null ? b.length : 0)];
+            if (r.length > 0) {
+                int off = 0;
+                for (WebSocketProtocolHandler[] aa : new WebSocketProtocolHandler[][]{a, b}) {
+                    if (aa == null) {
+                        continue;
+                    }
+                    for (WebSocketProtocolHandler pa : aa) {
+                        boolean isNew = true;
+                        for (int i = 0; i < off; i++) {
+                            if (r[i].equals(pa)) {
+                                isNew = false;
+                                break;
+                            }
+                        }
+                        if (isNew) {
+                            r[off++] = pa;
+                        }
+                    }
+                }
+                if (off < r.length) {
+                    r = Arrays.copyOf(r, off);
+                }
+            }
+            return r;
+        }
+
+        public void merge(WebSocketAddons addOns) {
+            if (addOns == null) {
+                return;
+            }
+            if (addOns.protocols != null && !addOns.protocols.isEmpty()) {
+                for (Entry<String, WebSocketProtocolHandler[]> entry : addOns.protocols.entrySet()) {
+                    if (protocols == null || !protocols.containsKey(entry.getKey())) {
+                        addProtocol(entry.getKey(), merge(getWebSocketProtocolHandler(entry.getKey()), entry.getValue()));
+                    }
+                }
+            }
+            if (addOns.extensions != null && !addOns.extensions.isEmpty()) {
+                for (Entry<String, WebSocketExtension> entry : addOns.extensions.entrySet()) {
+                    if (extensions == null || !extensions.containsKey(entry.getKey())) {
+                        addExtensions(entry.getValue());
+                    }
+                }
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////// handshake helpers
+        ////////////////////////////////////////////////////////////////////////
+        /**
+         * Returns available protocol names array or null if none.
+         *
+         * @return
+         */
+        public String[] getProposedProtocols() {
+            String[] proposedProtocols = null;
+            Collection<String> prots = getProtocols();
+            if (prots != null && !prots.isEmpty()) {
+                proposedProtocols = prots.toArray(new String[prots.size()]);
+            }
+            return proposedProtocols;
+        }
+
+        /**
+         * Returns array of extension definitions (with parameters) or null if
+         * none.
+         *
+         * @return
+         */
+        public String[] getProposedExtensions() {
+            String[] proposedExtensions = null;
+            if (getExtensions() != null && !getExtensions().isEmpty()) {
+                Map<String, WebSocketExtension> exts = getExtensions();
+                proposedExtensions = new String[exts.size()];
+                int off = 0;
+                for (Entry<String, WebSocketExtension> entry : exts.entrySet()) {
+                    WebSocketExtension ext = entry.getValue();
+                    String s = ext.getName();
+                    Collection<String> epns = ext.getParameterNames();
+                    if (epns != null && !epns.isEmpty()) {
+                        for (String pn : epns) {
+                            String v = ext.getParameter(pn);
+                            s += "; " + pn + (v != null ? "=" + v : "");
+                        }
+                    }
+                    proposedExtensions[off++] = s;
+                }
+                if (off == 0) {
+                    proposedExtensions = null;
+                } else if (off < proposedExtensions.length) {
+                    proposedExtensions = Arrays.copyOf(proposedExtensions, off);
+                }
+            }
+            return proposedExtensions;
         }
     }
 

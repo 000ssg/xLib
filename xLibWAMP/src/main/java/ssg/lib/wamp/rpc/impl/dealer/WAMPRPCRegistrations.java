@@ -274,7 +274,7 @@ public class WAMPRPCRegistrations {
                 mp.all().put(procedure, rpc);
             }
             if (rpc.count() == 1 && !(session.getLocal().features().contains(WAMPFeature.shared_registration) || session.getLocal().features().contains(WAMPFeature.sharded_registration))) {
-                session.send(WAMPMessage.error(WAMPMessageType.T_REGISTER, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.ProcedureAlreadyExists));
+                session.send(WAMPMessage.error(WAMPMessageType.T_REGISTER, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProcedureAlreadyExists));
                 return WAMPFlowStatus.failed;
             }
 
@@ -353,7 +353,7 @@ public class WAMPRPCRegistrations {
                     }
                 } else {
                     if (WAMP_DT.id.validate(request)) {
-                        session.send(WAMPMessage.error(WAMPMessageType.T_UNREGISTER, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.NoSuchRegistration));
+                        session.send(WAMPMessage.error(WAMPMessageType.T_UNREGISTER, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_NoSuchRegistration));
                     }
                 }
             }

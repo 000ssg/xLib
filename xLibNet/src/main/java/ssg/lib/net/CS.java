@@ -376,7 +376,7 @@ public class CS implements Runnable {
                                     th.printStackTrace();
                                 }
                                 try {
-                                    System.err.println(getClass().getSimpleName() + ".run: trying to delete/close " + key.channel() + ", " + key.attachment() + " beacaue of " + th);
+                                    //System.err.println(getClass().getSimpleName() + ".run: trying to delete/close " + key.channel() + ", " + key.attachment() + " beacaue of " + th);
                                     if (key.attachment() instanceof DM) {
                                         ((DM) key.attachment()).delete(key.channel());
                                     }
@@ -418,6 +418,7 @@ public class CS implements Runnable {
                         if (key.attachment() instanceof DM) {
                             try {
                                 ((DM) key.attachment()).healthCheck(key.channel());
+                                lastIO.put(key, ts);
                             } catch (Throwable th) {
                                 try {
                                     ((DM) key.attachment()).delete(key.channel());
@@ -435,7 +436,7 @@ public class CS implements Runnable {
                             }
                         }
                     }
-                    nextHealthCheck = ts - (long) (inactivityTimeout / 2.3);
+                    nextHealthCheck = nextCheck+1;//ts - (long) (inactivityTimeout / 2.3);
                 }
                 if (ts >= nextCheck) {
                     if (lastIO.isEmpty()) {
@@ -475,6 +476,7 @@ public class CS implements Runnable {
                                 }
                             }
                         } catch (Throwable th) {
+                            th.printStackTrace();
                         } finally {
                             nextCheck = ts + inactivityTimeout;
                             nextHealthCheck = nextCheck - (long) (inactivityTimeout / 2.3);

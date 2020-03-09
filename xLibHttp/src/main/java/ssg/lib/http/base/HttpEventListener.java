@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
+ * HTTP request-response life-cycle and utility event extension(s).
  *
  * @author 000ssg
  */
@@ -43,5 +44,15 @@ public interface HttpEventListener {
 
     void onSent(HttpData data) throws IOException;
 
+    /**
+     * Utility event: used to find multipart data consumer.
+     *
+     * @param data
+     * @param part
+     * @param folder
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
     OutputStream onMutlipartFile(HttpData data, MultipartBody.Part part, File folder, String fileName) throws IOException;
 }

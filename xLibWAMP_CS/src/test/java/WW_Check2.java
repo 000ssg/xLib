@@ -43,6 +43,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import ssg.lib.common.CommonTools;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.common.net.NetTools;
+import ssg.lib.cs.ws.WebSocket_CSGroup;
 import ssg.lib.di.base.DFRecorder;
 import ssg.lib.net.CS;
 import ssg.lib.wamp.WAMP;
@@ -55,7 +56,6 @@ import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
-import ssg.lib.wamp.cs.WebSocket_CSGroup;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
@@ -280,8 +280,9 @@ public class WW_Check2 {
         CS cs = new CS();
         WAMPRouter_WSProtocol router = new WAMPRouter_WSProtocol(new Role[]{Role.dealer, Role.broker}) {
             {
-                getRouter().setAgent("WAMP_CS");
-                getRouter().addDefaultFeatures(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);
+                getRouter()
+                        .configureAgent("WAMP_CS")
+                        .configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);
                 getRouter().setMaxPendingMessagesQueue(routerMaxPending);
                 setMaxInputQueueSize(routerMaxQueue);
             }

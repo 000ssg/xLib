@@ -156,12 +156,15 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                             session.send(WAMPMessage.welcome(session.getId(), details));
                             session.setState(WAMPSessionState.established);
                         } else {
-                            session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.NoSuchRole));
+                            session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_NoSuchRole));
+                            if (session.getCloseReason() == null) {
+                                session.setCloseReason(WAMPConstantsBase.ERROR_NoSuchRole);
+                            }
                             session.setState(WAMPSessionState.closed);
                         }
                         return WAMPFlowStatus.handled;
                     } else {
-                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ProtocolViolation));
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
                         return WAMPFlowStatus.failed;
                     }
                 case T_WELCOME:
@@ -178,10 +181,13 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                         session.setState(WAMPSessionState.established);
                         return WAMPFlowStatus.handled;
                     } else {
-                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ProtocolViolation));
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
                         return WAMPFlowStatus.failed;
                     }
                 case T_ABORT:
+                    if (session.getCloseReason() == null) {
+                        session.setCloseReason(msg.getUri(1));
+                    }
                     session.setState(WAMPSessionState.closed);
                     return WAMPFlowStatus.handled;
                 default:
@@ -190,10 +196,13 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
         } else {
             switch (type.getId()) {
                 case T_GOODBYE:
+                    if (session.getCloseReason() == null) {
+                        session.setCloseReason(msg.getUri(1));
+                    }
                     if (session.getState() == WAMPSessionState.closing) {
                         // close, our goodbye is already send
                     } else {
-                        session.send(WAMPMessage.goodbye(WAMPTools.EMPTY_DICT, WAMPConstantsBase.AckClose));
+                        session.send(WAMPMessage.goodbye(WAMPTools.EMPTY_DICT, WAMPConstantsBase.INFO_AckClose));
                     }
                     session.close();
                     return WAMPFlowStatus.handled;
@@ -220,7 +229,7 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                 case T_WELCOME: // Receiving WELCOME message, after session was established.
                 case T_HELLO: //Receiving HELLO message, after session was established.
                 case T_CHALLENGE: //Receiving CHALLENGE message, after session was established.
-                    reason = WAMPConstantsBase.ProtocolViolation;
+                    reason = WAMPConstantsBase.ERROR_ProtocolViolation;
                     break;
             }
         } else {
@@ -235,7 +244,7 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                 case T_REGISTERED: //Receiving REGISTERED message, before session was established.
                 case T_UNREGISTERED: //Receiving UNREGISTERED message, before session was established.
                 case T_INVOCATION: //Receiving INVOCATION message, before session was established.
-                    reason = WAMPConstantsBase.ProtocolViolation;
+                    reason = WAMPConstantsBase.ERROR_ProtocolViolation;
                     break;
             }
             if (reason != null) {

@@ -103,7 +103,12 @@ public class StatisticsGroup extends StatisticsBase {
             return "";
         }
         if (groups[gIdx].validDumpIndex(idx)) {
-            return groups[gIdx].dumpStatistics(idx, compact);
+            String s = groups[gIdx].dumpStatistics(idx, compact);
+            if (compact) {
+                return s;
+            } else {
+                return "  " + s.replace("\n", "\n  ");
+            }
         } else {
             return "";
         }

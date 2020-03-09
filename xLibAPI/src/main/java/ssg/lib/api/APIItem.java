@@ -69,7 +69,25 @@ public abstract class APIItem implements Serializable, Cloneable {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().getSimpleName());
-        sb.append("{category=");
+        sb.append('{');
+        sb.append(toStringInlineInfo());
+        if (access != null) {
+            if (access.hasACL()) {
+                sb.append("\n  access=" + access.toString().replace("\n", "\n  "));
+            }
+        }
+        sb.append('}');
+        return sb.toString();
+    }
+
+    /**
+     * 1st line of toString output additional texts
+     *
+     * @return
+     */
+    public String toStringInlineInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("category=");
         sb.append(category);
         sb.append(", scope=");
         if (scope != null) {
@@ -94,12 +112,10 @@ public abstract class APIItem implements Serializable, Cloneable {
         }
         if (access != null) {
             if (access.hasACL()) {
-                sb.append("\n  access=" + access.toString().replace("\n", "\n  "));
             } else {
                 sb.append(", access=" + access.toMask(access.get(null)));
             }
         }
-        sb.append('}');
         return sb.toString();
     }
 
@@ -133,6 +149,13 @@ public abstract class APIItem implements Serializable, Cloneable {
         }
     }
 
+    public String[] getScopeForChild() {
+        if(scope==null || scope.length==0) return new String[]{name};
+        String[] sc=Arrays.copyOf(scope, scope.length+1);
+        sc[sc.length-1]=name;
+        return sc;
+    }
+    
     @Override
     public APIItem clone() throws CloneNotSupportedException {
         APIItem copy = (APIItem) super.clone();

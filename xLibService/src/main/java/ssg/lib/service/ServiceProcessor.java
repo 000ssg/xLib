@@ -72,6 +72,8 @@ public interface ServiceProcessor<P> extends AssignableProcessor<P>, TaskProvide
 
     SERVICE_FLOW_STATE test(P provider, DI<ByteBuffer, P> pd) throws IOException;
 
+    SERVICE_PROCESSING_STATE testProcessing(P provider, DI<ByteBuffer, P> pd) throws IOException;
+
     void onServiceError(P provider, DI<ByteBuffer, P> pd, Throwable error) throws IOException;
 
     Repository<DataProcessor> getDataProcessors(P provider, DI<ByteBuffer, P> pd);
@@ -79,7 +81,7 @@ public interface ServiceProcessor<P> extends AssignableProcessor<P>, TaskProvide
     public static interface ServiceProviderMeta<P> {
 
         P getProvider();
-        
+
         ProviderStatistics getStatistics();
 
         boolean isSecure();

@@ -96,6 +96,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
     LS<WAMPSessionExtendedListener> xListeners = new LS<>(new WAMPSessionExtendedListener[0]);
 
     WAMPStatistics statistics;
+    private String closeReason;
 
     private WAMPSession() {
     }
@@ -274,6 +275,9 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         }
         if (WAMPMessageType.T_GOODBYE == message.getType().getId()) {
             if (WAMPSessionState.established == getState()) {
+                if (getCloseReason() == null) {
+                    setCloseReason(message.getUri(1));
+                }
                 setState(WAMPSessionState.closing);
             }
         }
@@ -318,7 +322,6 @@ public abstract class WAMPSession implements Serializable, Cloneable {
 
     public void close() throws WAMPException {
         setState(WAMPSessionState.closed);
-        //realm.close(this);
     }
 
     @Override
@@ -329,6 +332,9 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         sb.append("realm=" + realm.getName());
         sb.append(", id=" + id);
         sb.append(", state=" + state);
+        if (getCloseReason() != null) {
+            sb.append(", closed=" + getCloseReason());
+        }
         sb.append(", pending=" + pending.size());
         sb.append(", flows=" + getFlows().size());
         sb.append(", listeners/x=" + listeners.get().length + "/" + xListeners.get().length);
@@ -553,5 +559,19 @@ public abstract class WAMPSession implements Serializable, Cloneable {
      */
     public void setFlows(List<WAMPMessagesFlow> flows) {
         this.flows = flows;
+    }
+
+    /**
+     * @return the closeReason
+     */
+    public String getCloseReason() {
+        return closeReason;
+    }
+
+    /**
+     * @param closeReason the closeReason to set
+     */
+    public void setCloseReason(String closeReason) {
+        this.closeReason = closeReason;
     }
 }

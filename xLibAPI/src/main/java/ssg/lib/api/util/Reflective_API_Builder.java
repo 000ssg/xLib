@@ -23,6 +23,7 @@
  */
 package ssg.lib.api.util;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -68,7 +69,7 @@ public class Reflective_API_Builder {
                     continue;
                 }
                 String cn = type.isAnonymousClass() ? type.getName() : type.getSimpleName();
-                APIGroup group = new APIGroup(cn);
+                APIGroup group = new APIGroup(cn, name);
                 buildGroup(api, group, type, context);
                 api.groups.put(cn, group);
             }
@@ -174,7 +175,7 @@ public class Reflective_API_Builder {
             }
 
             if (group != null) {
-                f.scope = new String[]{group.name};
+                f.scope = group.getScopeForChild();
                 APIFunction[] ff = tryRegisterFunction(group.funcs.get(f.name), f);
                 if (ff != null) {
                     group.funcs.put(f.name, ff);
@@ -217,7 +218,7 @@ public class Reflective_API_Builder {
             }
 
             if (group != null) {
-                f.scope = new String[]{group.name};
+                f.scope = group.getScopeForChild();
                 APIProcedure[] ff = tryRegisterAPIProcedure(group.procs.get(f.name), f);
                 if (ff != null) {
                     group.procs.put(f.name, ff);
@@ -445,6 +446,11 @@ public class Reflective_API_Builder {
             setFilter(filter);
         }
 
+        public <T extends Reflective_API_Context> T configure(ReflectiveFilter filter) {
+            setFilter(filter);
+            return (T) this;
+        }
+
         /**
          * @return the filter
          */
@@ -577,7 +583,7 @@ public class Reflective_API_Builder {
         @Override
         public <T extends APIProcedure> T getAPIProcedure(Object params) {
             float test = APITools.testParameters(proc, params);
-            return (test != 0) ? (T) proc : null;
+            return (test != 0 || params == null) ? (T) proc : null;
         }
 
         @Override
@@ -607,11 +613,30 @@ public class Reflective_API_Builder {
                 for (int i = 0; i < pp.length; i++) {
                     java.lang.reflect.Parameter p = pp[i];
                     if (params.containsKey(p.getName())) {
-                        r[i] = params.get(p.getName());
+                        r[i] = toType(p, params.get(p.getName()));
                     }
                 }
             }
             return r;
+        }
+
+        public Object toType(java.lang.reflect.Parameter p, Object v) {
+            if (v == null) {
+                return v;
+            }
+            if (p.getType().isAssignableFrom(v.getClass())) {
+                return v;
+            }
+            if (p.getType().isArray() && v instanceof Collection) {
+                Collection c = (Collection) v;
+                Object arr = Array.newInstance(p.getType().getComponentType(), c.size());
+                int off = 0;
+                for (Object ci : c) {
+                    Array.set(arr, off++, ci);
+                }
+                v = arr;
+            }
+            return v;
         }
 
     }

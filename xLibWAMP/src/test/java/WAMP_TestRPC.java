@@ -80,10 +80,10 @@ public class WAMP_TestRPC implements Runnable {
         if (runner == null) {
             if (router == null) {
                 router = new WAMPRouter(Role.broker, Role.dealer)
-                        .addDefaultFeatures(WAMPFeature.registration_meta_api)
-                        .addDefaultFeatures(getFeatures());
-                router.setStatistics(new WAMPStatistics("router"));
-           }
+                        .configure(WAMPFeature.registration_meta_api)
+                        .configure(getFeatures())
+                        .configure(new WAMPStatistics("router"));
+            }
             runner = new Thread(this);
             runner.setDaemon(true);
             runner.start();
@@ -174,7 +174,8 @@ public class WAMP_TestRPC implements Runnable {
 
     public static class WAMP_Callee extends WAMPClient {
 
-        public WAMP_Callee(){}
+        public WAMP_Callee() {
+        }
 
         public void addProcedure(String name, WAMPCallable callable) throws WAMPException {
             addExecutor(
@@ -196,7 +197,8 @@ public class WAMP_TestRPC implements Runnable {
 
     public static class WAMP_Caller extends WAMPClient {
 
-        public WAMP_Caller(){}
+        public WAMP_Caller() {
+        }
 
         public WAMPRPCListener addCall(String name, CallListener cl) throws WAMPException {
             return addCall(name, null, null, cl);

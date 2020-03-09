@@ -75,10 +75,6 @@ public class DB_Package extends APIItem implements APISearchable {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString());
         sb.delete(sb.length() - 1, sb.length());
-        if (version != null) {
-            sb.append(", version: '" + version.replace("\n", "\\n") + "'");
-        }
-        sb.append(", content=" + content.size());
         if (!content.isEmpty()) {
             sb.append("\n  Content:");
             for (Map.Entry<String, APIItem> t : content.entrySet()) {
@@ -89,6 +85,20 @@ public class DB_Package extends APIItem implements APISearchable {
             sb.append('\n');
         }
         sb.append('}');
+        return sb.toString();
+    }
+
+    @Override
+    public String toStringInlineInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toStringInlineInfo());
+
+        if (version != null) {
+            sb.append(", version: '" + version.replace("\n", "\\n") + "'");
+        }
+        if (!content.isEmpty()) {
+            sb.append(", content=" + content.size());
+        }
         return sb.toString();
     }
 

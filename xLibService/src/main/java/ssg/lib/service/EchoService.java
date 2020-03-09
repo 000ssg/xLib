@@ -92,6 +92,11 @@ public class EchoService<P> implements ServiceProcessor<P> {
     }
 
     @Override
+    public SERVICE_PROCESSING_STATE testProcessing(P provider, DI<ByteBuffer, P> pd) throws IOException {
+        return SERVICE_PROCESSING_STATE.failed;
+    }
+
+    @Override
     public void onServiceError(P provider, DI<ByteBuffer, P> pd, Throwable error) throws IOException {
         // no special treatment for echo...
     }

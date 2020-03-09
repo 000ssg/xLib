@@ -26,6 +26,7 @@ package ssg.lib.websocket;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 
 /**
  *
@@ -38,6 +39,8 @@ public interface WebSocketExtension extends Serializable, Cloneable {
     <T> T getParameter(String name);
 
     void setParameter(String name, Object value);
+    
+    Collection<String> getParameterNames();
 
     /**
      * Returns extension size for frame and optionally provided data/offset...

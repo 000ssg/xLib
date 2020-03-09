@@ -25,8 +25,10 @@ package ssg.lib.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import ssg.lib.common.Matcher;
 import ssg.lib.common.buffers.BufferTools;
@@ -35,12 +37,20 @@ import ssg.lib.common.buffers.BufferTools;
  * Repository represents collection of items with add/remove functionality and
  * search capability.
  *
+ * Repository may be used in multiple contexts (have multiple owners).
+ *
+ * If item added to repository implements RepositoryListener, then item is
+ * notified of being added to/remove from repository.
+ *
  * @author 000ssg
  */
 public class Repository<T> {
 
-    List<T> items = new ArrayList<>();
-    List<RepositoryListener<T>> listeners = new ArrayList<>();
+    public static final int APPEND = -1;
+
+    Collection owners = Collections.synchronizedCollection(new LinkedHashSet());
+    List<T> items = Collections.synchronizedList(new ArrayList<>());
+    List<RepositoryListener<T>> listeners = Collections.synchronizedList(new ArrayList<>());
 
     public Repository() {
     }
@@ -56,6 +66,42 @@ public class Repository<T> {
         if (items != null) {
             this.addItem(0, items);
         }
+    }
+
+    /**
+     * Builder-style add listeners.
+     *
+     * @param ls
+     * @return
+     */
+    public Repository<T> configure(RepositoryListener<T>... ls) {
+        addRepositoryListener(ls);
+        return this;
+    }
+
+    /**
+     * Builder-style add owner.
+     *
+     * @param owner
+     * @return
+     */
+    public Repository<T> configure(Object owner) {
+        if (owner != null) {
+            addOwner(owner);
+        }
+        return this;
+    }
+
+    /**
+     * Builder-style add items. Use "APPEND" to append items at the end.
+     *
+     * @param order
+     * @param sps
+     * @return
+     */
+    public Repository<T> configure(int order, T... sps) {
+        addItem(order, sps);
+        return this;
     }
 
     public void addRepositoryListener(RepositoryListener<T>... ls) {
@@ -78,6 +124,23 @@ public class Repository<T> {
         }
     }
 
+    public Repository<T> addOwner(Object owner) {
+        if (owner != null && !owners.contains(owner)) {
+            owners.add(owner);
+        }
+        return this;
+    }
+
+    public void removeOwner(Object owner) {
+        if (owner != null && owners.contains(owner)) {
+            owners.remove(owner);
+        }
+    }
+
+    public Collection getOwners() {
+        return Collections.unmodifiableCollection(owners);
+    }
+
     public List<T> items() {
         return Collections.unmodifiableList(items);
     }
@@ -90,8 +153,11 @@ public class Repository<T> {
     public void onAdded(T item) {
         if (listeners != null) {
             for (RepositoryListener<T> l : listeners) {
-                l.onAdded(item);
+                l.onAdded(this, item);
             }
+        }
+        if (item instanceof RepositoryListener) {
+            ((RepositoryListener) item).onAdded(this, item);
         }
     }
 
@@ -103,8 +169,11 @@ public class Repository<T> {
     public void onRemoved(T item) {
         if (listeners != null) {
             for (RepositoryListener<T> l : listeners) {
-                l.onRemoved(item);
+                l.onRemoved(this, item);
             }
+        }
+        if (item instanceof RepositoryListener) {
+            ((RepositoryListener) item).onRemoved(this, item);
         }
     }
 
@@ -441,11 +510,17 @@ public class Repository<T> {
 
     }
 
+    /**
+     * Structure to bind matched item, match factor/level, and optional
+     * parameters (used to pass any associated/evaluated data).
+     *
+     * @param <T>
+     */
     public static class Matched<T> {
 
         private T item;
         private float level;
-        Object[] parameters;
+        private Object[] parameters;
 
         public Matched() {
         }
@@ -482,8 +557,27 @@ public class Repository<T> {
         public void setLevel(float level) {
             this.level = level;
         }
+
+        /**
+         * @return the parameters
+         */
+        public Object[] getParameters() {
+            return parameters;
+        }
+
+        /**
+         * @param parameters the parameters to set
+         */
+        public void setParameters(Object[] parameters) {
+            this.parameters = parameters;
+        }
     }
 
+    /**
+     * Multi-matcher: provides weighed aggregated match result.
+     *
+     * @param <T>
+     */
     public static class Matchers<T> implements Matcher<T> {
 
         float weight = 1;
@@ -532,6 +626,12 @@ public class Repository<T> {
         }
     }
 
+    /**
+     * Matching callback to enable corrections to matched item/all matched
+     * items.
+     *
+     * @param <T>
+     */
     public static interface MatchListener<T> {
 
         void onFound(Matched<T> matched, Matcher<T> matcher, boolean top);
@@ -549,8 +649,8 @@ public class Repository<T> {
 
     public static interface RepositoryListener<T> {
 
-        void onAdded(T item);
+        void onAdded(Repository<T> repository, T item);
 
-        void onRemoved(T item);
+        void onRemoved(Repository<T> repository, T item);
     }
 }

@@ -30,21 +30,21 @@ package ssg.lib.wamp;
 public interface WAMPConstantsBase {
 
     // URIs
-    public static final String InvalidURI = "wamp.error.invalid_uri";
-    public static final String NoSuchProcedure = "wamp.error.no_such_procedure";
-    public static final String ProcedureAlreadyExists = "wamp.error.procedure_already_exists";
-    public static final String NoSuchRegistration = "wamp.error.no_such_registration";
-    public static final String NoSuchSubscription = "wamp.error.no_such_subscription";
+    public static final String ERROR_InvalidURI = "wamp.error.invalid_uri";
+    public static final String ERROR_NoSuchProcedure = "wamp.error.no_such_procedure";
+    public static final String ERROR_ProcedureAlreadyExists = "wamp.error.procedure_already_exists";
+    public static final String ERROR_NoSuchRegistration = "wamp.error.no_such_registration";
+    public static final String ERROR_NoSuchSubscription = "wamp.error.no_such_subscription";
 
     // Session
-    public static final String SystemShutdown = "wamp.close.system_shutdown";
-    public static final String CloseRealm = "wamp.close.close_realm";
-    public static final String AckClose = "wamp.close.goodbye_and_out";
-    public static final String ProtocolViolation = "wamp.error.protocol_violation";
+    public static final String INFO_SystemShutdown = "wamp.close.system_shutdown";
+    public static final String INFO_CloseRealm = "wamp.close.close_realm";
+    public static final String INFO_AckClose = "wamp.close.goodbye_and_out";
+    public static final String ERROR_ProtocolViolation = "wamp.error.protocol_violation";
 
     // Authorization
-    public static final String NotAuthorized = "wamp.error.not_authorized";
-    public static final String AuthorizationFailed = "wamp.error.authorization_failed";
-    public static final String NoSuchRealm = "wamp.error.no_such_realm";
-    public static final String NoSuchRole = "wamp.error.no_such_role";
+    public static final String ERROR_NotAuthorized = "wamp.error.not_authorized";
+    public static final String ERROR_AuthorizationFailed = "wamp.error.authorization_failed";
+    public static final String ERROR_NoSuchRealm = "wamp.error.no_such_realm";
+    public static final String ERROR_NoSuchRole = "wamp.error.no_such_role";
 }

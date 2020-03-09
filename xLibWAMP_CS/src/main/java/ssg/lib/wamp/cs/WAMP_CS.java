@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.common.net.NetTools;
+import ssg.lib.cs.ws.WebSocket_CSGroup;
 import ssg.lib.di.base.DFRecorder;
 import ssg.lib.net.CS;
 import ssg.lib.wamp.WAMP;
@@ -120,7 +121,7 @@ public class WAMP_CS {
 
             {
                 wampRouter.setAgent("WAMP_CS");
-                wampRouter.addDefaultFeatures(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);
+                wampRouter.configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration);
                 wampRouter.setMaxPendingMessagesQueue(0);
                 setMaxInputQueueSize(0);
             }
