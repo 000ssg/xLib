@@ -391,6 +391,7 @@ public abstract class HttpData {
                     head.setSent(true);
                     bbs.add(head.getByteBuffer());
                     headerBytes = BufferTools.getRemaining(bbs);
+                    onHeaderSent();
                     if (body != null) {
                         body.fixBodyBeforeSend();
                     }
@@ -442,9 +443,11 @@ public abstract class HttpData {
                     }
                 } else if (!head.chunked) {
                     if (size > 0) {
-                        sentSize = BufferTools.getRemaining(bbs) - headerBytes;
+                        sentSize += BufferTools.getRemaining(bbs) - headerBytes;
+                        //System.out.println("CCC: length="+getHead().size+", len="+getBody().length+"/"+getBody().size()+";  sz="+size+"/"+sentSize+"; cmpl="+completed);
                         if (size == sentSize) {
                             // completed data send for non-empty non-chunked body
+                            if(completed)
                             setSent(true);
                         }
                     } else if (body.isEmpty() && completed) {
@@ -476,6 +479,12 @@ public abstract class HttpData {
         if (!completed && getHead().completed) {
             completed = true;
         }
+    }
+
+    public void onHeaderSent() {
+    }
+
+    public void onSent() {
     }
 
     /**
@@ -722,6 +731,9 @@ public abstract class HttpData {
         this.sent = sent;
         if (sent && body != null) {
             body.sent = true;
+        }
+        if (sent == true) {
+            onSent();
         }
     }
 

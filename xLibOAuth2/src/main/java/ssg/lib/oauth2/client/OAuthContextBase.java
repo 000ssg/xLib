@@ -245,21 +245,19 @@ public abstract class OAuthContextBase implements OAuthContext {
                 obj = conn.getErrorStream();
             }
             if (obj instanceof InputStream) {
-                if (obj instanceof InputStream) {
-                    String ce = conn.getContentEncoding();
-                    InputStream is = (InputStream) obj;
-                    if (ce != null && ce.contains("gzip")) {
-                        is = new GZIPInputStream(is);
-                    }
-                    ByteArrayOutputStream os = new ByteArrayOutputStream();
-                    byte[] buf = new byte[1024];
-                    int c = 0;
-                    while ((c = is.read(buf)) != -1) {
-                        os.write(buf, 0, c);
-                    }
-                    obj = os.toByteArray();
-                    is.close();
+                String ce = conn.getContentEncoding();
+                InputStream is = (InputStream) obj;
+                if (ce != null && ce.contains("gzip")) {
+                    is = new GZIPInputStream(is);
                 }
+                ByteArrayOutputStream os = new ByteArrayOutputStream();
+                byte[] buf = new byte[1024];
+                int c = 0;
+                while ((c = is.read(buf)) != -1) {
+                    os.write(buf, 0, c);
+                }
+                obj = os.toByteArray();
+                is.close();
             }
             if (obj instanceof byte[]) {
                 String ct = conn.getContentType();

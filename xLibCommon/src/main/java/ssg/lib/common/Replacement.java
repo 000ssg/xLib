@@ -168,6 +168,19 @@ public class Replacement implements Cloneable {
         }
     }
 
+    public Replacement reverseCopy() {
+        try {
+            Replacement r = (Replacement) clone();
+            byte[] tmp = r.src;
+            r.src = r.trg;
+            r.trg = tmp;
+            r.reset();
+            return r;
+        } catch (Throwable th) {
+            return null;
+        }
+    }
+
     /**
      * @return the src
      */
@@ -214,6 +227,17 @@ public class Replacement implements Cloneable {
             if (replacements != null) {
                 for (int i = 0; i < replacements.length; i++) {
                     copy.replacements[i] = replacements[i].copy();
+                }
+            }
+            return copy;
+        }
+
+        @Override
+        public Replacement reverseCopy() {
+            Replacements copy = (Replacements) super.reverseCopy();
+            if (replacements != null) {
+                for (int i = 0; i < replacements.length; i++) {
+                    copy.replacements[i] = replacements[i].reverseCopy();
                 }
             }
             return copy;

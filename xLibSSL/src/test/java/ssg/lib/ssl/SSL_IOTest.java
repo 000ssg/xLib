@@ -179,6 +179,7 @@ public class SSL_IOTest {
         boolean done = server.isInitialized() && client.isInitialized();
 
         List<ByteBuffer> bufs = null;
+        if(1==1)
         while (!done) {
             done = server.isInitialized() && client.isInitialized();
             System.out.println("SD[0]: " + BufferTools.getRemaining(bufs));

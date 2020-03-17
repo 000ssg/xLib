@@ -42,6 +42,11 @@ public abstract class BaseDI<T, P> implements DI<T, P> {
 
     DF<T, P> filter;
 
+    public <D extends DI<T, P>> D configure(DF<T, P> filter) {
+        filter(filter);
+        return (D) this;
+    }
+
     @Override
     public long write(P provider, Collection<T>... data) throws IOException {
         long c = size(data);
@@ -64,8 +69,13 @@ public abstract class BaseDI<T, P> implements DI<T, P> {
         if (filter != null) {
             if (filter.isReady(provider)) {
                 data = produce(provider);
+                data = filter.onRead(this, provider, data);
+            } else {
+                data = filter.onRead(this, provider, data);
+                if (filter.isReady(provider)) {
+                    onFilterReady(provider);
+                }
             }
-            data = filter.onRead(this, provider, data);
         } else {
             data = produce(provider);
         }
@@ -128,6 +138,10 @@ public abstract class BaseDI<T, P> implements DI<T, P> {
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////// tools
     ////////////////////////////////////////////////////////////////////////////
+    public void onFilterReady(P provider) throws IOException {
+        // Use to adjust
+    }
+
     public abstract long size(Collection<T>... data);
 
     public abstract void consume(P provider, Collection<T>... data) throws IOException;

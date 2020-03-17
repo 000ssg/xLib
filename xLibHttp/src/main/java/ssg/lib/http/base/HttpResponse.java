@@ -45,10 +45,53 @@ public class HttpResponse extends HttpData {
         }
     }
 
+    public String getQuery() {
+        return request!=null ? request.getQuery() : null;
+    }
+    
+    /**
+     * Fix head status and notify request
+     */
     @Override
     public void onHeaderLoaded() {
         if (!getHead().completed) {
             getHead().completed = true;
+        }
+        if (request != null) {
+            request.onResponseHeaderLoaded(this);
+        }
+    }
+
+    /**
+     * Notify request
+     */
+    @Override
+    public void onLoaded() {
+        super.onLoaded();
+        if (request != null) {
+            request.onResponseLoaded(this);
+        }
+    }
+
+    /**
+     * Notify request
+     */
+    @Override
+    public void onSent() {
+        super.onSent();
+        if (request != null) {
+            request.onResponseSent(this);
+        }
+    }
+
+    /**
+     * Notify request
+     */
+    @Override
+    public void onHeaderSent() {
+        super.onHeaderSent();
+        if (request != null) {
+            request.onResponseHeaderSent(this);
         }
     }
 

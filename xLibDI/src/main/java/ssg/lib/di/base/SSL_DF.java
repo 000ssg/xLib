@@ -276,20 +276,35 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
 
         @Override
         public List<ByteBuffer> encode(Collection<ByteBuffer>... bufs) throws IOException {
-            List<ByteBuffer> r = super.encode(bufs);
-            if (r != null && !r.isEmpty()) {
-                netOut.addAll(r);
-                r.clear();
+            synchronized (netOut) {
+                boolean initialized = this.isInitialized();
+                List<ByteBuffer> r = super.encode(bufs);
+                if (r != null && !r.isEmpty()) {
+                    netOut.addAll(r);
+                    r.clear();
+                }
+                if (!initialized && isInitialized() && hasUnwrappedData()) {
+                    // ensure initial application data are available (if any)
+                    synchronized (appIn) {
+                        List<ByteBuffer> ru = unwrap(EMPTY);
+                        if (ru != null && !ru.isEmpty()) {
+                            appIn.addAll(ru);
+                            ru.clear();
+                        }
+                    }
+                }
             }
             return netOut;
         }
 
         @Override
         public List<ByteBuffer> decode(Collection<ByteBuffer>... bufs) throws IOException {
-            List<ByteBuffer> r = super.decode(bufs);
-            if (r != null && !r.isEmpty()) {
-                appIn.addAll(r);
-                r.clear();
+            synchronized (appIn) {
+                List<ByteBuffer> r = super.decode(bufs);
+                if (r != null && !r.isEmpty()) {
+                    appIn.addAll(r);
+                    r.clear();
+                }
             }
             return appIn;
         }

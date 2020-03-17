@@ -120,6 +120,38 @@ public class HttpRequest extends HttpData {
         }
     }
 
+    /**
+     * Response bound event callback
+     * 
+     * @param resp 
+     */
+    public void onResponseSent(HttpResponse resp) {
+    }
+
+    /**
+     * Response bound event callback
+     * 
+     * @param resp 
+     */
+    public void onResponseHeaderSent(HttpResponse resp) {
+    }
+
+    /**
+     * Response bound event callback
+     * 
+     * @param resp 
+     */
+    public void onResponseLoaded(HttpResponse resp) {
+    }
+
+    /**
+     * Response bound event callback
+     * 
+     * @param resp 
+     */
+    public void onResponseHeaderLoaded(HttpResponse resp) {
+    }
+
     public boolean closed() {
         return closed;
     }

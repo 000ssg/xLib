@@ -38,6 +38,11 @@ public abstract class BaseDF<T, P> implements DF<T, P> {
 
     DF<T, P> filter;
 
+    public <D extends DF<T, P>> D configure(DF<T, P> filter) {
+        filter(filter);
+        return (D) this;
+    }
+
     @Override
     public List<T> onWrite(DM<P> owner, P provider, Collection<T>... data) throws IOException {
         List<T> r = null;

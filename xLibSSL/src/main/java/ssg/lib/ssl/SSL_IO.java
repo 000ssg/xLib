@@ -94,7 +94,7 @@ public class SSL_IO<P> {
     }
 
     /**
-     * Probe if 12s byte may indicate TLS DATA packet (0x17 -> 23)
+     * Probe if 1st byte may indicate TLS DATA packet (0x17 -> 23)
      *
      * @param bb
      * @return
@@ -157,24 +157,32 @@ public class SSL_IO<P> {
                 }
             } else {
                 for (ByteBuffer bb : BufferTools.toList(true, bufs)) {
-                    List<ByteBuffer> bs = unwrap(bb);
-                    if (bs != null) {
-                        r.addAll(bs);
+                    if (bb != null && bb.hasRemaining()) {
+                        List<ByteBuffer> bs = unwrap(bb);
+                        if (bs != null) {
+                            r.addAll(bs);
+                        }
                     }
                 }
             }
         } else {
             if (ssl != null) {
-                for (ByteBuffer bb : BufferTools.toList(true, bufs)) {
-                    List<ByteBuffer> bs = unwrap(bb);
-                    if (bs != null) {
-                        r.addAll(bs);
+                synchronized (this) {
+                    for (ByteBuffer bb : BufferTools.toList(true, bufs)) {
+                        if (bb != null && bb.hasRemaining()) {
+                            List<ByteBuffer> bs = unwrap(bb);
+                            if (bs != null) {
+                                r.addAll(bs);
+                            }
+                        }
                     }
                 }
             } else {
-                List<ByteBuffer> rr = BufferTools.aggregate(appPacketSize, false, bufs);
-                if (rr != null && !rr.isEmpty()) {
-                    r.addAll(rr);
+                synchronized (this) {
+                    List<ByteBuffer> rr = BufferTools.aggregate(appPacketSize, false, bufs);
+                    if (rr != null && !rr.isEmpty()) {
+                        r.addAll(rr);
+                    }
                 }
             }
         }
@@ -208,16 +216,20 @@ public class SSL_IO<P> {
             }
         } else {
             if (ssl != null) {
-                for (ByteBuffer bb : BufferTools.toList(true, bufs)) {
-                    ByteBuffer b = wrap(bb);
-                    if (b != null && b.hasRemaining()) {
-                        r.add(b);
+                synchronized (this) {
+                    for (ByteBuffer bb : BufferTools.toList(true, bufs)) {
+                        ByteBuffer b = wrap(bb);
+                        if (b != null && b.hasRemaining()) {
+                            r.add(b);
+                        }
                     }
                 }
             } else {
-                List<ByteBuffer> rr = BufferTools.aggregate(appPacketSize, false, bufs);
-                if (rr != null && !rr.isEmpty()) {
-                    r.addAll(rr);
+                synchronized (this) {
+                    List<ByteBuffer> rr = BufferTools.aggregate(appPacketSize, false, bufs);
+                    if (rr != null && !rr.isEmpty()) {
+                        r.addAll(rr);
+                    }
                 }
             }
         }
@@ -232,7 +244,7 @@ public class SSL_IO<P> {
             case NEED_WRAP:
                 SSLEngineResult er = ssl.wrap(bb, netOut);
                 if (DEBUG_WRAP) {
-                    System.out.println("wrap  [left=" + BufferTools.getRemaining(bb) + "]  : " + er.toString().replace("\n", "\\n "));
+                    System.out.println("wrap  [left=" + BufferTools.getRemaining(bb) + "]  : " + er.toString().replace("\n", "\\n ") + "  " + provider);
                 }
                 runDelegatedTask(er);
                 if (er.bytesProduced() > 0) {
@@ -263,16 +275,21 @@ public class SSL_IO<P> {
         try {
             while (data.remaining() > 4) {
                 int pPos = data.position();
-                byte pType = data.get();
-                short pVer = data.getShort();
-                short pLen = data.getShort();
+                int pType = 0xFF & data.get();
+                int pVer = 0xFFFF & data.getShort();
+                int pLen = 0xFFFF & data.getShort();
                 sb.append("\n    pos=" + pPos + ", type=" + pType + ", ver=" + Integer.toHexString(0xFFFF & pVer) + ", len=" + pLen);
+                if (pType == 23 && !initialized) {
+                    int a = 0;
+                }
                 switch (pType) {
                     case 20:
                     case 21:
                     case 22:
                     case 23:
-                        if (data.remaining() > pLen) {
+                        if (data.remaining() == pLen) {
+                            data.position(data.limit());
+                        } else if (data.remaining() > pLen) {
                             data.position(data.position() + pLen);
                         } else {
                             int rem = pLen - data.remaining();
@@ -303,11 +320,11 @@ public class SSL_IO<P> {
         int pLen = Short.MAX_VALUE;
         try {
             int pPos = data.position();
-            byte pType = data.get();
-            short pVer = data.getShort();
-            pLen = data.getShort();
+            int pType = 0xFF & data.get();
+            int pVer = 0XFFFF & data.getShort();
+            pLen = 0xFFFF & data.getShort();
             ok = (data.remaining() - pLen) >= 0;
-            sb.append(", pos=" + pPos + ", type=" + pType + ", ver=" + Integer.toHexString(0xFFFF & pVer) + ", len=" + pLen);
+            sb.append(", pos=" + pPos + ", type=" + pType + ", ver=" + Integer.toHexString(pVer) + ", len=" + pLen);
             switch (pType) {
                 case 20:
                 case 21:
@@ -330,24 +347,69 @@ public class SSL_IO<P> {
         return ok;
     }
 
+    public boolean hasSSLApplicationPacket(ByteBuffer data) {
+        if (data == null) {
+            return false;
+        }
+        data.mark();
+        try {
+            while (data.remaining() > 4) {
+                int pPos = data.position();
+                int pType = 0xFF & data.get();
+                int pVer = 0xFFFF & data.getShort();
+                int pLen = 0xFFFF & data.getShort();
+                if (pType == 23) {
+                    return true;
+                }
+                switch (pType) {
+                    case 20:
+                    case 21:
+                    case 22:
+                    case 23:
+                        if (data.remaining() == pLen) {
+                            data.position(data.limit());
+                        } else if (data.remaining() > pLen) {
+                            data.position(data.position() + pLen);
+                        } else {
+                            int rem = pLen - data.remaining();
+                            if (rem > 0) {
+                                data.position(data.limit());
+                            }
+                        }
+                        break;
+                    default:
+                        data.position(data.limit());
+                        break;
+                }
+            }
+        } finally {
+            data.reset();
+        }
+        return false;
+    }
+
+    public boolean hasUnwrappedData() {
+        return unwrapCache != null && unwrapCache.position() > 0;
+    }
+
     public List<ByteBuffer> unwrap(ByteBuffer bb) throws IOException {
         List<ByteBuffer> r = null;
         // choose proper buffer and if cached -> fill with data from "data".
         ByteBuffer data = bb;
-//        if (DEBUG_UNWRAP && bb.remaining() > 4) {
-//            System.out.println("unwrap: SSL packet[" + bb.remaining() + "]: " + getSSLPacketInfo(bb));
-//        }
+        if (DEBUG_UNWRAP && bb.remaining() > 4) {
+            System.out.println("unwrap: SSL packet[" + bb.remaining() + "]: " + getSSLPacketInfo(bb) + "  " + provider);
+        }
         if (unwrapCache.position() > 0) {
             if (bb.hasRemaining()) {
-//                if (DEBUG_UNWRAP) {
-//                    System.out.println("unwrap: cached SSL packet[" + unwrapCache.position() + "] " + unwrapCache);
-//                }
+                if (DEBUG_UNWRAP) {
+                    System.out.println("unwrap: cached SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
+                }
                 while (unwrapCache.hasRemaining() && bb.hasRemaining()) {
                     unwrapCache.put(bb.get());
                 }
-//                if (DEBUG_UNWRAP) {
-//                    System.out.println("unwrap: merged SSL packet[" + unwrapCache.position() + "] " + unwrapCache);
-//                }
+                if (DEBUG_UNWRAP) {
+                    System.out.println("unwrap: merged SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
+                }
             }
             ((Buffer) unwrapCache).flip();
             data = unwrapCache;
@@ -359,13 +421,13 @@ public class SSL_IO<P> {
                     break;
                 case NOT_HANDSHAKING:
                 case NEED_UNWRAP:
-//                    if (DEBUG_UNWRAP && data.remaining() > 4) {
-//                        System.out.println("unwrap:   [" + data.remaining() + "]: " + getSSLPacketInfo(data));
-//                    }
+                    if (DEBUG_UNWRAP && data.remaining() > 4) {
+                        System.out.println("unwrap:   [" + data.remaining() + "]: " + getSSLPacketInfo(data) + "  " + provider);
+                    }
                     SSLEngineResult er = ssl.unwrap(data, netIn);
-//                    if (DEBUG_UNWRAP) {
-//                        System.out.println("unwrap[left=" + BufferTools.getRemaining(data) + "]: " + er.toString().replace("\n", "\\n "));
-//                    }
+                    if (DEBUG_UNWRAP) {
+                        System.out.println("unwrap[left=" + BufferTools.getRemaining(data) + " ,netIn=" + netIn + "]: " + er.toString().replace("\n", "\\n ") + "  " + provider);
+                    }
                     runDelegatedTask(er);
 
                     if (Status.BUFFER_UNDERFLOW == er.getStatus()) {
@@ -444,6 +506,17 @@ public class SSL_IO<P> {
             if (done) {
                 break;
             }
+        }
+        if (!initialized && data.hasRemaining() && hasSSLApplicationPacket(data)) {
+            // keep unread application data if not initialized yet...
+            if (data == unwrapCache) {
+                data.compact();
+            }
+            while (unwrapCache.hasRemaining() && bb.hasRemaining()) {
+                unwrapCache.put(bb.get());
+            }
+
+            int a = 0;
         }
 //        checkPS();
         return r;

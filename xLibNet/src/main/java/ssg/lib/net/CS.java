@@ -319,7 +319,7 @@ public class CS implements Runnable {
 
                                             if (bbs != null && bbs.length > 0 && bbs[0] != null) {
                                                 long c0 = BufferTools.getRemaining(bbs);
-                                                long c = ((SocketChannel) key.channel()).write(bbs);
+                                                long c = write(key.channel(), bbs); //  ((SocketChannel) key.channel()).write(bbs);
 
                                                 if (c < c0) {
                                                     // keep unwritten output for next write session...
@@ -436,7 +436,7 @@ public class CS implements Runnable {
                             }
                         }
                     }
-                    nextHealthCheck = nextCheck+1;//ts - (long) (inactivityTimeout / 2.3);
+                    nextHealthCheck = nextCheck + 1;//ts - (long) (inactivityTimeout / 2.3);
                 }
                 if (ts >= nextCheck) {
                     if (lastIO.isEmpty()) {
@@ -585,6 +585,10 @@ public class CS implements Runnable {
      */
     public int readNotByteChannel(Channel sc, ByteBuffer buf) throws IOException {
         throw new IOException("Unsupported channel: " + sc + ". Need to return ByteBuffer on read operation.");
+    }
+
+    public long write(Channel sc, ByteBuffer... bbs) throws IOException {
+        return ((SocketChannel) sc).write(bbs);
     }
 
     public void onError(String message, Throwable th) {
