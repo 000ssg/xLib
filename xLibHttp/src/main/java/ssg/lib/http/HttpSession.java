@@ -55,6 +55,7 @@ public class HttpSession implements HttpContext {
     String serviceRoot;
     HttpApplication application;
     String revalidateUser;
+    private boolean secure = false;
 
     Map<String, Object> properties = new LinkedHashMap<>();
     Map<String, HttpCookie> cookies = new LinkedHashMap<>();
@@ -131,6 +132,9 @@ public class HttpSession implements HttpContext {
         if (serviceRoot != null) {
             sb.append(", service=" + serviceRoot);
         }
+        if (secure) {
+            sb.append(", secure");
+        }
         if (application != null) {
             sb.append(", app=" + application);
         }
@@ -179,8 +183,12 @@ public class HttpSession implements HttpContext {
         String[] sCookies = req.getHead().getHeader(HttpData.HH_COOKIE);
         if (sCookies != null) {
             for (String sCookie : sCookies) {
-                HttpCookie cookie = new HttpCookie(sCookie);
-                r.put(cookie.name, cookie);
+                String[] ss = sCookie.split(";");
+                for (String s : ss) {
+                    s=s.trim();
+                    HttpCookie cookie = new HttpCookie(s);
+                    r.put(cookie.name, cookie);
+                }
             }
         }
         return r;
@@ -210,5 +218,19 @@ public class HttpSession implements HttpContext {
      */
     public void setLocale(Locale locale) {
         this.locale = locale;
+    }
+
+    /**
+     * @return the secure
+     */
+    public boolean isSecure() {
+        return secure;
+    }
+
+    /**
+     * @param secure the secure to set
+     */
+    public void setSecure(boolean secure) {
+        this.secure = secure;
     }
 }

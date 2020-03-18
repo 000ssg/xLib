@@ -87,7 +87,8 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     //HttpMatcher serviceMatcher;
     String root;
     int maxURILength = 1024 * 64 + 10 + protocolVersion.length() + 2;
-    String sessionIdCookie = "0x01";
+    String sessionIdCookieHTTP = "0x01";
+    String sessionIdCookieHTTPS = "0x02";
 
     DIHttpData<P> httpData = new DIHttpData<P>() {
         @Override
@@ -267,6 +268,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                     //System.out.println("HTTP: " + meta.getProvider() + ": " + req.getQuery() + "\n  " + req.toString().replace("\n", "\n    "));
                     HttpSession sess = null;
 
+                    String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
                     Map<String, HttpCookie> clientCookies = HttpSession.getCookies(req);
                     if (sessionIdCookie != null && clientCookies.containsKey(sessionIdCookie)) {
                         HttpCookie cookie = clientCookies.get(sessionIdCookie);
@@ -299,6 +301,9 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                         }, null);
 
                         sess = new HttpSession(req.getHostURL() + path);
+                        if (req.isSecure()) {
+                            sess.setSecure(true);
+                        }
                         if (apps != null && !apps.isEmpty()) {
                             sess.application = apps.get(0);
                             String appRoot = sess.application.getRoot();
@@ -322,7 +327,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                                 null,
                                 path,
                                 sess.expiresAt,
-                                0 //Cookie.HttpOnly
+                                HttpCookie.HttpOnly | (sess.isSecure() ? HttpCookie.Secure : 0)
                         );
                         sess.getCookies().put("" + sess.id, cookie);
                         req.getResponse().getHead().addHeader(HttpData.HH_SET_COOKIE, cookie.toSetString());
@@ -400,6 +405,8 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (name != null) {
             req.getResponse().setHeader(HttpData.HH_SERVER, name);
         }
+
+        String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
 
         if (sessionIdCookie != null) {
             HttpCookie cookie = req.getHttpSession().getCookies().get(sessionIdCookie);
