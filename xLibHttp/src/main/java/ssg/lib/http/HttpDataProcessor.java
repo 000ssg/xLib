@@ -36,6 +36,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
+import java.util.List;
 import ssg.lib.common.CommonTools;
 import ssg.lib.di.DI;
 import ssg.lib.service.DataProcessor;
@@ -47,7 +48,7 @@ import ssg.lib.service.SERVICE_PROCESSING_STATE;
  * @author 000ssg
  * @param <P> 
  */
-public abstract class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, HttpEventListener {
+public class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, HttpEventListener {
 
     private HttpMatcher matcher;
     HST processingScope = HST.process;
@@ -96,6 +97,16 @@ public abstract class HttpDataProcessor<P extends Channel> implements DataProces
             }
         }
         return HST.none;
+    }
+
+    @Override
+    public Runnable getRunnable(P provider, DI<ByteBuffer, P> data) {
+        return null;
+    }
+
+    @Override
+    public List<Task> getTasks(TaskPhase... phases) {
+        return null;
     }
 
     @Override

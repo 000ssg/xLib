@@ -482,7 +482,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
 
     @Override
     public SERVICE_PROCESSING_STATE testProcessing(P provider, DI<ByteBuffer, P> pd) throws IOException {
-        HttpData http = ((DIHttpData) pd).http(provider);
+        HttpData http = (pd instanceof DIHttpData) ? ((DIHttpData) pd).http(provider) : null;
         if (http != null && http.hasFlags(HttpData.HF_SWITCHED)) {
             return (http.isCompleted())
                     ? SERVICE_PROCESSING_STATE.OK
@@ -499,12 +499,14 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
 
     @Override
     public void onServiceError(P provider, DI<ByteBuffer, P> pd, Throwable error) throws IOException {
-        HttpData http = ((DIHttpData) pd).http(provider);
+        HttpData http = (pd instanceof DIHttpData) ? ((DIHttpData) pd).http(provider) : null;
         System.out.println(getClass().getSimpleName() + ".onServiceError:"
                 + "\n  provider: " + provider
                 + "\n  error   : " + error
-                + "\n  request : " + ((http instanceof HttpRequest) ? http.toString().replace("\n", "\n    ") : "<none>")
-                + "\n  response: " + ((http instanceof HttpRequest) ? ("" + ((HttpRequest) http).getResponse()).replace("\n", "\n    ") : "<none>")
+                + ((http != null)
+                        ? "\n  request : " + ((http instanceof HttpRequest) ? http.toString().replace("\n", "\n    ") : "<none>")
+                        + "\n  response: " + ((http instanceof HttpRequest) ? ("" + ((HttpRequest) http).getResponse()).replace("\n", "\n    ") : "<none>")
+                        : "")
         );
         if (http != null) {
             if (http instanceof HttpRequest) {

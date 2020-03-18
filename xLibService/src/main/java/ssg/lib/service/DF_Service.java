@@ -364,7 +364,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
 
         // enable internal data flow
         ServiceHandler sh = serviceHandlers.get(provider);
-        if (sh != null) {
+        if (sh != null && sh.di!=null) {
             sh.verifyProcessing();
             sh.verifyFlow();
 

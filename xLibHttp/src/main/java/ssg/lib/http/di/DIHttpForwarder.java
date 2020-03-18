@@ -33,7 +33,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.common.buffers.BufferTools;
@@ -65,7 +64,7 @@ public class DIHttpForwarder<P extends Channel> extends BaseDI<ByteBuffer, P> im
     TCPConnector remoteConnector;
 
     // runtime
-    Collection secure = new HashSet<>();
+    Map<P, Object> secure = new HashMap<>();
     Map<P, Link> links = new HashMap<>();
 
     public boolean TRACE = true;
@@ -102,7 +101,7 @@ public class DIHttpForwarder<P extends Channel> extends BaseDI<ByteBuffer, P> im
     public void onProviderEvent(P provider, String event, Object... params) {
         //System.out.println("PE: " + event + "  " + provider);
         if (DI.PN_SECURE.equals(event)) {
-            secure.add(provider);
+            secure.put(provider,params);
         } else if (DI.PN_INPUT_CLOSED.equals(event)) {
             try {
                 Link l = link(provider);
@@ -266,7 +265,7 @@ public class DIHttpForwarder<P extends Channel> extends BaseDI<ByteBuffer, P> im
 
                             P rCh = connectToRemote(rAddr, new DIForwarded().configure(rSecure ? ssl_df_client : null));
 
-                            onBindForwarding(provider, secure.contains(provider), rCh, rSecure);
+                            onBindForwarding(provider, secure.containsKey(provider), rCh, rSecure);
                             Link l = link(provider);
                             HttpForwarderListener fl = getHttpForwarderListener(provider, h, l);
                             if (fl != null) {
