@@ -210,7 +210,7 @@ public class DB_API extends API {
 
         @Override
         public <T> T call(Map<String, Object> params) throws APIException {
-            DBResult r = new DBResult();
+            APIResult r = new APIResult();
 
             Connection connection = getConnectable().getConnection(1000);
             CallableStatement cs = null;
@@ -354,13 +354,6 @@ public class DB_API extends API {
         }
     }
 
-    public static class DBResult extends LinkedHashMap<String, Object> {
-
-        public DBResult add(String name, Object value) {
-            put(name, value);
-            return this;
-        }
-    }
 
     /**
      * DB_Adapter converts type/value info to/from DB format. Used for interface

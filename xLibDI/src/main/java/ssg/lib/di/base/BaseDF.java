@@ -23,14 +23,10 @@
  */
 package ssg.lib.di.base;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
 import ssg.lib.di.DF;
-import ssg.lib.di.DM;
 
 /**
+ * Implement support of nested filters for a filter an
  *
  * @author 000ssg
  */
@@ -44,37 +40,6 @@ public abstract class BaseDF<T, P> implements DF<T, P> {
     }
 
     @Override
-    public List<T> onWrite(DM<P> owner, P provider, Collection<T>... data) throws IOException {
-        List<T> r = null;
-        if (filter != null) {
-            List<T> f = filter.onWrite(owner, provider, data);
-            data = (f != null) ? new Collection[]{f} : null;
-        }
-        return writeFilter(owner, provider, data);
-    }
-
-    @Override
-    public List<T> onRead(DM<P> owner, P provider, Collection<T>... data) throws IOException {
-        List<T> r = readFilter(owner, provider, data);
-        if (filter != null) {
-            r = filter.onRead(owner, provider, r);
-        }
-        return r;
-    }
-
-    /**
-     * By default filter does not block actual read/write operations.
-     *
-     * @param provider
-     * @return
-     * @throws IOException
-     */
-    @Override
-    public boolean isReady(P provider) throws IOException {
-        return true;
-    }
-
-    @Override
     public void filter(DF<T, P> filter) {
         this.filter = filter;
     }
@@ -83,39 +48,4 @@ public abstract class BaseDF<T, P> implements DF<T, P> {
     public DF<T, P> filter() {
         return filter;
     }
-
-    @Override
-    public void healthCheck(P provider) throws IOException {
-        if (filter != null) {
-            filter.healthCheck(provider);
-        }
-    }
-
-    @Override
-    public void delete(P provider) throws IOException {
-        if (filter != null) {
-            filter.delete(provider);
-        }
-    }
-
-    @Override
-    public Collection<P> providers() {
-        Collection<P> r = new LinkedHashSet<>();
-        if (filter != null) {
-            r.addAll(filter.providers());
-        }
-        return r;
-    }
-
-    @Override
-    public void onProviderEvent(P provider, String event, Object... params) {
-        if (filter != null) {
-            filter.onProviderEvent(provider, event, params);
-        }
-    }
-
-    public abstract List<T> writeFilter(DM<P> owner, P provider, Collection<T>... data) throws IOException;
-
-    public abstract List<T> readFilter(DM<P> owner, P provider, Collection<T>... data) throws IOException;
-
 }

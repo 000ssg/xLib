@@ -28,13 +28,14 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Data filtering: modify data on read and on write operations.
+ * Data filtering: modify data on read and on write operations. Supports nested
+ * filters to allow cascaded transformations.
  *
  * @author 000ssg
  * @param <T> input data type
  * @param <P>
  */
-public interface DF<T, P> extends DM<P> {
+public interface DF<T, P> extends DMF<T, P> {
 
     ////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////// I/O
@@ -48,7 +49,14 @@ public interface DF<T, P> extends DM<P> {
      * @return
      * @throws IOException
      */
-    List<T> onWrite(DM<P> owner, P provider, Collection<T>... data) throws IOException;
+    default List<T> onWrite(DM<P> owner, P provider, Collection<T>... data) throws IOException {
+        DF<T, P> filter = filter();
+        if (filter != null) {
+            List<T> f = filter.onWrite(owner, provider, data);
+            data = (f != null) ? new Collection[]{f} : null;
+        }
+        return writeFilter(owner, provider, data);
+    }
 
     /**
      * Performs data post-processing on "read" operation
@@ -59,12 +67,37 @@ public interface DF<T, P> extends DM<P> {
      * @return
      * @throws IOException
      */
-    List<T> onRead(DM<P> owner, P provider, Collection<T>... data) throws IOException;
+    default List<T> onRead(DM<P> owner, P provider, Collection<T>... data) throws IOException {
+        DF<T, P> filter = filter();
+        List<T> r = readFilter(owner, provider, data);
+        if (filter != null) {
+            r = filter.onRead(owner, provider, r);
+        }
+        return r;
+    }
 
-    ////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////// filter
-    ////////////////////////////////////////////////////////////////////////
-    void filter(DF<T, P> filter);
+    ////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////// impl
+    ////////////////////////////////////////////////////////////////////////////
+    /**
+     * Process external data and return filtered input.
+     *
+     * @param owner
+     * @param provider
+     * @param data
+     * @return
+     * @throws IOException
+     */
+    List<T> writeFilter(DM<P> owner, P provider, Collection<T>... data) throws IOException;
 
-    DF<T, P> filter();
+    /**
+     * Process output data and return filtered result.
+     *
+     * @param owner
+     * @param provider
+     * @param data
+     * @return
+     * @throws IOException
+     */
+    List<T> readFilter(DM<P> owner, P provider, Collection<T>... data) throws IOException;
 }

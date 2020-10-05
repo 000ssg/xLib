@@ -19,7 +19,6 @@ import ssg.lib.api.API_Publisher.API_Publishers;
 import ssg.lib.api.APIParameterDirection;
 import ssg.lib.api.APIParameter;
 import ssg.lib.api.APIProcedure;
-import ssg.lib.api.dbms.DB_API.DBResult;
 import ssg.lib.api.util.APIException;
 import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
 import ssg.lib.http.rest.MethodsProvider;
@@ -144,7 +143,7 @@ public class API_MethodsProvider implements MethodsProvider {
                             }
                         }
 
-                        mth.setReturnType(DBResult.class);
+                        mth.setReturnType(API.APIResult.class);
                         if (ms.isEmpty()) {
                             ms.add(mth);
                             wms.put(operationName, ms);

@@ -57,7 +57,6 @@ import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.CALL_STATE;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerWrapper;
 import ssg.lib.wamp.util.WAMPTools;
-import ssg.lib.wamp.stat.WAMPStatistics;
 
 /**
  *
@@ -150,13 +149,12 @@ public class WAMPClient extends WAMPNode {
         return (T) this;
     }
 
-    public void setTransport(WAMPTransport transport) throws WAMPException {
+    public synchronized void setTransport(WAMPTransport transport) throws WAMPException {
         if (this.transport instanceof WAMPTransportWrapper && ((WAMPTransportWrapper) this.transport).getBase() == null && transport != null && WAMPSessionState.open == session.getState()) {
             ((WAMPTransportWrapper) this.transport).setBase(transport);
             this.transport.setStatistics(getStatistics() != null ? getStatistics().createChildMessageStatistics("transport") : null);
         } else {
             throw new WAMPException("Cannot change already assigned valid WAMP transport: now=" + this.transport + ", tried: " + transport);
-
         }
     }
 

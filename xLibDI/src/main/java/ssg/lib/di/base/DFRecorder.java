@@ -39,7 +39,8 @@ import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.di.DM;
 
 /**
- * Traffic recorder.
+ * Traffic recorder. Uses ByteBuffer for logging, accepts ByteBuffer or
+ * CharBuffer as tracked data.
  *
  * @author 000ssg
  */

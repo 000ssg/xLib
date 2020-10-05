@@ -122,32 +122,32 @@ public class HttpRequest extends HttpData {
 
     /**
      * Response bound event callback
-     * 
-     * @param resp 
+     *
+     * @param resp
      */
     public void onResponseSent(HttpResponse resp) {
     }
 
     /**
      * Response bound event callback
-     * 
-     * @param resp 
+     *
+     * @param resp
      */
     public void onResponseHeaderSent(HttpResponse resp) {
     }
 
     /**
      * Response bound event callback
-     * 
-     * @param resp 
+     *
+     * @param resp
      */
     public void onResponseLoaded(HttpResponse resp) {
     }
 
     /**
      * Response bound event callback
-     * 
-     * @param resp 
+     *
+     * @param resp
      */
     public void onResponseHeaderLoaded(HttpResponse resp) {
     }
@@ -230,6 +230,23 @@ public class HttpRequest extends HttpData {
         } else {
             return isSent() || closed;
         }
+    }
+
+    /**
+     * Returns named parameter map or null if none.
+     *
+     * @return
+     * @throws IOException
+     */
+    public Map<String, Object> getParameters() throws IOException {
+        Map<String, Object> r = getMatcher().getParameters(null, false);
+        if (canHaveFormParameters()) {
+            r = getFormParameters(r);
+        }
+//        if (r == null) {
+//            r = new LinkedHashMap<>();
+//        }
+        return r;
     }
 
     public boolean canHaveFormParameters() {

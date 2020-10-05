@@ -76,7 +76,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     }
 
     @Override
-    public void initialize(Channel provider, final WebSocket ws) {
+    public synchronized void initialize(Channel provider, final WebSocket ws) {
         WAMPTransportJSON transport = new WAMPTransportJSON(provider, new WAMPTransportJSON.TransportData(String.class) {
             @Override
             public void send(Object... messages) {

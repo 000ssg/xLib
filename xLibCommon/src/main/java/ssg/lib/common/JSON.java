@@ -266,16 +266,22 @@ public class JSON implements Cloneable {
                     v = Boolean.TRUE;
                 } else if (FALSE.equals(vs)) {
                     v = Boolean.FALSE;
-                } else if (Character.isDigit(vs.charAt(0))) {
+                } else if (Character.isDigit(vs.charAt(0)) || '-' == vs.charAt(0)) {
                     // try number
                     try {
                         if (vs.contains(".") || vs.contains("e") || vs.contains("E")) {
                             v = Double.parseDouble(vs);
                         } else {
+
                             v = Long.parseLong(vs);
                         }
                     } catch (Throwable th) {
-                        throw new IOException("Failed to parse numeric value: '" + vs + "': " + th);
+                        // javascript compatibility? https://forums.pentaho.com/threads/60913-javascript-long-datatype-issues/
+                        if ("9223372036854776000".equals(vs)) {
+                            v = Long.MAX_VALUE;
+                        } else {
+                            throw new IOException("Failed to parse numeric value: '" + vs + "': " + th);
+                        }
                     }
                 } else {
                     throw new IOException("Unrecognized JSON literal: '" + vs + "' (" + BufferTools.dump(vs.getBytes(getEncoding())).replace("\n", "\\n") + ").");

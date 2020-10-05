@@ -257,7 +257,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         if (namespace != null && namespace.contains("/")) {
             namespace = namespace.substring(namespace.lastIndexOf("/") + 1);
         }
-        Map<String, String> params = data.getMatcher().getParameters(data.getMatcher(), false);
+        //Map<String, String[]> params = data.getMatcher().getParameters(data.getMatcher(), false);
         String apiJS = getRESTHelper().generateAPI(
                 userRAT,
                 (type != null) ? type : "js",

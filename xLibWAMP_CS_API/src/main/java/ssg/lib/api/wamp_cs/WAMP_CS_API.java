@@ -56,10 +56,12 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.nodes.WAMPClient;
+import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.stat.WAMPStatistics;
 import ssg.lib.wamp.util.WAMPException;
+import ssg.lib.websocket.WebSocket;
 
 /**
  *
@@ -67,7 +69,7 @@ import ssg.lib.wamp.util.WAMPException;
  */
 public class WAMP_CS_API {
 
-    IWS wcs = new WSJavaCS().router(30020, 30030).rest(30021);
+    IWS wcs = new WSJavaCS();
     // published APIs info per Dealer instance...
     Map<URL, WAMPClient> publishers = Collections.synchronizedMap(new LinkedHashMap<>());
     // DB connections
@@ -99,6 +101,27 @@ public class WAMP_CS_API {
         return this;
     }
 
+    public WAMP_CS_API addRouterListener(WAMPNodeListener... ls) {
+        if (wcs instanceof WSJavaCS) {
+            ((WSJavaCS) wcs).addRouterListener(ls);
+        }
+        return this;
+    }
+
+    public WAMP_CS_API removeRouterListener(WAMPNodeListener... ls) {
+        if (wcs instanceof WSJavaCS) {
+            ((WSJavaCS) wcs).removeRouterListener(ls);
+        }
+        return this;
+    }
+    public WAMP_CS_API setRouterFrameMonitor(WebSocket.FrameMonitor fm) {
+        if (wcs instanceof WSJavaCS) {
+            ((WSJavaCS) wcs).setRouterFrameMonitor(fm);
+        }
+        return this;
+    }
+    
+    
     public void start() throws IOException {
         wcs.start();
     }
@@ -171,49 +194,52 @@ public class WAMP_CS_API {
         for (String apiName : apiNames) {
             if (apiName != null) {
                 API_Publisher dbAPI = api.getAPIPublisher(apiName);
-                for (final String pn : api.getNames(apiName)) {
-                    final APICallable dbc = dbAPI.getCallable(pn, null);
-                    try {
-                        client.addExecutor(new HashMap() {
-                            {
-                                put("invoke", "roundrobin");
-                            }
-                        }, pn, new Callee() {
-                            @Override
-                            public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
-                                if (apiStat != null) {
-                                    apiStat.onTryInvoke();
+                Collection<String> names = (api != null) ? api.getNames(apiName) : null;
+                if (names != null) {
+                    for (final String pn : names) {
+                        final APICallable dbc = dbAPI.getCallable(pn, null);
+                        try {
+                            client.addExecutor(new HashMap() {
+                                {
+                                    put("invoke", "roundrobin");
                                 }
-                                return executor.submit(new Callable() {
-                                    @Override
-                                    public Object call() throws Exception {
-                                        String old = Thread.currentThread().getName();
-                                        try {
-                                            Thread.currentThread().setName("exec_" + realm + "_" + name);
-                                            if (apiStat != null) {
-                                                apiStat.onInvoke();
-                                            }
-                                            return dbc.call(argsKw);
-                                        } catch (Throwable th) {
-                                            if (apiStat != null) {
-                                                apiStat.onError();
-                                            }
-                                            if (th instanceof WAMPException) {
-                                                throw (WAMPException) th;
-                                            }
-                                            throw new WAMPException(th);
-                                        } finally {
-                                            if (apiStat != null) {
-                                                apiStat.onDone();
-                                            }
-                                            Thread.currentThread().setName(old);
-                                        }
+                            }, pn, new Callee() {
+                                @Override
+                                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                                    if (apiStat != null) {
+                                        apiStat.onTryInvoke();
                                     }
-                                });
-                            }
-                        });
-                    } catch (WAMPException wex) {
-                        wex.printStackTrace();
+                                    return executor.submit(new Callable() {
+                                        @Override
+                                        public Object call() throws Exception {
+                                            String old = Thread.currentThread().getName();
+                                            try {
+                                                Thread.currentThread().setName("exec_" + realm + "_" + name);
+                                                if (apiStat != null) {
+                                                    apiStat.onInvoke();
+                                                }
+                                                return dbc.call(argsKw);
+                                            } catch (Throwable th) {
+                                                if (apiStat != null) {
+                                                    apiStat.onError();
+                                                }
+                                                if (th instanceof WAMPException) {
+                                                    throw (WAMPException) th;
+                                                }
+                                                throw new WAMPException(th);
+                                            } finally {
+                                                if (apiStat != null) {
+                                                    apiStat.onDone();
+                                                }
+                                                Thread.currentThread().setName(old);
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        } catch (WAMPException wex) {
+                            wex.printStackTrace();
+                        }
                     }
                 }
                 onPublishedAPI(wsURI, client, apiName, dbAPI);
@@ -393,7 +419,7 @@ public class WAMP_CS_API {
         }
         return null;
     }
-    
+
     public List<URI> getWebSocketURIs() {
         if (wcs instanceof WSJavaCS) {
             try {

@@ -23,6 +23,7 @@
  */
 package ssg.lib.http;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
@@ -213,29 +214,75 @@ public class HttpMatcher {
         return null;
     }
 
-    public Map<String, String> getParameters(HttpMatcher rm, boolean pathOnly) {
-        Map<String, String> r = new LinkedHashMap<String, String>();
+    public Map<String, Object> getParameters(HttpMatcher rm, boolean pathOnly) throws IOException {
+        Map<String, Object> r = new LinkedHashMap<>();
         if (pathParamCount > 0) {
             for (int i = 0; i < paths.length; i++) {
                 if (paths[i].startsWith("{")) {
-                    r.put(paths[i].substring(1, paths[i].length() - 1), rm.paths[i]);
+                    String key = paths[i].substring(1, paths[i].length() - 1);
+                    String nv = rm.paths[i];
+                    if (r.containsKey(key)) {
+                        Object kv = r.get(key);
+                        if (kv instanceof String) {
+                            r.put(key, new String[]{(String) kv, nv});
+                        } else if (kv instanceof String[]) {
+                            String[] ss = (String[]) kv;
+                            ss = Arrays.copyOf(ss, ss.length + 1);
+                            ss[ss.length - 1] = nv;
+                            r.put(key, ss);
+                        } else {
+                            throw new IOException("Unexpected non-string parameter values: " + key + "=" + kv + " -> " + nv);
+                        }
+                    } else {
+                        r.put(key, nv);
+                    }
                 }
             }
         }
         if (!pathOnly) {
-            if (rm.qpm != null) {
+            if (rm!=null && rm.qpm != null) {
                 for (int i = 0; i < rm.qpm.length; i++) {
                     // TODO: no value ? null or "" ???
-                    r.put(rm.qpm[i][0], (rm.qpm[i].length > 1) ? rm.qpm[i][1] : "");
+                    String key = rm.qpm[i][0];
+                    String nv = (rm.qpm[i].length > 1) ? rm.qpm[i][1] : "";
+                    if (r.containsKey(key)) {
+                        Object kv = r.get(key);
+                        if (kv instanceof String) {
+                            r.put(key, new String[]{(String) kv, nv});
+                        } else if (kv instanceof String[]) {
+                            String[] ss = (String[]) kv;
+                            ss = Arrays.copyOf(ss, ss.length + 1);
+                            ss[ss.length - 1] = nv;
+                            r.put(key, ss);
+                        } else {
+                            throw new IOException("Unexpected non-string parameter values: " + key + "=" + kv + " -> " + nv);
+                        }
+                    } else {
+                        r.put(key, nv);
+                    }
                 }
             }
             if (qpm != null) {
                 for (int i = 0; i < qpm.length; i++) {
                     if (qpm[i][0].startsWith("{")) {
-                        String pn = qpm[i][0];
-                        pn = pn.substring(1, pn.length() - 1);
-                        if (!r.containsKey(pn)) {
-                            r.put(pn, qpm[i][1]);
+                        String key = qpm[i][0];
+                        key = key.substring(1, key.length() - 1);
+
+                        String nv = qpm[i][1];
+                        if (r.containsKey(key)) {
+                            Object kv = r.get(key);
+                            if (kv instanceof String) {
+                                r.put(key, new String[]{(String) kv, nv});
+                            } else if (kv instanceof String[]) {
+                                String[] ss = (String[]) kv;
+                                ss = Arrays.copyOf(ss, ss.length + 1);
+                                ss[ss.length - 1] = nv;
+                                r.put(key, ss);
+                            } else {
+                                throw new IOException("Unexpected non-string parameter values: " + key + "=" + kv + " -> " + nv);
+                            }
+                        } else {
+                            r.put(key, nv);
                         }
                     }
                 }

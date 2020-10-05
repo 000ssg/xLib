@@ -61,6 +61,7 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.cs.WSCSCounters;
+import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.stat.WAMPStatistics;
 import ssg.lib.wamp.util.stat.Statistics;
 import ssg.lib.websocket.WebSocket;
@@ -70,12 +71,13 @@ import ssg.lib.websocket.WebSocket;
  * @author 000ssg
  */
 public class WSJavaCS implements Runnable, IWS {
-
+    
     Future runner;
     public boolean TRACE_MESSAGES = false;
 
     // WAMP sockets transport support
     WAMPRouter_WSProtocol routerCS;
+    WebSocket.FrameMonitor routerFM;
     WAMPClient_WSProtocol clientCS = new WAMPClient_WSProtocol() {
         @Override
         public boolean onConsume(Channel provider, WebSocket ws, Object message) throws IOException {
@@ -84,7 +86,7 @@ public class WSJavaCS implements Runnable, IWS {
             }
             return super.onConsume(provider, ws, message);
         }
-
+        
         @Override
         public void onSend(WebSocket ws, Object message) {
             if (TRACE_MESSAGES) {
@@ -104,13 +106,13 @@ public class WSJavaCS implements Runnable, IWS {
     // socket caller/handler
     CS cs = new CS(getClass().getSimpleName())
             .addCSGroup(wsGroup);
-
+    
     ScheduledExecutorService executorService;
 
     // counters
     WSCSCounters counters = new WSCSCounters(routerCS, clientCS);
     WSCSCountersREST countersREST = new WSCSCountersREST();
-
+    
     public WSJavaCS trace() {
         TRACE_MESSAGES = true;
         return this;
@@ -132,12 +134,20 @@ public class WSJavaCS implements Runnable, IWS {
                     }
                     return super.onConsume(provider, ws, message);
                 }
-
+                
                 @Override
                 public void onSend(WebSocket ws, Object message) {
                     if (TRACE_MESSAGES) {
                         System.out.println("[" + System.currentTimeMillis() + "][WR-" + ws.id + "]-OU: " + ("" + message).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
                     }
+                }
+                
+                @Override
+                public void initialize(Channel provider, WebSocket ws) {
+                    if (routerFM != null) {
+                        ws.setFrameMonitor(routerFM);
+                    }
+                    super.initialize(provider, ws);
                 }
             };
             routerCS.getRouter().setStatistics(new WAMPStatistics("ws-cs-router"));
@@ -218,7 +228,7 @@ public class WSJavaCS implements Runnable, IWS {
                     .configureService(-1, httpService)
                     .buildDI();
         }
-
+        
         for (int port : ports) {
             if (!cs.hasTCPHandler(port)) {
                 try {
@@ -235,7 +245,7 @@ public class WSJavaCS implements Runnable, IWS {
         }
         return this;
     }
-
+    
     public HttpService getHttpService() {
         return httpService;
     }
@@ -262,12 +272,12 @@ public class WSJavaCS implements Runnable, IWS {
         }
         return r;
     }
-
+    
     public URI[] getRouterURIs() {
         Collection<SocketAddress> sas = wsGroup.getListeningAt();
-
+        
         URI[] r = new URI[sas.size()];
-
+        
         int off = 0;
         for (SocketAddress sa : sas) {
             String address = NetTools.getAddress(sa);
@@ -278,10 +288,10 @@ public class WSJavaCS implements Runnable, IWS {
                 usex.printStackTrace();
             }
         }
-
+        
         return r;
     }
-
+    
     @Override
     public void start() throws IOException {
         if (runner == null) {
@@ -290,12 +300,12 @@ public class WSJavaCS implements Runnable, IWS {
             runner = cs.getScheduledExecutorService().submit(this);
         }
     }
-
+    
     @Override
     public ScheduledExecutorService getScheduledExecutorService() {
         return cs.getScheduledExecutorService();
     }
-
+    
     @Override
     public void stop() throws IOException {
         if (runner != null) {
@@ -307,7 +317,7 @@ public class WSJavaCS implements Runnable, IWS {
             executorService = null;
         }
     }
-
+    
     @Override
     public WAMPClient connect(
             URI uri,
@@ -327,7 +337,7 @@ public class WSJavaCS implements Runnable, IWS {
             throw new WAMPException(ioex);
         }
     }
-
+    
     @Override
     public void run() {
         String old = Thread.currentThread().getName();
@@ -365,7 +375,7 @@ public class WSJavaCS implements Runnable, IWS {
             executorService = null;
         }
     }
-
+    
     @Override
     public String getStat() {
         StringBuilder sb = new StringBuilder();
@@ -374,12 +384,12 @@ public class WSJavaCS implements Runnable, IWS {
         }
         return sb.toString();
     }
-
+    
     @Override
     public String routerStat() {
         return (routerCS != null) ? routerCS.getRouter().toString() : "";
     }
-
+    
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{"
@@ -395,9 +405,25 @@ public class WSJavaCS implements Runnable, IWS {
                 + "\n  clients=" + getStat().replace("\n", "\n    ")
                 + '}';
     }
-
+    
+    public void addRouterListener(WAMPNodeListener... ls) {
+        if (routerCS != null) {
+            routerCS.getRouter().addWAMPNodeListener(ls);
+        }
+    }
+    
+    public void removeRouterListener(WAMPNodeListener... ls) {
+        if (routerCS != null) {
+            routerCS.getRouter().removeWAMPNodeListener(ls);
+        }
+    }
+    
+    public void setRouterFrameMonitor(WebSocket.FrameMonitor fm) {
+        routerFM = fm;
+    }
+    
     public class WSCSCountersREST {
-
+        
         public Map getStructure(Boolean activeOnly) {
             long timestamp = System.currentTimeMillis();
             Map r = counters.getTree((activeOnly != null) ? activeOnly : false);
@@ -405,13 +431,13 @@ public class WSJavaCS implements Runnable, IWS {
             r.put("timestamp", timestamp);
             return r;
         }
-
+        
         public Map getModified() {
             Map r = counters.getLastModified();
             stat2rest(r, false);
             return r;
         }
-
+        
         public Map getUpdates(Long after, Boolean activeOnly, Boolean compact) {
             long timestamp = System.currentTimeMillis();
             Map r = counters.getUpdates((after != null) ? after : 0, (activeOnly != null) ? activeOnly : false, (compact != null) ? compact : true);
@@ -419,7 +445,7 @@ public class WSJavaCS implements Runnable, IWS {
             r.put("timestamp", timestamp);
             return r;
         }
-
+        
         <T> T stat2rest(Object object, boolean compact) {
             if (object instanceof Map) {
                 Map map = (Map) object;

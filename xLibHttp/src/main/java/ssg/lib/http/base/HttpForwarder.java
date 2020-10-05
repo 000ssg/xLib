@@ -92,6 +92,14 @@ public class HttpForwarder {
         return local;
     }
 
+    public boolean isLocalSecure() {
+        return localIsSecure;
+    }
+
+    public boolean isRemoteSecure() {
+        return remoteIsSecure;
+    }
+
     public void setLocalHost(String localHost, String localHostWithPort) {
         this.localHost = localHost;
         this.localHostWithPort = localHostWithPort;
@@ -109,7 +117,7 @@ public class HttpForwarder {
             try {
                 remoteHost = remote.getRemoteAddress().toString();
                 int idx = remoteHost.indexOf("/");
-                remoteHostWithPort = (idx > 1) ? remoteHost.substring(0, idx) + remoteHost.substring(remoteHost.indexOf(":") - 1) : remoteHost.substring(1);
+                remoteHostWithPort = (idx > 1) ? remoteHost.substring(0, idx) + remoteHost.substring(remoteHost.lastIndexOf(":")) : remoteHost.substring(1);
                 remoteHost = (idx > 1) ? remoteHost.substring(0, idx) : remoteHost.substring(1, remoteHost.indexOf(":"));
             } catch (Throwable th) {
                 th.printStackTrace();
@@ -118,8 +126,11 @@ public class HttpForwarder {
         if (localHost == null && local != null) {
             try {
                 localHost = local.getLocalAddress().toString();
+                if (localHost.contains("0:0:0:0:0:0:0:1:")) {
+                    localHost = localHost.replace("0:0:0:0:0:0:0:1", "localhost");
+                }
                 int idx = localHost.indexOf("/");
-                localHostWithPort = (idx > 1) ? localHost.substring(0, idx) + localHost.substring(localHost.indexOf(":") - 1) : localHost.substring(1);
+                localHostWithPort = (idx > 1) ? localHost.substring(0, idx) + localHost.substring(localHost.lastIndexOf(":")) : localHost.substring(1);
                 localHost = (idx > 1) ? localHost.substring(0, idx) : localHost.substring(1, localHost.indexOf(":"));
             } catch (Throwable th) {
                 th.printStackTrace();
@@ -132,7 +143,10 @@ public class HttpForwarder {
             this.remoteHost = remoteHost;
         }
         if (this.localHost != null && this.remoteHost != null) {
-            replacement = new Replacement(this.localHost, this.remoteHost);
+            boolean localPortIsDefault = localIsSecure ? localHostWithPort.endsWith(":443") : localHostWithPort.endsWith(":80");
+            boolean remotePortIsDefault = remoteIsSecure ? remoteHostWithPort.endsWith(":443") : remoteHostWithPort.endsWith(":80");
+
+            replacement = new Replacement(localPortIsDefault ? this.localHost : this.localHostWithPort, remotePortIsDefault ? this.remoteHost : this.remoteHostWithPort);
         }
     }
 
@@ -378,8 +392,8 @@ public class HttpForwarder {
                     }
                     if (needReplacement(localResp)) {
                         Replacement reverse = (replacement != null) ? replacement.reverseCopy() : null;
-                        if(getListener()!=null) {
-                            reverse=getListener().buildReplacement(this, localResp, reverse);
+                        if (getListener() != null) {
+                            reverse = getListener().buildReplacement(this, localResp, reverse);
                         }
                         if (reverse != null) {
                             localResp.input = new ByteBufferPipeReplacement(reverse);

@@ -60,7 +60,7 @@ public class BufferingWebSocketMessageHandler implements WebSocketMessageHandler
     @Override
     public void onMessageContinue(WebSocket ws, WebSocketFrame frame, ByteBuffer... is) throws IOException {
         m = frame.getMask();
-
+        len=frame.getLength();
         while (len > 0) {
             int c = (int) BufferTools.readTo(is, buf, 0, Math.min((int) len, buf.length));
             if (c == -1) {

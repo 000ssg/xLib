@@ -365,9 +365,12 @@ public interface Refl {
                         Collection o = createInstance(type, xtypes);
                         Class itype = (ptype != null
                                 && ptype.getActualTypeArguments() != null
-                                && ptype.getActualTypeArguments().length == 1
-                                && ptype.getActualTypeArguments()[0] instanceof Class)
+                                && ptype.getActualTypeArguments().length == 1)
+                                ? (ptype.getActualTypeArguments()[0] instanceof Class)
                                 ? (Class) ptype.getActualTypeArguments()[0]
+                                : (ptype.getActualTypeArguments()[0] instanceof ParameterizedType)
+                                ? (Class) ((ParameterizedType) ptype.getActualTypeArguments()[0]).getRawType()
+                                : null
                                 : null;
                         if (obj instanceof Collection) {
                             for (Object oi : (Collection) obj) {

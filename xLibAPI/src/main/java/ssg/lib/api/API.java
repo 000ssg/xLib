@@ -23,6 +23,9 @@
  */
 package ssg.lib.api;
 
+import java.util.LinkedHashMap;
+import ssg.lib.api.dbms.DB_API;
+
 /**
  * API is consistent hierarchical (optionally) set of functions and data types
  * providing method execution.
@@ -38,4 +41,12 @@ public abstract class API extends APIGroup {
     }
 
     public abstract <T extends APICallable> T createCallable(APIProcedure proc, Object context);
+
+    public static class APIResult extends LinkedHashMap<String, Object> {
+
+        public APIResult add(String name, Object value, DB_API.APIResult dbResult) {
+            put(name, value);
+            return dbResult;
+        }
+    }
 }

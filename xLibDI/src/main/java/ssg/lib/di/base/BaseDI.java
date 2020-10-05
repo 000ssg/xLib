@@ -23,16 +23,12 @@
  */
 package ssg.lib.di.base;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
 import ssg.lib.di.DF;
 import ssg.lib.di.DI;
 
 /**
- * Implements filter-specific portion of DI interface delegating data processing
- * to successors via declared abstract methods: size, consume, produce.
+ * Implementation of DI to provide filter and basic DM functionality that may
+ * depend on filters.
  *
  * @author 000ssg
  * @param <T>
@@ -48,53 +44,6 @@ public abstract class BaseDI<T, P> implements DI<T, P> {
     }
 
     @Override
-    public long write(P provider, Collection<T>... data) throws IOException {
-        long c = size(data);
-        if (filter != null) {
-            List<T> f = filter.onWrite(this, provider, data);
-            c = c - size(data);
-            if (filter.isReady(provider)) {
-                data = (f != null) ? new Collection[]{f} : null;
-                consume(provider, data);
-            }
-        } else {
-            consume(provider, data);
-        }
-        return c - size(data);
-    }
-
-    @Override
-    public List<T> read(P provider) throws IOException {
-        List<T> data = null;
-        if (filter != null) {
-            if (filter.isReady(provider)) {
-                data = produce(provider);
-                data = filter.onRead(this, provider, data);
-            } else {
-                data = filter.onRead(this, provider, data);
-                if (filter.isReady(provider)) {
-                    onFilterReady(provider);
-                }
-            }
-        } else {
-            data = produce(provider);
-        }
-        return data;
-    }
-
-    /**
-     * By default no blocking of actual read/write operations.
-     *
-     * @param provider
-     * @return
-     * @throws IOException
-     */
-    @Override
-    public boolean isReady(P provider) throws IOException {
-        return true;
-    }
-
-    @Override
     public void filter(DF<T, P> filter) {
         this.filter = filter;
     }
@@ -103,48 +52,4 @@ public abstract class BaseDI<T, P> implements DI<T, P> {
     public DF<T, P> filter() {
         return filter;
     }
-
-    @Override
-    public void delete(P provider) throws IOException {
-        if (filter != null) {
-            filter.delete(provider);
-        }
-    }
-
-    @Override
-    public Collection<P> providers() {
-        Collection<P> r = new LinkedHashSet<>();
-        if (filter != null) {
-            r.addAll(filter.providers());
-        }
-        return r;
-    }
-
-    @Override
-    public void onProviderEvent(P provider, String event, Object... params) {
-        if (filter != null) {
-            filter.onProviderEvent(provider, event, params);
-        }
-    }
-
-    @Override
-    public void healthCheck(P provider) throws IOException {
-        // no health check procedure by default
-        if (filter != null) {
-            filter.healthCheck(provider);
-        }
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////// tools
-    ////////////////////////////////////////////////////////////////////////////
-    public void onFilterReady(P provider) throws IOException {
-        // Use to adjust
-    }
-
-    public abstract long size(Collection<T>... data);
-
-    public abstract void consume(P provider, Collection<T>... data) throws IOException;
-
-    public abstract List<T> produce(P provider) throws IOException;
 }

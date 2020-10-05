@@ -75,6 +75,8 @@ public class WebSocketFrame {
     ByteArray len2w = new ByteArray(new byte[2], 0, 2, false);
     ByteArray len8r = new ByteArray(new byte[8], 0, 8, false);
     ByteArray len8w = new ByteArray(new byte[8], 0, 8, false);
+    // on write: message offset used to 
+    int msgOff;
 
     public WebSocketFrame() {
     }
@@ -187,7 +189,7 @@ public class WebSocketFrame {
      * @throws IOException
      */
     public int readPayload(byte[] data, int off, ByteBuffer... is) throws IOException {
-        //System.out.println("[" + Thread.currentThread().getName() + "]readPayload(available=" + PDTools.getRemaining(is) + ", need=" + (data.length - off) + ", off=" + off);
+        //System.out.println("[" + Thread.currentThread().getName() + "]readPayload(available=" + BufferTools.getRemaining(is) + ", need=" + (data.length - off) + ", off=" + off);
         int len = (int) getLength();
         if (data != null && data.length - off < len) {
             throw new IOException("Insufficient buffer size for payload: got " + (data.length - off) + ", need " + len);
@@ -226,7 +228,7 @@ public class WebSocketFrame {
         byte[] m = getMask();
         if (m != null) {
             for (int i = 0; i < len; i++) {
-                data[i + off] ^= m[i % 4];
+                data[i + off] ^= m[(i+msgOff) % 4];
             }
         }
         try {
@@ -240,7 +242,7 @@ public class WebSocketFrame {
         } finally {
             if (m != null && preserveData) {
                 for (int i = 0; i < len; i++) {
-                    data[i + off] ^= m[i % 4];
+                    data[i + off] ^= m[(i+msgOff) % 4];
                 }
             }
         }

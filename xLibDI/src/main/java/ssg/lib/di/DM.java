@@ -37,16 +37,33 @@ public interface DM<P> {
     ////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////// property names
     ////////////////////////////////////////////////////////////////////////////
-    // provider (channel) is opened
-    public static final String PN_OPENED = "p_opened";
-    // provider input is closewd, writes are possibly available...
-    public static final String PN_INPUT_CLOSED = "p_input_closed";
-    // provider channel is secure -> certificates if possible
-    public static final String PN_SECURE = "p_secure";
+    /**
+     * provider (channel) is opened
+     */
+    public static final String PN_OPENED = "p_opened".intern();
+    /**
+     * provider input is closed, writes are possibly available...
+     */
+    public static final String PN_INPUT_CLOSED = "p_input_closed".intern();
+    /**
+     * provider channel is secure -> certificates if possible
+     */
+    public static final String PN_SECURE = "p_secure".intern();
 
     ////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////// Maintenance
     ////////////////////////////////////////////////////////////////////////////
+    /**
+     * Enable blocking of actual "write" and "read" operations.
+     * By default returns true (no blocking of I/O operations).
+     *
+     * @param provider
+     * @return
+     */
+    default boolean isReady(P provider) throws IOException {
+        return true;
+    }
+
     /**
      * Schedule health check procedure (if any). This should allow
      * provider-specific check to optimize/prevent clean-up procedures.
@@ -55,15 +72,7 @@ public interface DM<P> {
      * @throws IOException
      */
     void healthCheck(P provider) throws IOException;
-    
-    /**
-     * Enable blocking of actual "write" and "read" operations.
-     *
-     * @param provider
-     * @return
-     */
-    boolean isReady(P provider) throws IOException;
-    
+
     /**
      * Release and delete any resources associated with given providers
      *

@@ -635,4 +635,25 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         Collections.sort(r, TaskProvider.getTaskComparator(true));
         return r;
     }
+
+    @Override
+    public String toString() {
+        return "HttpService{"
+                + "\n  defaultConnectionBehaviour=" + defaultConnectionBehaviour
+                + "\n  name=" + name
+                + "\n  options=" + options
+                + "\n  dataProcessors=" + dataProcessors
+                + "\n  connectionUpgrades=" + connectionUpgrades
+                + "\n  applications=" + applications
+                + "\n  root=" + root
+                + "\n  maxURILength=" + maxURILength
+                + "\n  sessionIdCookieHTTP=" + sessionIdCookieHTTP
+                + "\n  sessionIdCookieHTTPS=" + sessionIdCookieHTTPS
+                + "\n  httpData=" + httpData
+                + "\n  auth=" + auth
+                + "\n  sessions=" + sessions
+                + '\n'
+                + '}';
+    }
+
 }

@@ -23,10 +23,13 @@
  */
 package ssg.lib.api.util;
 
+import java.io.File;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -50,6 +53,7 @@ import ssg.lib.api.APIProcedure;
 public class Reflective_API_Builder {
 
     public static final String[] disabledMethodNames = {"equals", "getClass", "hashCode", "notify", "notifyAll", "toString", "wait"};
+    public static final Class[] disabledTypes = {Class.class, File.class, URL.class, URI.class, ClassLoader.class};
     public static Collection<String> disabledMethods = new HashSet<String>() {
         {
             for (String s : disabledMethodNames) {
@@ -57,6 +61,7 @@ public class Reflective_API_Builder {
             }
         }
     };
+    public static TypeConverter typeConverter;
 
     public static API buildAPI(String name, Reflective_API_Context context, Class... types) {
         API_Reflective api = new API_Reflective(name);
@@ -304,7 +309,16 @@ public class Reflective_API_Builder {
                 }
             } else {
                 dt = new ReflObjectType(n, type);
-                context.evalTypeAttributes(api, (ReflObjectType) dt);
+                boolean allowed = true;
+                for (Class cl : disabledTypes) {
+                    if (cl.equals(type)) {
+                        allowed = false;
+                        break;
+                    }
+                }
+                if (allowed) {
+                    context.evalTypeAttributes(api, (ReflObjectType) dt);
+                }
             }
             dt.usedIn.add(api);
             api.types.put(n, dt);
@@ -626,8 +640,7 @@ public class Reflective_API_Builder {
             }
             if (p.getType().isAssignableFrom(v.getClass())) {
                 return v;
-            }
-            if (p.getType().isArray() && v instanceof Collection) {
+            } else if (p.getType().isArray() && v instanceof Collection) {
                 Collection c = (Collection) v;
                 Object arr = Array.newInstance(p.getType().getComponentType(), c.size());
                 int off = 0;
@@ -635,9 +648,18 @@ public class Reflective_API_Builder {
                     Array.set(arr, off++, ci);
                 }
                 v = arr;
+            } else if (typeConverter != null) {
+                v = typeConverter.toType(p.getType(), v);
             }
+
             return v;
         }
 
     }
+
+    public static interface TypeConverter {
+
+        Object toType(Class type, Object value);
+    }
+
 }

@@ -30,36 +30,117 @@ import java.util.List;
 /**
  * Data interface: write/read data with optional filtering.
  *
+ * DI organizes data flow with optional filtering as follows:
+ *
+ * from provider -%gt; <code>write<code> [ filter.<code>onWrite</code> ] -&gt;
+ * <code>consume</code>
+ *
+ * <code>produce</code> -&gt; <code>read</code> [ filter.<code>onRead</code> ]
+ * -&gt; to provider
+ *
+ * If filter is present, then <code>consume</code> and <code>produce</code>
+ * methods are invoked only if filter is ready (filter.<code>isReady</code>) to
+ * enable provider channel configuration (e.g. as required for establishing of
+ * SSL connection).
+ *
+ * Default implementations for read/write operations are provided.
+ *
  * @author 000ssg
  */
-public interface DI<T, P> extends DM<P> {
+public interface DI<T, P> extends DMF<T, P> {
 
     ////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////// I/O
     ////////////////////////////////////////////////////////////////////////////
     /**
-     * Accept provider data
+     * Accept provider data. Data are passed to <code>consume</code> directly
+     * or, if filter is defined, after pre-processing by filter.
      *
      * @param provider
      * @param data
      * @return
      * @throws IOException
      */
-    long write(P provider, Collection<T>... data) throws IOException;
+    default long write(P provider, Collection<T>... data) throws IOException {
+        long c = size(data);
+        DF<T, P> filter = filter();
+        if (filter != null) {
+            List<T> f = filter.onWrite(this, provider, data);
+            c = c - size(data);
+            if (filter.isReady(provider)) {
+                data = (f != null) ? new Collection[]{f} : null;
+                consume(provider, data);
+            }
+        } else {
+            consume(provider, data);
+        }
+        return c - size(data);
+    }
 
     /**
-     * Return data for provider
+     * Return data for provider. Data are retrieved via <code>produce</code>
+     * and, if filter is defined, filtered (processed) for output.
      *
      * @param provider
      * @return
      * @throws IOException
      */
-    List<T> read(P provider) throws IOException;
+    default List<T> read(P provider) throws IOException {
+        List<T> data = null;
+        DF<T, P> filter = filter();
+        if (filter != null) {
+            if (filter.isReady(provider)) {
+                data = produce(provider);
+                data = filter.onRead(this, provider, data);
+            } else {
+                data = filter.onRead(this, provider, data);
+                if (filter.isReady(provider)) {
+                    onFilterReady(provider);
+                }
+            }
+        } else {
+            data = produce(provider);
+        }
+        return data;
+    }
+
+    /**
+     * Callback to apply provider-specific actions when filter notifies
+     * readiness. Nothing by default.
+     *
+     * @param provider
+     * @throws IOException
+     */
+    default void onFilterReady(P provider) throws IOException {
+        // Use to adjust
+    }
 
     ////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////// filter
+    ///////////////////////////////////////////////////////////////////// base
     ////////////////////////////////////////////////////////////////////////////
-    void filter(DF<T, P> filter);
+    /**
+     * Evaluates data size or 0 if no data.
+     *
+     * @param data
+     * @return
+     */
+    public abstract long size(Collection<T>... data);
 
-    DF<T, P> filter();
+    /**
+     * Consume provider data (filtered, if any filter).
+     *
+     * @param provider
+     * @param data
+     * @throws IOException
+     */
+    public abstract void consume(P provider, Collection<T>... data) throws IOException;
+
+    /**
+     * Prepare data for provider.
+     *
+     * @param provider
+     * @return
+     * @throws IOException
+     */
+    public abstract List<T> produce(P provider) throws IOException;
 }

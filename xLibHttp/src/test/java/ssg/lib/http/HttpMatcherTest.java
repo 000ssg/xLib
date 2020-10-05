@@ -108,14 +108,14 @@ public class HttpMatcherTest {
      * Test of getParameters method, of class HttpMatcher.
      */
     @Test
-    public void testGetParameters() {
+    public void testGetParameters() throws Exception {
         System.out.println("getParameters");
         HttpMatcher rm = new HttpMatcher("/AAA/BBB?CCC");
         HttpMatcher instance = new HttpMatcher("/{aaa}/{bbb}");
-        Map<String, String> expResult = new LinkedHashMap<>();
+        Map<String, Object> expResult = new LinkedHashMap<>();
         expResult.put("aaa", "AAA");
         expResult.put("bbb", "BBB");
-        Map<String, String> result = instance.getParameters(rm, true);
+        Map<String, Object> result = instance.getParameters(rm, true);
         assertEquals(expResult, result);
         expResult.put("CCC", "");
         result = instance.getParameters(rm, false);

@@ -652,106 +652,65 @@ public abstract class WebSocket implements WebSocketConstants {
         WebSocketFrame frame = prepareWebSocketFrame(new WebSocketFrame());
         frame.setOpCode(WebSocketFrame.OP_TEXT);
 
-        if (1 == 1) {
-            char[] cdata = text.toCharArray();
-            int csize = cdata.length;
-            int coff = 0;
-            int clen = Math.min(getMaxFrameSize() / 3, csize);
+        char[] cdata = text.toCharArray();
+        int csize = cdata.length;
+        int coff = 0;
+        int clen = Math.min(getMaxFrameSize() / 3, csize);
 
-            if (frameMonitor != null && frameMonitor.check(FrameMonitor.OF_TEXT, this, frame, null)) {
-                frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(text.getBytes("UTF-8"))}, null);
+        if (frameMonitor != null && frameMonitor.check(FrameMonitor.OF_TEXT, this, frame, null)) {
+            frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(text.getBytes("UTF-8"))}, null);
+        }
+
+        while (clen > 0) {
+            byte[] data = new String(cdata, coff, clen).getBytes("UTF-8");
+            frame = prepareWebSocketFrame(frame);
+            if (coff > 0) {
+                frame.setOpCode(WebSocketFrame.OP_CONTINUATION);
             }
+            frame.setFinalFragment(clen == csize);
+            //frame.setLength(data.length);
 
-            while (clen > 0) {
-                byte[] data = new String(cdata, coff, clen).getBytes("UTF-8");
-                frame = prepareWebSocketFrame(frame);
-                if (coff > 0) {
-                    frame.setOpCode(WebSocketFrame.OP_CONTINUATION);
-                }
-                frame.setFinalFragment(clen == csize);
-                //frame.setLength(data.length);
+            byte[] buf = getWebSocketExtensions().applyExtensions(frame, data, 0);
 
-                byte[] buf = getWebSocketExtensions().applyExtensions(frame, data, 0);
+            if (buf == data) {
+                frame.setLength(data.length);
+                frame.msgOff = coff;
 
-                if (buf == data) {
-                    frame.setLength(data.length);
+                if (frameMonitor != null && frameMonitor.check(coff > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
+                    frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(data)}, coff);
 
-                    if (frameMonitor != null && frameMonitor.check(coff > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
-                        frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(data)}, coff);
-
-                        List<ByteBuffer> r = frame.write(data, 0, false);
-                        if (r.size() == 2 && isClient()) {
-                            System.out.println("Limited output detected:\n  out =" + BufferTools.dump(r).replace("\n", "\n    ") + "\n  data=" + BufferTools.dump(data).replace("\n", "\n    "));
-                            r = frame.write(data, 0, false);
-                        }
-
-                        r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
-                        //frameMonitor.onOutgoingFrame(this, frame, null, r.toArray(new ByteBuffer[r.size()]), 0);
-                        write(r);
-                    } else {
-                        write(frame.write(data, 0, false));
+                    List<ByteBuffer> r = frame.write(data, 0, false);
+                    if (r.size() == 2 && isClient()) {
+                        System.out.println("Limited output detected:\n  out =" + BufferTools.dump(r).replace("\n", "\n    ") + "\n  data=" + BufferTools.dump(data).replace("\n", "\n    "));
+                        r = frame.write(data, 0, false);
                     }
+
+                    r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
+                    //frameMonitor.onOutgoingFrame(this, frame, null, r.toArray(new ByteBuffer[r.size()]), 0);
+                    write(r);
                 } else {
-                    frame.setLength(buf.length);
-                    if (frameMonitor != null && frameMonitor.check(coff > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
-                        frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(buf)}, 0);
-                        List<ByteBuffer> r = frame.write(buf, 0, false);
-
-                        r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
-                        //frameMonitor.onOutgoingFrame(this, frame, null, r.toArray(new ByteBuffer[r.size()]), 0);
-                        write(r);
-                    } else {
-                        //frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(buf)}, 0);
-                        List<ByteBuffer> r = frame.write(buf, 0, false);
-                        r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
-                        write(r);
-                    }
+                    write(frame.write(data, 0, false));
                 }
+            } else {
+                frame.setLength(buf.length);
+                if (frameMonitor != null && frameMonitor.check(coff > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
+                    frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(buf)}, 0);
+                    List<ByteBuffer> r = frame.write(buf, 0, false);
 
-                csize -= clen;
-                coff += clen;
-                clen = Math.min(getMaxFrameSize() / 3, csize);
-            }
-        } else {
-            byte[] data = text.getBytes("UTF-8");
-            int off = 0;
-            int size = data.length;
-            int len = Math.min(maxFrameSize, size);
-
-            if (frameMonitor != null && frameMonitor.check(FrameMonitor.OF_TEXT, this, frame, null)) {
-                frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(data)}, null);
-            }
-
-            while (len > 0) {
-                frame = prepareWebSocketFrame(frame);
-                if (off > 0) {
-                    frame.setOpCode(WebSocketFrame.OP_CONTINUATION);
-                }
-                frame.setFinalFragment(len == size);
-                frame.setLength(len);
-
-                byte[] buf = getWebSocketExtensions().applyExtensions(frame, data, off);
-
-                if (getProcessor().DUMP_FRAMES) {
-                    System.out.println(Thread.currentThread().getName() + ":send [" + getClass().getSimpleName() + "] frame: " + frame);
-                }
-
-                if (buf == data) {
-                    if (frameMonitor != null && frameMonitor.check(off > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
-                        frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(data, off, len)}, off);
-                    }
-                    write(frame.write(data, off, false));
+                    r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
+                    //frameMonitor.onOutgoingFrame(this, frame, null, r.toArray(new ByteBuffer[r.size()]), 0);
+                    write(r);
                 } else {
-                    if (frameMonitor != null && frameMonitor.check(off > 0 ? FrameMonitor.OF_CONTINUE : FrameMonitor.OF_TEXT, this, frame, null)) {
-                        frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(buf)}, 0);
-                    }
-                    write(frame.write(buf, 0, false));
+                    //frameMonitor.onOutgoingFrame(this, frame, null, new ByteBuffer[]{ByteBuffer.wrap(buf)}, 0);
+                    List<ByteBuffer> r = frame.write(buf, 0, false);
+                    r = BufferTools.aggregate(Integer.MAX_VALUE, false, r);
+                    write(r);
                 }
-
-                size -= len;
-                off += len;
-                len = Math.min(maxFrameSize, size);
             }
+
+            csize -= clen;
+            coff += clen;
+            clen = Math.min(getMaxFrameSize() / 3, csize);
         }
     }
 

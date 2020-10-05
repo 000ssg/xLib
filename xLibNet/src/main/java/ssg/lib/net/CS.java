@@ -560,12 +560,21 @@ public class CS implements Runnable {
         return false;
     }
 
-    public ByteBuffer read(Channel sc) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocateDirect(1024 * 16);
+    ByteBuffer readBuf = null;
+
+    public synchronized ByteBuffer read(Channel sc) throws IOException {
+        ByteBuffer buf = null;
+        if (readBuf != null) {
+            buf = readBuf;
+            readBuf=null;
+        } else {
+            buf = ByteBuffer.allocateDirect(1024 * 16);
+        }
         int c = (sc instanceof ByteChannel)
                 ? ((ByteChannel) sc).read(buf)
                 : readNotByteChannel(sc, buf);
         if (c == -1) {
+            readBuf = buf;
             return null;
         }
         if (c > 0) {
@@ -600,6 +609,38 @@ public class CS implements Runnable {
 
     public Selector selector() {
         return selector;
+    }
+
+    public String getInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append("{");
+        sb.append("\n  scheduler=" + scheduler);
+        if (scheduler != null) {
+            sb.append(", ownedScheduler=" + ownedScheduler);
+        }
+        sb.append("\n  title=" + title);
+        sb.append("\n  selector=" + selector);
+        sb.append("\n  executor=" + executor);
+        sb.append("\n  executorIsActive=" + executorIsActive);
+        sb.append("\n  listeners=" + listeners.size());
+        for (CSListener l : listeners) {
+            sb.append("\n    " + l.toString().replace("\n", "\n    "));
+        }
+        sb.append("\n  groups=" + groups.size());
+        for (CSGroup l : groups) {
+            sb.append("\n    " + l.toString().replace("\n", "\n    "));
+        }
+        sb.append("\n  registered=" + registered.size());
+        for (Handler h : registered.keySet()) {
+            sb.append("\n   ");
+            sb.append(registered.get(h) ? "+" : "-");
+            sb.append(h.toString().replace("\n", "\n    "));
+        }
+        sb.append("\n  unwritten=" + unwritten.size());
+        sb.append("\n  inactivityTimeout=" + inactivityTimeout);
+        sb.append('}');
+        return sb.toString();
     }
 
 }
