@@ -37,6 +37,7 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.events.WAMPBroker;
 import ssg.lib.wamp.flows.WAMPMessagesFlow.WAMPFlowStatus;
@@ -81,6 +82,7 @@ public class WAMPRPCRegistrations {
     public static final String TIME_FORMAT_8601 = "yyyy-MM-dd'T'HH:mm:ssX";
 
     WAMPCallStatistics statistics;
+    Map<WAMPFeature, DealerProcedure[]> featureMethods = WAMPTools.createSynchronizedMap(true);
     // RPC implementations
     DealerLocalProcedure rpcList = new DealerLocalProcedure(RPC_REG_META_PROC_LIST) {
         @Override
@@ -166,7 +168,7 @@ public class WAMPRPCRegistrations {
      * @param feature
      * @return
      */
-    public DealerProcedure[] getFeatureMethods(WAMPFeature feature) {
+    public DealerProcedure[] getFeatureMethods(WAMPFeature feature, Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
         if (WAMPFeature.registration_meta_api.equals(feature)) {
             return new DealerProcedure[]{
                 rpcList,
@@ -176,8 +178,34 @@ public class WAMPRPCRegistrations {
                 rpcListCallees,
                 rpcCountCallees
             };
+        } else if (featureProviders != null && featureProviders.containsKey(feature)) {
+            WAMPFeatureProvider wfp = featureProviders.get(feature);
+            if (wfp != null) {
+                return wfp.getFeatureProcedures(WAMP.Role.dealer);
+            }
         }
         return null;
+    }
+
+    /**
+     * Add feature-specific methods supported by dealer, e.g. for session meta
+     * feature.
+     *
+     * @param feature
+     * @param methods
+     */
+    public void setFeatureMethods(WAMPFeature feature, DealerProcedure... methods) {
+        if (WAMPFeature.registration_meta_api.equals(feature)) {
+            // ignore self-feature proces: no overridables allowed!?
+        } else if (feature != null) {
+            if (methods == null || methods.length == 0 || methods[0] == null) {
+                if (featureMethods.containsKey(feature)) {
+                    featureMethods.remove(feature);
+                }
+            } else {
+                featureMethods.put(feature, methods);
+            }
+        }
     }
 
     /**
@@ -185,14 +213,14 @@ public class WAMPRPCRegistrations {
      *
      * @param features
      */
-    public void registerFeatureMethods(Collection<WAMPFeature> features) {
+    public void registerFeatureMethods(Collection<WAMPFeature> features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
         MatchPolicy mp = policies.get(RPC_CALL_MATCH_EXACT);
         // ensure built-in methods registration is atomic operation
         synchronized (mp) {
             List<DealerProcedure> procs = WAMPTools.createList();
             if (features != null) {
                 for (WAMPFeature f : features) {
-                    DealerProcedure[] fprocs = getFeatureMethods(f);
+                    DealerProcedure[] fprocs = getFeatureMethods(f, featureProviders);
                     if (fprocs != null) {
                         for (DealerProcedure proc : fprocs) {
                             if (!procs.contains(proc)) {

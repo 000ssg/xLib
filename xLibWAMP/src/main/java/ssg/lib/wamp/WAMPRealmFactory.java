@@ -25,6 +25,7 @@ package ssg.lib.wamp;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.util.WAMPException;
 
@@ -36,11 +37,11 @@ public class WAMPRealmFactory {
 
     static WAMPRealmFactory defaultFactory;
 
-    public static WAMPRealm createRealm(Object context, String name, WAMPFeature[] features, Role... roles) throws WAMPException {
+    public static WAMPRealm createRealm(Object context, String name, WAMPFeature[] features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders, Role... roles) throws WAMPException {
         if (defaultFactory == null) {
             defaultFactory = new WAMPRealmFactory();
         }
-        return defaultFactory.newRealm(context, name, features, roles);
+        return defaultFactory.newRealm(context, name, features, featureProviders, roles);
     }
 
     public static WAMPRealmFactory getInstance() {
@@ -60,9 +61,9 @@ public class WAMPRealmFactory {
     private WAMPRealmFactory() {
     }
 
-    public WAMPRealm newRealm(Object context, String name, WAMPFeature[] features, Role... roles) throws WAMPException {
+    public WAMPRealm newRealm(Object context, String name, WAMPFeature[] features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders, Role... roles) throws WAMPException {
         if (test(context, name, features, roles)) {
-            return WAMPRealm.createRealm(actorFactory, name, features, roles);
+            return WAMPRealm.createRealm(actorFactory, name, features, featureProviders, roles);
         } else {
             return null;
         }

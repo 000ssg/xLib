@@ -74,7 +74,7 @@ public class JS_API_WAMP extends JS_API {
         if (methodName.contains(".")) {
             methodName = methodName.replace(".", "_");
         }
-        return super.generateAPIMethod(helper, method, methodName); //To change body of generated methods, choose Tools | Templates.
+        return super.generateAPIMethod(helper, method, methodName);
     }
 
     @Override

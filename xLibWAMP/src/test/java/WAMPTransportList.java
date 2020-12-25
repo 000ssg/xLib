@@ -37,6 +37,7 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
 public class WAMPTransportList<P> implements WAMPTransport {
 
     private static final AtomicInteger NEXT_ID = new AtomicInteger(1);
+    public static boolean GLOBAL_ENABLE_TRACE_MESSAGES = true;
 
     public final int id = NEXT_ID.getAndIncrement();
 
@@ -44,6 +45,7 @@ public class WAMPTransportList<P> implements WAMPTransport {
     TransportData transport;
     private WAMPMessageStatistics statistics;
     WAMPMessage last;
+    public boolean ENABLE_TRACE_MESSAGES = GLOBAL_ENABLE_TRACE_MESSAGES;
     public String TRACE_MESSAGES = null;
 
     public WAMPTransportList() {
@@ -86,7 +88,7 @@ public class WAMPTransportList<P> implements WAMPTransport {
             if (message != null && statistics != null) {
                 statistics.onSent(message);
             }
-            if (message != null && TRACE_MESSAGES != null) {
+            if (ENABLE_TRACE_MESSAGES && message != null && TRACE_MESSAGES != null) {
                 System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-OU: " + ("" + message.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
             }
         } catch (WAMPException wex) {
@@ -110,7 +112,7 @@ public class WAMPTransportList<P> implements WAMPTransport {
             if (r != null && statistics != null) {
                 statistics.onReceived(r);
             }
-            if (r != null && TRACE_MESSAGES != null) {
+            if (ENABLE_TRACE_MESSAGES && r != null && TRACE_MESSAGES != null) {
                 System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-IN: " + ("" + r.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
             }
             return r;

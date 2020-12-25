@@ -27,6 +27,9 @@ import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.LS;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
@@ -39,9 +42,13 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPSession.WAMPSessionExtendedListener;
 import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
+import ssg.lib.wamp.flows.WAMPSessionFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.stat.WAMPStatistics;
+import ssg.lib.wamp.util.WAMPTools;
 
 /**
  * WAMP node is a base WAMP connection side: client or router.
@@ -66,6 +73,8 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
     private String agent;
     private WAMPStatistics statistics;
     private WAMPRealmFactory realmFactory;
+    private List<WAMPAuthProvider> authProviders;
+    private Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createSynchronizedMap();
 
     public <T extends WAMPNode> T configureAgent(String agent) {
         this.agent = agent;
@@ -77,6 +86,27 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         return (T) this;
     }
 
+    public <T extends WAMPNode> T configure(WAMPFeature feature, WAMPFeatureProvider provider) {
+        if (feature == null) {
+            // ignore unfeatured provider
+        } else if (provider == null) {
+            if (featureProviders.containsKey(feature)) {
+                WAMPFeatureProvider p = featureProviders.remove(feature);
+                if (p instanceof WAMPNodeListener) {
+                    listeners.remove((WAMPNodeListener) provider);
+                }
+                defaultFeatures = WAMPFeature.remove(defaultFeatures, feature);
+            }
+        } else {
+            featureProviders.put(feature, provider);
+            if (provider instanceof WAMPNodeListener) {
+                listeners.add((WAMPNodeListener) provider);
+            }
+            defaultFeatures = WAMPFeature.merge(defaultFeatures, feature);
+        }
+        return (T) this;
+    }
+
     public <T extends WAMPNode> T configure(WAMPStatistics statistics) {
         this.statistics = statistics;
         return (T) this;
@@ -84,6 +114,20 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
 
     public <T extends WAMPNode> T configure(WAMPRealmFactory realmFactory) {
         this.realmFactory = realmFactory;
+        return (T) this;
+    }
+
+    public <T extends WAMPNode> T configure(WAMPAuthProvider... authProviders) {
+        if (authProviders != null && authProviders.length > 0) {
+            if (this.authProviders == null) {
+                this.authProviders = new ArrayList<>();
+            }
+            for (WAMPAuthProvider ap : authProviders) {
+                if (ap != null && !this.authProviders.contains(ap)) {
+                    this.authProviders.add(ap);
+                }
+            }
+        }
         return (T) this;
     }
 
@@ -140,8 +184,8 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
      */
     public WAMPRealm createRealm(Object context, String name, WAMPFeature[] features, WAMP.Role... roles) throws WAMPException {
         WAMPRealm r = (getRealmFactory() != null)
-                ? getRealmFactory().newRealm(context, name, getNodeFeatures(features), roles).addListener(this)
-                : WAMPRealmFactory.createRealm(context, name, features, roles);
+                ? getRealmFactory().newRealm(context, name, getNodeFeatures(features), featureProviders, roles).addListener(this)
+                : WAMPRealmFactory.createRealm(context, name, features, featureProviders, roles);
         if (getStatistics() != null) {
             r.setStatistics(getStatistics().createChild(null, "realm." + name));
         }
@@ -213,6 +257,15 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
                 ));
             }
             session.addWAMPSessionListener(this);
+
+            if (authProviders != null) {
+                for (WAMPMessagesFlow f : session.getFlows()) {
+                    if (f instanceof WAMPSessionFlow) {
+                        WAMPSessionFlow wsf = (WAMPSessionFlow) f;
+                        wsf.configure(authProviders.toArray(new WAMPAuthProvider[authProviders.size()]));
+                    }
+                }
+            }
 
             return session;
         } catch (WAMPException wex) {

@@ -33,6 +33,7 @@ import ssg.lib.wamp.stat.WAMPCallStatistics;
  * @author 000ssg
  */
 public class CallerCall extends Call {
+
     String procedure;
     CallListener caller;
     String cancelled;
@@ -50,7 +51,41 @@ public class CallerCall extends Call {
          */
         boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw);
 
-        void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw);
+        default void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+        }
     }
 
+    /**
+     * Simplified variant of CallListener for quick compact lambda
+     */
+    public static interface SimpleCallListener extends CallListener {
+
+        /**
+         *
+         * @param callId
+         * @param details
+         * @param args
+         * @param argsKw
+         * @return true if completed, or false if need or allows more results...
+         */
+        @Override
+        default boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+            onResult(argsKw != null ? argsKw : args, null);
+            return true;
+        }
+
+        @Override
+        default void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+            onResult(null, error);
+        }
+
+        /**
+         * Functional-friendly result handling: success and error in one.
+         *
+         * @param result
+         * @param error
+         */
+        void onResult(Object result, String error);
+
+    }
 }

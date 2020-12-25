@@ -23,8 +23,12 @@
  */
 package ssg.lib.wamp.flows;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.util.WAMPException;
@@ -42,6 +46,12 @@ import static ssg.lib.wamp.messages.WAMPMessageType.T_WELCOME;
 import static ssg.lib.wamp.messages.WAMPMessageType.WELCOME;
 import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.auth.WAMPAuth;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHODS;
+import static ssg.lib.wamp.messages.WAMPMessageType.T_AUTHENTICATE;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_CHALLENGE;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_ERROR;
 import static ssg.lib.wamp.messages.WAMPMessageType.T_INVOCATION;
@@ -60,8 +70,24 @@ import ssg.lib.wamp.util.WAMPTools;
 public class WAMPSessionFlow implements WAMPMessagesFlow {
 
     // per-role incoming message types sorted by ID!
-    int[] typesRouter = new int[]{T_HELLO, T_ABORT, T_GOODBYE};
-    int[] typesClient = new int[]{T_WELCOME, T_ABORT, T_GOODBYE};
+    int[] typesRouter = new int[]{T_HELLO, T_ABORT, T_AUTHENTICATE, T_GOODBYE};
+    int[] typesClient = new int[]{T_WELCOME, T_ABORT, T_CHALLENGE, T_GOODBYE};
+
+    Map<String, WAMPAuthProvider> authProviders = new HashMap<>();
+
+    public void configure(WAMPAuthProvider... waps) {
+        if (waps != null) {
+            for (WAMPAuthProvider wap : waps) {
+                if (wap == null) {
+                    continue;
+                }
+                if (authProviders.containsKey(wap.name())) {
+                    continue;
+                }
+                authProviders.put(wap.name(), wap);
+            }
+        }
+    }
 
     @Override
     public boolean canHandle(WAMPSession session, WAMPMessage msg) {
@@ -95,6 +121,9 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
             switch (type.getId()) {
                 case T_HELLO:
                     if (isRouter) {
+                        List<String> authMethods = null;
+                        String authid = null;
+
                         // process HELLO
                         {
                             Map<String, Object> details = msg.getDict(1);
@@ -104,6 +133,10 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                             }
                             Map<String, Map> remoteRoles = (Map<String, Map>) details.get("roles");
                             session.setRemote(new WAMPParty(agent, remoteRoles));
+
+                            // fetch auth options
+                            authMethods = (List<String>) details.get(K_AUTH_METHODS);
+                            authid = (String) details.get(K_AUTH_ID);
                         }
 
                         // check if client roles match router roles
@@ -128,31 +161,26 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                                 break;
                             }
                         }
+
                         // respond
-                        if (rolesOk) {// prepare and send WELCOME
-                            Map<String, Object> details = WAMPTools.createMap(true);
-                            Map<String, Map> roles = WAMPTools.createMap(true);
-                            details.put("roles", roles);
-                            if (session.getLocal().getAgent() != null) {
-                                details.put("agent", session.getLocal().getAgent());
-                            }
-                            Map<Role, Map<String, Object>> localRoles = session.getLocal().getRoles();
-                            for (Role r : localRoles.keySet()) {
-                                Map<String, Object> rmap = WAMPTools.createMap(true);
-                                rmap.putAll(localRoles.get(r));
-                                // add supported features if any
-                                Map<String, Object> fmap = null;
-                                for (WAMPFeature f : session.getLocal().features()) {
-                                    if (Role.hasRole(r, f.scope())) {
-                                        if (fmap == null) {
-                                            fmap = WAMPTools.createMap(true);
-                                            rmap.put("features", fmap);
+                        if (rolesOk) {
+                            if (session.getLocal().isRouter() && authMethods != null && !authMethods.isEmpty()) {
+                                for (String am : authMethods) {
+                                    WAMPAuthProvider ap = authProviders.get(am);
+                                    if (ap != null) {
+                                        WAMPMessage challenge = ap.challenge(session, msg);
+                                        if (challenge != null) {
+                                            session.send(challenge);
+                                            return WAMPFlowStatus.handled;
                                         }
-                                        fmap.put(f.uri(), true);
                                     }
                                 }
-                                roles.put("" + r, rmap);
+                                // TODO: no auth method supported ERROR...
+                                session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
+                                return WAMPFlowStatus.failed;
                             }
+                            // prepare and send WELCOME
+                            Map<String, Object> details = prepareWelcomeDetails(session);
                             session.send(WAMPMessage.welcome(session.getId(), details));
                             session.setState(WAMPSessionState.established);
                         } else {
@@ -163,6 +191,53 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                             session.setState(WAMPSessionState.closed);
                         }
                         return WAMPFlowStatus.handled;
+                    } else {
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
+                        return WAMPFlowStatus.failed;
+                    }
+                case T_AUTHENTICATE:
+                    if (isRouter) {
+                        String authMethod = null;
+                        for (Entry<String, WAMPAuthProvider> entry : authProviders.entrySet()) {
+                            if (entry.getValue().isChallenged(session)) {
+                                authMethod = entry.getKey();
+                                break;
+                            }
+                        }
+                        WAMPAuthProvider ap = authProviders.get(authMethod);
+                        if (ap != null) {
+                            Map<String, Object> authInfo = ap.authenticated(session, msg);
+                            if (authInfo != null) {
+                                // prepare and send WELCOME
+                                Map<String, Object> details = prepareWelcomeDetails(session);
+                                details.putAll(authInfo);
+                                session.send(WAMPMessage.welcome(session.getId(), details));
+                                // set WAMPAuth on router
+                                session.setAuth(new WAMPAuth(authInfo));
+                                session.setState(WAMPSessionState.established);
+                                return WAMPFlowStatus.handled;
+                            }
+                        }
+                        // no auth or not authenticated...
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
+                        return WAMPFlowStatus.failed;
+                    } else {
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
+                        return WAMPFlowStatus.failed;
+                    }
+                case T_CHALLENGE:
+                    if (!isRouter) {
+                        String authMethod = msg.getString(0);
+                        WAMPAuthProvider ap = authProviders.get(authMethod);
+                        if (ap != null) {
+                            WAMPMessage auth = ap.authenticate(session, msg);
+                            if (auth != null) {
+                                session.send(auth);
+                                return WAMPFlowStatus.handled;
+                            }
+                        }
+                        session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
+                        return WAMPFlowStatus.failed;
                     } else {
                         session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProtocolViolation));
                         return WAMPFlowStatus.failed;
@@ -178,6 +253,10 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                         }
                         Map<String, Map> remoteRoles = (Map<String, Map>) details.get("roles");
                         session.setRemote(new WAMPParty(agent, remoteRoles));
+                        if (details.containsKey(K_AUTH_METHOD)) {
+                            // set WAMPAuth on client
+                            session.setAuth(new WAMPAuth(details));
+                        }
                         session.setState(WAMPSessionState.established);
                         return WAMPFlowStatus.handled;
                     } else {
@@ -229,6 +308,7 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                 case T_WELCOME: // Receiving WELCOME message, after session was established.
                 case T_HELLO: //Receiving HELLO message, after session was established.
                 case T_CHALLENGE: //Receiving CHALLENGE message, after session was established.
+                case T_AUTHENTICATE: //Receiving AUTHENTICATE message, after session was established.
                     reason = WAMPConstantsBase.ERROR_ProtocolViolation;
                     break;
             }
@@ -258,5 +338,43 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                 }
             }
         }
+    }
+
+    public Map<String, Object> prepareWelcomeDetails(WAMPSession session) {
+        Map<String, Object> details = WAMPTools.createMap(true);
+        Map<String, Map> roles = WAMPTools.createMap(true);
+        details.put("roles", roles);
+        if (session.getLocal().getAgent() != null) {
+            details.put("agent", session.getLocal().getAgent());
+        }
+        Map<Role, Map<String, Object>> localRoles = session.getLocal().getRoles();
+        for (Role r : localRoles.keySet()) {
+            Map<String, Object> rmap = WAMPTools.createMap(true);
+            rmap.putAll(localRoles.get(r));
+            // add supported features if any
+            Map<String, Object> fmap = null;
+            for (WAMPFeature f : session.getLocal().features()) {
+                if (Role.hasRole(r, f.scope())) {
+                    if (fmap == null) {
+                        fmap = WAMPTools.createMap(true);
+                        rmap.put("features", fmap);
+                    }
+                    fmap.put(f.uri(), true);
+                }
+            }
+            roles.put("" + r, rmap);
+        }
+        return details;
+    }
+
+    /**
+     * Returns list of supported Auth methods.
+     *
+     * @return
+     */
+    public List<String> getAuthMethods() {
+        List<String> lst = new ArrayList<>();
+        lst.addAll(authProviders.keySet());
+        return lst;
     }
 }

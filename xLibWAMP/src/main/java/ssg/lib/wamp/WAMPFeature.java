@@ -177,7 +177,11 @@ public class WAMPFeature implements Serializable {
     public static final WAMPFeature x_longpoll_transport = new WAMPFeature(
             FEATURE_x_longpoll_transport);
     public static final WAMPFeature x_session_meta_api = new WAMPFeature(
-            FEATURE_x_session_meta_api);
+            FEATURE_x_session_meta_api,
+            dealer,
+            broker,
+            subscriber,
+            caller);
 
     public static WAMPFeature find(String name) {
         return features.get(name);
@@ -228,12 +232,36 @@ public class WAMPFeature implements Serializable {
         return merge(merge(null, src), features);
     }
 
+    public static WAMPFeature[] remove(WAMPFeature[] src, WAMPFeature... features) {
+        if (src == null || src.length == 0 || features == null || features.length == 0) {
+            return src;
+        }
+        WAMPFeature[] r = new WAMPFeature[src.length];
+        int off = 0;
+        for (int i = 0; i < r.length; i++) {
+            boolean found = false;
+            for (WAMPFeature f : features) {
+                if (f != null && f.equals(src[i])) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                r[off++] = src[i];
+            }
+        }
+        if (off < r.length) {
+            r = Arrays.copyOf(r, off);
+        }
+        return r;
+    }
+
     /**
      * Ensures only features present both in a and fs are returned.
-     * 
+     *
      * @param a
      * @param fs
-     * @return 
+     * @return
      */
     public static WAMPFeature[] intersection(WAMPFeature[] a, Collection<WAMPFeature> fs) {
         return intersection(a, (fs != null) ? fs.toArray(new WAMPFeature[fs.size()]) : null);

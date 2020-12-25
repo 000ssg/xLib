@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPSession.WAMPSessionExtendedListener;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.flows.WAMPPublishingFlow;
 import ssg.lib.wamp.flows.WAMPRPCFlow;
@@ -86,6 +87,8 @@ public abstract class WAMPSession implements Serializable, Cloneable {
     WAMPSessionState state = WAMPSessionState.open;
     WAMPParty local;
     WAMPParty remote;
+    // WAMP authentication (client)
+    private WAMPAuth auth;
 
     Map<Long, WAMPMessageType> pending = WAMPTools.createSynchronizedMap(false);
     private List<WAMPMessagesFlow> flows = WAMPTools.createList();
@@ -111,10 +114,10 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         if (hasLocalRole(Role.dealer) || hasLocalRole(Role.caller) || hasLocalRole(Role.callee)) {
             flows.add(new WAMPRPCFlow());
         }
-        adjustFeatureSets();
+        adjustFeatureSets(realm.featureProviders);
     }
 
-    public void adjustFeatureSets() {
+    public void adjustFeatureSets(Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
         // evaluate features...
         // router-only set: initial
         if (local.isRouter() && remote == null) {
@@ -142,11 +145,14 @@ public abstract class WAMPSession implements Serializable, Cloneable {
                     if (!isBroker) {
                         local.features().remove(WAMPFeature.registration_meta_api);
                     } else {
-                        // register registration meta api methods...
-                        WAMPRPCDealer dealer = realm.getActor(Role.dealer);
-                        dealer.initFeatures();
+//                        // register registration meta api methods...
+//                        WAMPRPCDealer dealer = realm.getActor(Role.dealer);
+//                        dealer.initFeatures();
                     }
                 }
+                // register features methods...
+                WAMPRPCDealer dealer = realm.getActor(Role.dealer);
+                dealer.initFeatures(featureProviders);
             }
         } else if (!local.isRouter() && remote == null) {
             for (Role role : local.getRoles().keySet()) {
@@ -211,7 +217,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
 
     public void setRemote(WAMPParty remote) {
         this.remote = remote;
-        adjustFeatureSets();
+        adjustFeatureSets(realm.featureProviders);
     }
 
     public WAMPSessionState getState() {
@@ -345,6 +351,9 @@ public abstract class WAMPSession implements Serializable, Cloneable {
             sb.append("\n  remote=" + remote.toString().replace("\n", "\n  "));
         }
         if (local != null || remote != null) {
+            if (getAuth() != null) {
+                sb.append("\n  auth=" + getAuth().toString().replace("\n", "\n  "));
+            }
             sb.append('\n');
         }
         if (getStatistics() != null) {
@@ -561,6 +570,15 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         this.flows = flows;
     }
 
+    public <T extends WAMPMessagesFlow> T getFlow(Class cl) {
+        for (WAMPMessagesFlow f : flows) {
+            if (cl.isAssignableFrom(f.getClass())) {
+                return (T) f;
+            }
+        }
+        return null;
+    }
+
     /**
      * @return the closeReason
      */
@@ -573,5 +591,19 @@ public abstract class WAMPSession implements Serializable, Cloneable {
      */
     public void setCloseReason(String closeReason) {
         this.closeReason = closeReason;
+    }
+
+    /**
+     * @return the auth
+     */
+    public WAMPAuth getAuth() {
+        return auth;
+    }
+
+    /**
+     * @param auth the auth to set
+     */
+    public void setAuth(WAMPAuth auth) {
+        this.auth = auth;
     }
 }

@@ -41,6 +41,9 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportWrapper;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHODS;
 import ssg.lib.wamp.events.WAMPPublisher;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.flows.WAMPMessagesFlow.WAMPFlowStatus;
@@ -53,9 +56,12 @@ import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.callee.WAMPRPCCallee;
 import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.events.WAMPSubscriber;
+import ssg.lib.wamp.flows.WAMPSessionFlow;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.CALL_STATE;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerWrapper;
+import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
+import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
@@ -123,6 +129,10 @@ public class WAMPClient extends WAMPNode {
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
         return (T) this;
+    }
+
+    public <T extends WAMPClient> T configure(WAMPAuthProvider authProviders) {
+        return (T) super.configure(authProviders);
     }
 
     public <T extends WAMPClient> T configure(WAMPTransport transport, String agent, WAMPRealm realm, Role... roles) throws WAMPException {
@@ -309,6 +319,10 @@ public class WAMPClient extends WAMPNode {
     }
 
     public void connect() throws WAMPException {
+        connect(null);
+    }
+
+    public void connect(String authid) throws WAMPException {
         if (session != null && WAMPSessionState.open == session.getState()) {
             Map<String, Object> details = WAMPTools.createDict(null);
             Map<String, Map> roles = WAMPTools.createMap(true);
@@ -330,6 +344,14 @@ public class WAMPClient extends WAMPNode {
                     if (!lfs.isEmpty()) {
                         roles.get("" + r).put("features", lfs);
                     }
+                }
+            }
+            if (authid != null) {
+                WAMPSessionFlow wsf = session.getFlow(WAMPSessionFlow.class);
+                List<String> auths = (wsf != null) ? wsf.getAuthMethods() : null;
+                if (auths != null && !auths.isEmpty()) {
+                    details.put(K_AUTH_METHODS, auths);
+                    details.put(K_AUTH_ID, authid);
                 }
             }
             session.send(WAMPMessage.hello(session.getRealm().getName(), details));
@@ -657,6 +679,11 @@ public class WAMPClient extends WAMPNode {
             if (done[0]) {
                 break;
             }
+            try {
+                Thread.sleep(5);
+            } catch (Throwable th) {
+                break;
+            }
         }
 
         if (result[1] != null) {
@@ -680,4 +707,48 @@ public class WAMPClient extends WAMPNode {
     public void setMaxWaitTimeForSynchronousCall(long maxWaitTimeForSynchronousCall) {
         this.maxWaitTimeForSynchronousCall = maxWaitTimeForSynchronousCall;
     }
+
+    /**
+     * Asynchronous call registration.
+     *
+     * @param procedure
+     * @param args
+     * @param argsKw
+     * @return true if call is registered
+     * @throws WAMPException
+     */
+    public boolean call(String procedure, List args, Map<String, Object> argsKw, final CallListener caller) throws WAMPException {
+        if (procedure != null && caller != null) {
+            addWAMPRPCListener(
+                    new WAMPRPCListener.WAMPRPCListenerBase(WAMPTools.EMPTY_DICT, procedure, args, argsKw) {
+                @Override
+                public void onCall(long callId) {
+                    super.onCall(callId);
+                }
+
+                @Override
+                public void onCancel(long callId, String reason) {
+                    caller.onError(callId, reason, WAMPTools.EMPTY_DICT, null, null);
+                }
+
+                @Override
+                public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                    caller.onResult(callId, details, args, argsKw);
+                    return true;
+                }
+
+                @Override
+                public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                    caller.onError(callId, error, details, args, argsKw);
+                }
+            });
+            return true;
+        }
+        return false;
+    }
+
+    public boolean call2(String procedure, List args, Map<String, Object> argsKw, final SimpleCallListener caller) throws WAMPException {
+        return this.call(procedure, args, argsKw, (CallListener) caller);
+    }
+
 }

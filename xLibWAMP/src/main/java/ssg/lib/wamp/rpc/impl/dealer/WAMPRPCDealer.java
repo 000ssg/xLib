@@ -35,6 +35,7 @@ import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.rpc.WAMPDealer;
@@ -74,11 +75,12 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
     }
 
     public WAMPRPCDealer(WAMPFeature... features) {
-        super(new Role[]{Role.dealer}, WAMPFeature.intersection(WAMPFeature.merge(supports, WAMPRPCRegistrations.supports), features));
+        super(new Role[]{Role.dealer}, WAMPFeature.merge(WAMPFeature.merge(supports, WAMPRPCRegistrations.supports), features));
+        // super(new Role[]{Role.dealer}, WAMPFeature.intersection(WAMPFeature.merge(supports, WAMPRPCRegistrations.supports), features));
     }
 
-    public void initFeatures() {
-        registrations.registerFeatureMethods(getFeatures());
+    public void initFeatures(Map<WAMPFeature,WAMPFeatureProvider> featureProviders) {
+        registrations.registerFeatureMethods(getFeatures(), featureProviders);
     }
 
     ////////////////////////////////////////////////////////////////////////////

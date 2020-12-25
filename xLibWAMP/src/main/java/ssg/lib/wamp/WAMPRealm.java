@@ -51,6 +51,7 @@ public class WAMPRealm implements Serializable, Cloneable {
     private Map<Role, WAMPActor> actors = new EnumMap<Role, WAMPActor>(Role.class);
     private WAMPStatistics statistics;
     LS<WAMPRealmListener> listeners = new LS<>(new WAMPRealmListener[0]);
+    Map<WAMPFeature, WAMPFeatureProvider> featureProviders;
 
     private WAMPRealm() {
     }
@@ -65,7 +66,7 @@ public class WAMPRealm implements Serializable, Cloneable {
      * @return
      * @throws WAMPException
      */
-    public static WAMPRealm createRealm(WAMPActorFactory actorFactory, String name, WAMPFeature[] features, Role... roles) throws WAMPException {
+    public static WAMPRealm createRealm(WAMPActorFactory actorFactory, String name, WAMPFeature[] features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders, Role... roles) throws WAMPException {
         if (roles == null || Role.hasRole(Role.router, roles) && Role.hasRole(Role.client, roles)) {
             throw new WAMPException("Mixed or no router/client roles are not supported: " + Arrays.asList(roles));
         }
@@ -84,6 +85,7 @@ public class WAMPRealm implements Serializable, Cloneable {
                 }
             }
         }
+        r.featureProviders = featureProviders;
         return r;
     }
 
