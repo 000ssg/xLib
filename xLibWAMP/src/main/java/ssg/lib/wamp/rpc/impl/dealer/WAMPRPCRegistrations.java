@@ -423,6 +423,10 @@ public class WAMPRPCRegistrations {
     public DealerProcedure onCall(WAMPSession session, WAMPMessage msg) throws WAMPException {
         Map<String, Object> options = msg.getDict(1);
         String procedure = msg.getUri(2);
+        return onCall(session, procedure, options, null);
+    }
+
+    public DealerProcedure onCall(WAMPSession session, String procedure, Map<String, Object> options, Collection<Long> unavailable) throws WAMPException {
         RPCMeta rpc = lookup(procedure, options);
 
         long[] registeredIds = (rpc != null) ? rpc.next(options) : null;
@@ -449,6 +453,22 @@ public class WAMPRPCRegistrations {
         } else if (registeredIds != null && registeredIds.length == 1) {
             //System.out.println("assigned CALL "+registeredId+" from "+rpc.registrations);
             Long registeredId = registeredIds[0];
+
+            // try to exclude already "unavailable" callees... using "_unavailable_" ids collection
+            if (unavailable != null && unavailable.contains(registeredId)) {
+                registeredIds = (rpc != null) ? rpc.next(options) : null;
+                int counter = rpc.count();
+                while (registeredIds != null && registeredIds.length == 1 && counter-- > 0) { // && registeredIds[0] != registeredId) {
+                    registeredIds = (rpc != null) ? rpc.next(options) : null;
+                    if (registeredIds != null && registeredIds.length == 1 && !unavailable.contains(registeredIds[0])) {
+                        break;
+                    }
+                }
+                if (registeredIds != null && registeredIds.length == 1) {
+                    registeredId = registeredIds[0];
+                }
+            }
+
             DealerProcedure proc = (DealerProcedure) procedures.get(registeredId);
             if (rpc != null && proc == null) {
                 rpc.registrations.remove(registeredId);
@@ -642,7 +662,9 @@ public class WAMPRPCRegistrations {
             if (!registrations.isEmpty()) {
                 switch (invocation) {
                     case single:
+                        //if (registrations.size() == 1) {
                         return registrations.get(0);
+                    //}
                     case roundrobin:
                         synchronized (registrations) {
                             lastRR++;

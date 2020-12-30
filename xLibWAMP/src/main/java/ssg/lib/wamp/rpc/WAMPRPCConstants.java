@@ -72,6 +72,11 @@ public class WAMPRPCConstants {
     public static final String RPC_REG_META_PROC_LIST_CALLEES = "wamp.registration.list_callees";
     public static final String RPC_REG_META_PROC_COUNT_CALLEES = "wamp.registration.count_callees";
 
+    // RPC caller disclosure
+    public static final String RPC_CALLER_ID_DISCLOSE_ME = "disclose_me";
+    public static final String RPC_CALLER_ID_DISCLOSE_CALLER = "disclose_caller";
+    public static final String RPC_CALLER_ID_KEY = "caller";
+
     ////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////// NON_STANDARD
     ////////////////////////////////////////////////////////////////////////////

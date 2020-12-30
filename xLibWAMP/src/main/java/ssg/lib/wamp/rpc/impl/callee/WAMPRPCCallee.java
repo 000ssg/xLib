@@ -40,16 +40,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPActor;
+import static ssg.lib.wamp.WAMPConstantsAdvanced.ERROR_Unavailable;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPSessionState;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.WAMPCallee;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_DISCLOSE_CALLER;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_INVOCATION_PROCEDURE_EXACT_KEY;
 import ssg.lib.wamp.rpc.impl.Procedure;
 import ssg.lib.wamp.rpc.impl.WAMPRPC;
@@ -68,7 +72,8 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         WAMPFeature.shared_registration,
         WAMPFeature.sharded_registration,
         WAMPFeature.progressive_call_results,
-        WAMPFeature.call_timeout
+        WAMPFeature.call_timeout,
+        WAMPFeature.call_reroute
     };
 
     Map<Long, CalleeCall> calls = WAMPTools.createSynchronizedMap();
@@ -327,8 +332,13 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             return WAMPMessagesFlow.WAMPFlowStatus.failed;
         }
         if (getMaxQueuedTasks() > 0 && calls.size() > getMaxQueuedTasks()) {
-            // System.out.println("invoke busy[" + session.getId() + "  " + callsWIP.get() + "/" + calls.size() + "]: " + msg.toList());
-            return WAMPMessagesFlow.WAMPFlowStatus.busy;
+            //System.out.println("invoke busy[" + session.getId() + "  " + callsWIP.get() + "/" + calls.size() + "]: " + msg.toList());
+            if (session.supportsFeature(WAMPFeature.call_reroute)) {
+                session.send(WAMPMessage.error(msg.getType().getId(), msg.getInt(0), WAMPTools.EMPTY_DICT, ERROR_Unavailable));
+                return WAMPMessagesFlow.WAMPFlowStatus.handled;
+            } else {
+                return WAMPMessagesFlow.WAMPFlowStatus.busy;
+            }
         }
         WAMPMessagesFlow.WAMPFlowStatus r = validateSession(session, msg);
         if (r != WAMPMessagesFlow.WAMPFlowStatus.handled) {
@@ -363,6 +373,16 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         }
         if (WAMPMessagesFlow.WAMPFlowStatus.handled == r) {
             CalleeCall call = new CalleeCall(proc, details);
+
+            { // ensure caller authentication info is initialized/available if required or provided
+                boolean needAuth = proc.getOptions().containsKey(RPC_CALLER_ID_DISCLOSE_CALLER) && (Boolean) proc.getOptions().get(RPC_CALLER_ID_DISCLOSE_CALLER);
+                Long callerId = details.containsKey(RPC_CALLER_ID_KEY) ? ((Number) details.get(RPC_CALLER_ID_KEY)).longValue() : null;
+
+                WAMPAuth auth = (callerId != null) ? session.remoteAuth(msg) : null;
+                if (needAuth && callerId != null && auth == null || callerId != null && auth == null) {
+                    auth = session.remoteAuth(callerId);
+                }
+            }
 
             String procedure = (details.containsKey(RPC_INVOCATION_PROCEDURE_EXACT_KEY)) ? (String) details.get(RPC_INVOCATION_PROCEDURE_EXACT_KEY) : proc.getName();
 

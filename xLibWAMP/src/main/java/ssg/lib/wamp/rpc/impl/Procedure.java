@@ -53,8 +53,13 @@ public class Procedure {
                 + "id=" + getId()
                 + ", name=" + getName()
                 + ", options=" + getOptions()
+                + toStringExt()
                 + ((statistics != null && statistics.hasCalls()) ? ", " + statistics : "")
                 + '}';
+    }
+
+    public String toStringExt() {
+        return "";
     }
 
     public <T extends Procedure> T statistics(WAMPCallStatistics statistics) {

@@ -41,7 +41,6 @@ import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.WAMPDealer;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
-import ssg.lib.wamp.stat.WAMPStatistics;
 
 /**
  * WAMP Router base registers shared realms and keeps track of WAMP sessions
@@ -58,8 +57,6 @@ public class WAMPRouter extends WAMPNode {
     Role[] roles = new Role[]{Role.broker};
     Map<String, WAMPRealm> realms = WAMPTools.createSynchronizedMap();
     Map<WAMPTransport, WAMPSession> sessions = WAMPTools.createSynchronizedMap();
-//    Map<String, WAMPRealm> realms = new ConcurrentHashMap<>(); // new LinkedHashMap<>();
-//    Map<WAMPTransport, WAMPSession> sessions = new ConcurrentHashMap<>(); // new LinkedHashMap<>();
     private int maxPendingMessagesQueue = 100;
 
     public WAMPRouter() {

@@ -26,6 +26,7 @@ package ssg.lib.wamp.features;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
 
 /**
@@ -54,6 +55,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider {
 
     @Override
     public DealerProcedure[] getFeatureProcedures(WAMP.Role role) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void prepareFeature(WAMPSession session) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 

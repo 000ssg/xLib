@@ -36,6 +36,8 @@ import ssg.lib.wamp.util.WAMPTools;
  */
 public class WAMPAuth {
 
+    public static final WAMPAuth Anonymous = new WAMPAuth("none", "anonymous", "none", WAMPTools.EMPTY_DICT);
+
     private String method;
     private String authid;
     private String role;

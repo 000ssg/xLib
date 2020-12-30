@@ -27,20 +27,27 @@ import ssg.lib.wamp.util.WAMPException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPSession.WAMPSessionExtendedListener;
 import ssg.lib.wamp.auth.WAMPAuth;
+import ssg.lib.wamp.events.impl.WAMPSubscription;
+import ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI;
+import static ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI.SM_RPC_SESSION_GET;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.flows.WAMPPublishingFlow;
 import ssg.lib.wamp.flows.WAMPRPCFlow;
 import ssg.lib.wamp.flows.WAMPSessionFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
-import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
+import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
+import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.util.LS;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -89,6 +96,8 @@ public abstract class WAMPSession implements Serializable, Cloneable {
     WAMPParty remote;
     // WAMP authentication (client)
     private WAMPAuth auth;
+    // remote auths
+    Map<Long, WAMPAuth> sessionAuths = WAMPTools.createSynchronizedMap();
 
     Map<Long, WAMPMessageType> pending = WAMPTools.createSynchronizedMap(false);
     private List<WAMPMessagesFlow> flows = WAMPTools.createList();
@@ -145,14 +154,8 @@ public abstract class WAMPSession implements Serializable, Cloneable {
                     if (!isBroker) {
                         local.features().remove(WAMPFeature.registration_meta_api);
                     } else {
-//                        // register registration meta api methods...
-//                        WAMPRPCDealer dealer = realm.getActor(Role.dealer);
-//                        dealer.initFeatures();
                     }
                 }
-                // register features methods...
-                WAMPRPCDealer dealer = realm.getActor(Role.dealer);
-                dealer.initFeatures(featureProviders);
             }
         } else if (!local.isRouter() && remote == null) {
             for (Role role : local.getRoles().keySet()) {
@@ -189,6 +192,20 @@ public abstract class WAMPSession implements Serializable, Cloneable {
                 if (Role.hasRole(Role.client, rf.scope())) {
                     if (!local.features().contains(rf)) {
                         remote.features().remove(rf);
+                    }
+                }
+            }
+            if (featureProviders != null && !featureProviders.isEmpty()) {
+                // register feature providers (e.g. feature methods etc.)...
+                for (WAMP.Role role : this.local.getRoles().keySet()) {
+                    WAMPActor actor = realm.getActor(role);
+                    actor.initFeatures(new WAMP.Role[]{role}, featureProviders);
+                }
+                for (Entry<WAMPFeature, WAMPFeatureProvider> entry : featureProviders.entrySet()) {
+                    if (local.features().contains(entry.getKey())) try {
+                        entry.getValue().prepareFeature(this);
+                    } catch (WAMPException wex) {
+                        wex.printStackTrace();
                     }
                 }
             }
@@ -353,6 +370,9 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         if (local != null || remote != null) {
             if (getAuth() != null) {
                 sb.append("\n  auth=" + getAuth().toString().replace("\n", "\n  "));
+            }
+            if (!sessionAuths.isEmpty()) {
+                sb.append("\n  remoteAuths[" + sessionAuths.size() + "]=" + sessionAuths);
             }
             sb.append('\n');
         }
@@ -593,6 +613,9 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         this.closeReason = closeReason;
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////// authentications
+    ////////////////////////////////////////////////////////////////////////////
     /**
      * @return the auth
      */
@@ -605,5 +628,146 @@ public abstract class WAMPSession implements Serializable, Cloneable {
      */
     public void setAuth(WAMPAuth auth) {
         this.auth = auth;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////// caller auths
+    ////////////////////////////////////////////////////////////////////////////
+    /**
+     * Register to session remote session's WAMPAuth
+     *
+     * @param sessionId
+     * @param auth
+     */
+    public void onRemoteAuthAdd(Long sessionId, WAMPAuth auth) {
+        if (sessionId != getId() & auth != null) {
+            sessionAuths.put(sessionId, auth);
+        }
+    }
+
+    /**
+     * Register to session remote session's WAMPAuth based on "on join" event...
+     *
+     * @param session
+     * @param msg
+     */
+    public void onRemoteAuthAdd(WAMPMessage msg) {
+        if (hasLocalRole(Role.callee) && msg != null && msg.getDataLength() > 4 && WAMPMessageType.T_EVENT == msg.getType().getId()) {
+            try {
+                WAMPSubscription ws = getRealm().getActor(Role.subscriber);
+                if (ws != null) {
+                    String topic = ws.getTopic(this, msg);
+                    if (topic != null && WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN.equals(topic)) {
+                        sessionAuths.put(msg.getInt(1), new WAMPAuth(msg.getDict(4)));
+                    }
+                }
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Unregister remote session's WAMPAuth based on "on leave" event.
+     *
+     * @param msg
+     */
+    public void onRemoteAuthRemove(WAMPMessage msg) {
+        if (hasLocalRole(Role.callee) && msg != null && WAMPMessageType.T_EVENT == msg.getType().getId()) {
+            try {
+                WAMPSubscription ws = getRealm().getActor(Role.subscriber);
+                if (ws != null) {
+                    String topic = ws.getTopic(this, msg);
+                    if (topic != null && WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE.equals(topic)) {
+                        sessionAuths.remove(msg.getInt(1));
+                    }
+                }
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Unregister remote session's WAMPAuth based on remote session id.
+     *
+     * @param msg
+     */
+    public void onRemoteAuthRemove(Long remoteSessionId) {
+        if (hasLocalRole(Role.callee) && remoteSessionId != null && sessionAuths.containsKey(remoteSessionId)) {
+            sessionAuths.remove(remoteSessionId);
+        }
+    }
+
+    /**
+     * Return read-only set of known remote sessions' WAMPAuths
+     *
+     * @return
+     */
+    public Map<Long, WAMPAuth> remoteAuths() {
+        return Collections.unmodifiableMap(sessionAuths);
+    }
+
+    /**
+     * Returns WAMPAuth of remote caller if provided in options.
+     *
+     * @param session
+     * @param msg
+     * @return
+     */
+    public WAMPAuth remoteAuth(WAMPMessage msg) {
+        if (msg != null && WAMPMessageType.T_INVOCATION == msg.getType().getId()) {
+            Map<String, Object> opt = msg.getDict(2);
+            if (opt != null && opt.containsKey(RPC_CALLER_ID_KEY)) {
+                Long cid = (Long) opt.get(RPC_CALLER_ID_KEY);
+                return sessionAuths.get(cid);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns WAMPAuth for remote caller id (requests it if missing and can
+     * call router...
+     *
+     * @param session
+     * @param msg
+     * @return
+     */
+    public synchronized WAMPAuth remoteAuth(Long remoteSessionId) {
+        final WAMPAuth[] r = new WAMPAuth[1];
+        final boolean[] done = new boolean[]{false};
+        if (remoteSessionId != null) {
+            if (sessionAuths.containsKey(remoteSessionId)) {
+                r[0] = sessionAuths.get(remoteSessionId);
+            }
+            if (hasLocalRole(Role.caller)) {
+                final WAMPRPCCaller wc = getRealm().getActor(WAMP.Role.caller);
+                final WAMPSession localSession = this;
+                try {
+                    wc.call(localSession, WAMPTools.createDict(RPC_CALLER_ID_KEY, localSession.getId()), SM_RPC_SESSION_GET, WAMPTools.createList(remoteSessionId), null, new SimpleCallListener() {
+                        @Override
+                        public void onResult(Object result, String error) {
+                            if (result instanceof Map && localSession.getId() != remoteSessionId) {
+                                localSession.onRemoteAuthAdd(remoteSessionId, new WAMPAuth((Map<String, Object>) result));
+                            } else {
+                                localSession.onRemoteAuthAdd(remoteSessionId, WAMPAuth.Anonymous);
+                            }
+                            r[0] = sessionAuths.get(remoteSessionId);
+                            done[0] = true;
+                        }
+                    });
+                    long timeout = System.currentTimeMillis() + 1000 * 10;
+                    while (!done[0] && System.currentTimeMillis() < timeout) {
+                        Thread.sleep(1);
+                    }
+                } catch (WAMPException wex) {
+                    wex.printStackTrace();
+                } catch (InterruptedException iex) {
+                    iex.printStackTrace();
+                }
+            }
+        }
+        return r[0];
     }
 }

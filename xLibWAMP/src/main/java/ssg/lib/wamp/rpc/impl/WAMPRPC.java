@@ -25,9 +25,11 @@ package ssg.lib.wamp.rpc.impl;
 
 import java.util.Collection;
 import java.util.Map;
+import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPActor;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.util.WAMPTools;
@@ -44,6 +46,7 @@ public class WAMPRPC implements WAMPActor {
     public static final long TOO_MANY_CONCURRENT_CALLS = -1L;
 
     private Collection<WAMPFeature> features = WAMPTools.createSet(true);
+    private Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createMap(true);
     Map<String, WAMPCallStatistics> notFoundCalls = WAMPTools.createSynchronizedMap();
     private WAMPCallStatistics statistics;
 
@@ -67,6 +70,30 @@ public class WAMPRPC implements WAMPActor {
         }
     }
 
+    public <T extends WAMPRPC> T configure(WAMP.Role[] roles, WAMPFeature feature, WAMPFeatureProvider provider) {
+        if (feature != null) {
+            if (provider == null) {
+                if (featureProviders.containsKey(feature)) {
+                    featureProviders.remove(feature);
+                }
+                features.add(feature);
+            } else {
+                if (roles != null) {
+                    for (Role role : roles) {
+                        if (Role.hasRole(role, feature.scope())) {
+                            featureProviders.put(feature, provider);
+                            if (!features.contains(feature)) {
+                                features.add(feature);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return (T) this;
+    }
+
     @Override
     public <T extends WAMPActor> T init(WAMPRealm realm) {
         return (T) this;
@@ -75,6 +102,15 @@ public class WAMPRPC implements WAMPActor {
     @Override
     public <T extends WAMPActor> T done(WAMPSession... sessions) {
         return (T) this;
+    }
+
+    @Override
+    public void initFeatures(WAMP.Role[] roles, Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
+        if (featureProviders != null) {
+            for (Map.Entry<WAMPFeature, WAMPFeatureProvider> entry : featureProviders.entrySet()) {
+                configure(roles, entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override

@@ -35,6 +35,8 @@ public interface WAMPConstantsAdvanced {
     public static final String ERROR_NoEligibleCallee = "wamp.error.no_eligible_callee";
     public static final String ERROR_RejectedIdentityDisclose = "wamp.error.option_disallowed.disclose_me";
     public static final String ERROR_NetworkFailure = "wamp.error.network_failure";
+    public static final String ERROR_Unavailable = "wamp.error.unavailable";
+    public static final String ERROR_NoAvailableCallee = "wamp.error.no_available_callee";
 
     // Advanced feature option constants
     // RPC Features
@@ -50,6 +52,7 @@ public interface WAMPConstantsAdvanced {
     public static final String FEATURE_sharded_registration = "sharded_registration";
     public static final String FEATURE_registration_revocation = "registration_revocation";
     public static final String FEATURE_procedure_reflection = "procedure_reflection";
+    public static final String FEATURE_call_reroute = "call_reroute";
     // PubSub Features
     public static final String FEATURE_subscriber_blackwhite_listing = "subscriber_blackwhite_listing";
     public static final String FEATURE_publisher_exclusion = "publisher_exclusion";

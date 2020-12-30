@@ -29,20 +29,28 @@ import java.util.List;
 import java.util.Map;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPConstantsBase;
+import static ssg.lib.wamp.WAMPConstantsBase.INFO_CloseNormal;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPSessionState;
+import ssg.lib.wamp.auth.WAMPAuth;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_PROVIDER;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.events.WAMPBroker;
+import ssg.lib.wamp.events.WAMPEventListener;
+import ssg.lib.wamp.events.WAMPSubscriber;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
+import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
+import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
+import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.rpc.impl.dealer.DealerLocalProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
@@ -70,6 +78,12 @@ public class WAMP_FP_SessionMetaAPI implements WAMPFeatureProvider, WAMPNodeList
 
     static Map<WAMPRealm, Collection<WAMPSession>> sessions = WAMPTools.createSynchronizedMap(true);
 
+    /**
+     * Flag to force active sessions' auth monitoring thru events or initial
+     * fetching of remote auths...
+     */
+    boolean active = true;
+
     @Override
     public WAMPFeature[] getFeatures(WAMP.Role role) {
         return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
@@ -88,6 +102,57 @@ public class WAMP_FP_SessionMetaAPI implements WAMPFeatureProvider, WAMPNodeList
             };
         } else {
             return null;
+        }
+    }
+
+    @Override
+    public void prepareFeature(final WAMPSession session) throws WAMPException {
+        if (!active) {
+            return;
+        }
+
+        if (session.hasLocalRole(WAMP.Role.subscriber)) {
+            final WAMPSubscriber ws = session.getRealm().getActor(WAMP.Role.subscriber);
+            ws.subscribe(session, new WAMPEventListener.WAMPEventListenerBase(
+                    WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN,
+                    WAMPTools.EMPTY_DICT,
+                    (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
+                        WAMPAuth auth = new WAMPAuth(argumentsKw);
+                        session.onRemoteAuthAdd(((Number) auth.getDetails().get("session")).longValue(), auth);
+                    }
+            ));
+
+            ws.subscribe(session, new WAMPEventListener.WAMPEventListenerBase(
+                    WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE,
+                    WAMPTools.EMPTY_DICT,
+                    (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
+                        Long sid = ((Number) arguments.get(0)).longValue();
+                        session.onRemoteAuthRemove(sid);
+                    }
+            ));
+        }
+        if (session.hasLocalRole(WAMP.Role.caller)) {
+            final WAMPRPCCaller wc = session.getRealm().getActor(WAMP.Role.caller);
+            if (wc != null) {
+                wc.call(session, WAMPTools.createDict(RPC_CALLER_ID_KEY, session.getId()), SM_RPC_SESSION_LIST, null, null, new SimpleCallListener() {
+                    @Override
+                    public void onResult(Object result, String error) {
+                        if (result instanceof List) {
+                            for (final Long rid : (List<Long>) result) try {
+                                wc.call(session, WAMPTools.createDict(RPC_CALLER_ID_KEY, session.getId()), SM_RPC_SESSION_GET, WAMPTools.createList(rid), null, new SimpleCallListener() {
+                                    @Override
+                                    public void onResult(Object result, String error) {
+                                        if (result instanceof Map && session.getId() != rid) {
+                                            session.onRemoteAuthAdd(rid, new WAMPAuth((Map<String, Object>) result));
+                                        }
+                                    }
+                                });
+                            } catch (WAMPException wex) {
+                            }
+                        }
+                    }
+                });
+            }
         }
     }
 
@@ -141,7 +206,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
-                    List<String> authroles = msg.getDataLength()>3? msg.getList(3):null;
+                    List<String> authroles = msg.getDataLength() > 3 ? msg.getList(3) : null;
                     if (authroles == null || authroles.isEmpty()) {
                         for (WAMPSession ws : rs) {
                             ids.add(ws.getId());
@@ -170,7 +235,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
-                    Long sessId = msg.getDataLength()>3 ? (Long) msg.getList(3).get(0) : null;
+                    Long sessId = msg.getDataLength() > 3 ? (Long) msg.getList(3).get(0) : null;
                     WAMPSession sess = null;
                     for (WAMPSession ws : rs) {
                         if (ws.getId() == sessId) {
@@ -188,7 +253,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                             if (sess.getAuth().getDetails().containsKey("transport")) {
                                 dict.put("transport", sess.getAuth().getDetails().get("transport"));
                             }
-                            session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, null, dict));
+                            session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, WAMPTools.EMPTY_LIST, dict));
                         }
                     } else {
                         session.send(WAMPMessage.error(msg.getType().getId(), msg.getId(0), WAMPTools.EMPTY_DICT, SM_ERROR_NO_SESSION));
@@ -209,7 +274,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
-                    Long sessId = msg.getDataLength()>3 ? (Long) msg.getList(3).get(0) : null;
+                    Long sessId = msg.getDataLength() > 3 ? (Long) msg.getList(3).get(0) : null;
                     WAMPSession sess = null;
                     if (sessId != session.getId()) {
                         for (WAMPSession ws : rs) {
@@ -246,7 +311,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
-                    String authid = msg.getDataLength()>3 ? (String) msg.getList(3).get(0) : null;
+                    String authid = msg.getDataLength() > 3 ? (String) msg.getList(3).get(0) : null;
                     for (WAMPSession ws : rs) {
                         if (ws != null && ws.getAuth() != null && authid.equals(ws.getAuth().getAuthid())) {
                             sesss.add(ws);
@@ -276,7 +341,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
-                    List<String> authroles = msg.getDataLength()>3 ? msg.getList(3) : null;
+                    List<String> authroles = msg.getDataLength() > 3 ? msg.getList(3) : null;
                     for (WAMPSession ws : rs) {
                         if (ws != null && ws.getAuth() != null && authroles.contains(ws.getAuth().getRole())) {
                             sesss.add(ws);
@@ -299,8 +364,8 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
 
     int kill(WAMPSession session, WAMPMessage msg, WAMPSession... targetSessions) throws WAMPException {
         int count = 0;
-        Map<String, Object> details = msg.getDataLength()>4 ? msg.getDict(4):null;
-        String reason = "wamp.close.normal";
+        Map<String, Object> details = msg.getDataLength() > 4 ? msg.getDict(4) : null;
+        String reason = INFO_CloseNormal;
         String message = null;
         if (details != null) {
             String reason2 = (String) details.get("reason");
@@ -420,8 +485,46 @@ transport|dict - Optional, implementation defined information about the WAMP tra
     public void onCreatedRealm(WAMPRealm realm) {
     }
 
+    Long onjoin_subscription_id;
+    Long onleave_subscription_id;
+
     @Override
     public void onHandled(WAMPSession session, WAMPMessage msg, WAMPMessagesFlow mf) {
+        // events "spying" for optional session JOIN/LEAVE events
+        WAMPSubscriber ms = session.getRealm().getActor(WAMP.Role.subscriber);
+        if (1==0 && ms != null) {
+            switch (msg.getType().getId()) {
+                case WAMPMessageType.T_SUBSCRIBED: {
+                    String topic = ms.getTopic(session, msg);
+                    if (SM_EVENT_ON_JOIN.equals(topic)) {
+                        onjoin_subscription_id = msg.getInt(1);
+                    } else if (SM_EVENT_ON_LEAVE.equals(topic)) {
+                        onleave_subscription_id = msg.getInt(1);
+                    }
+                    System.out.println("[" + session.getId() + "]subscribed  [" + ms.getTopic(session, msg) + "]: " + msg.toList());
+                }
+                break;
+                case WAMPMessageType.T_UNSUBSCRIBED: {
+                    String topic = ms.getTopic(session, msg);
+                    if (SM_EVENT_ON_JOIN.equals(topic)) {
+                        onjoin_subscription_id = null;
+                    } else if (SM_EVENT_ON_LEAVE.equals(topic)) {
+                        onleave_subscription_id = null;
+                    }
+                    System.out.println("[" + session.getId() + "]unsubscribed[" + ms.getTopic(session, msg) + "]: " + msg.toList());
+                }
+                break;
+                case WAMPMessageType.T_EVENT: {
+                    if (msg.getInt(0) == onjoin_subscription_id) {
+                        session.onRemoteAuthAdd(msg);
+                    } else if (msg.getInt(0) == onleave_subscription_id) {
+                        session.onRemoteAuthRemove(msg);
+                    }
+                    System.out.println("[" + session.getId() + "]event       [" + ms.getTopic(session, msg) + "]: " + msg.toList());
+                }
+                break;
+            }
+        }
     }
 
     @Override
@@ -435,4 +538,5 @@ transport|dict - Optional, implementation defined information about the WAMP tra
     @Override
     public void onSent(WAMPSession session, WAMPMessage msg, Throwable error) {
     }
+
 }

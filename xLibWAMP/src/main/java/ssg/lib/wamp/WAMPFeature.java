@@ -35,6 +35,7 @@ import static ssg.lib.wamp.WAMP.Role.dealer;
 import static ssg.lib.wamp.WAMP.Role.publisher;
 import static ssg.lib.wamp.WAMP.Role.subscriber;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_call_canceling;
+import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_call_reroute;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_call_timeout;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_call_trustlevels;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_caller_identification;
@@ -125,6 +126,10 @@ public class WAMPFeature implements Serializable {
     public static final WAMPFeature procedure_reflection = new WAMPFeature(
             FEATURE_procedure_reflection,
             dealer);
+    public static final WAMPFeature call_reroute = new WAMPFeature(
+            FEATURE_call_reroute,
+            dealer,
+            callee);
 
     // PubSub Features
     public static final WAMPFeature subscriber_blackwhite_listing = new WAMPFeature(

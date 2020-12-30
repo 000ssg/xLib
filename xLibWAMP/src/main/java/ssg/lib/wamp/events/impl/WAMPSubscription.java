@@ -28,11 +28,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPActor;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.messages.WAMPMessage;
+import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
@@ -51,6 +55,7 @@ public class WAMPSubscription implements WAMPActor {
     Map<Long, Subscription> subscriptions = WAMPTools.createSynchronizedMap();
     // collection for registration of supported features
     Collection<WAMPFeature> features = new LinkedHashSet<>();
+    private Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createMap(true);
 
     public WAMPSubscription() {
     }
@@ -72,6 +77,30 @@ public class WAMPSubscription implements WAMPActor {
         }
     }
 
+    public <T extends WAMPSubscription> T configure(WAMP.Role[] roles, WAMPFeature feature, WAMPFeatureProvider provider) {
+        if (feature != null) {
+            if (provider == null) {
+                if (featureProviders.containsKey(feature)) {
+                    featureProviders.remove(feature);
+                }
+                features.add(feature);
+            } else {
+                if (roles != null) {
+                    for (Role role : roles) {
+                        if (Role.hasRole(role, feature.scope())) {
+                            featureProviders.put(feature, provider);
+                            if (!features.contains(feature)) {
+                                features.add(feature);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return (T) this;
+    }
+
     @Override
     public <T extends WAMPActor> T init(WAMPRealm realm) {
         return (T) this;
@@ -80,6 +109,15 @@ public class WAMPSubscription implements WAMPActor {
     @Override
     public <T extends WAMPActor> T done(WAMPSession... sessions) {
         return (T) this;
+    }
+
+    @Override
+    public void initFeatures(Role[] roles, Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
+        if (featureProviders != null) {
+            for (Map.Entry<WAMPFeature, WAMPFeatureProvider> entry : featureProviders.entrySet()) {
+                configure(roles, entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override
@@ -158,4 +196,35 @@ public class WAMPSubscription implements WAMPActor {
         return null;
     }
 
+    /**
+     * "future" implementation: returns topic name for message if relevant...
+     *
+     * @param session
+     * @param msg
+     * @return
+     */
+    public String getTopic(WAMPSession session, WAMPMessage msg) {
+        try {
+            switch (msg.getType().getId()) {
+                case WAMPMessageType.T_SUBSCRIBE:
+                    return msg.getString(2);
+                case WAMPMessageType.T_SUBSCRIBED:
+                    return subscriptions.get(msg.getInt(1)).topic;
+                case WAMPMessageType.T_UNSUBSCRIBE:
+                    return subscriptions.get(msg.getInt(1)).topic;
+                case WAMPMessageType.T_UNSUBSCRIBED:
+                    return subscriptions.get(msg.getInt(1)).topic;
+                case WAMPMessageType.T_PUBLISH:
+                    return msg.getString(2);
+                case WAMPMessageType.T_PUBLISHED:
+                    return subscriptions.get(msg.getInt(1)).topic;
+                case WAMPMessageType.T_EVENT:
+                    return subscriptions.get(msg.getInt(0)).topic;
+                default:
+                    return null;
+            }
+        } catch (NullPointerException npex) {
+            return null;
+        }
+    }
 }

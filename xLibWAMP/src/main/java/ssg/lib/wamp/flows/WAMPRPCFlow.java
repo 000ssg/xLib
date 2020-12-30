@@ -25,6 +25,7 @@ package ssg.lib.wamp.flows;
 
 import java.util.Arrays;
 import ssg.lib.wamp.WAMP;
+import static ssg.lib.wamp.WAMPConstantsAdvanced.ERROR_Unavailable;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -44,6 +45,7 @@ import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.rpc.WAMPCallee;
 import ssg.lib.wamp.rpc.WAMPCaller;
 import ssg.lib.wamp.rpc.WAMPDealer;
+import ssg.lib.wamp.util.WAMPTools;
 
 /**
  *
@@ -55,13 +57,13 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
     static int[] typesDealer = new int[]{T_ERROR, T_CALL, T_REGISTER, T_UNREGISTER, T_CANCEL, T_YIELD};
     static int[] typesCaller = new int[]{T_ERROR, T_RESULT};
     static int[] typesCallee = new int[]{T_ERROR, T_REGISTERED, T_UNREGISTERED, T_INVOCATION, T_INTERRUPT};
-
+    
     @Override
     public boolean canHandle(WAMPSession session, WAMPMessage msg) {
         int type = msg.getType().getId();
-
+        
         boolean r = false;
-
+        
         if (session.hasLocalRole(WAMP.Role.dealer)) {
             r = Arrays.binarySearch(typesDealer, type) >= 0;
         }
@@ -71,10 +73,10 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
         if (!r && session.hasLocalRole(WAMP.Role.callee)) {
             r = Arrays.binarySearch(typesCallee, type) >= 0;
         }
-
+        
         return r;
     }
-
+    
     @Override
     public WAMPFlowStatus handle(WAMPSession session, WAMPMessage msg) throws WAMPException {
         if (msg == null) {
@@ -84,7 +86,7 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
         boolean isDealer = session.hasLocalRole(WAMP.Role.dealer);
         boolean isCaller = session.hasLocalRole(WAMP.Role.caller);
         boolean isCallee = session.hasLocalRole(WAMP.Role.callee);
-
+        
         switch (type.getId()) {
             case T_REGISTER:
                 if (isDealer) {
@@ -200,10 +202,10 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
                     }
                 }
         }
-
+        
         return WAMPFlowStatus.ignored;
     }
-
+    
     public boolean validateProcedure(WAMPSession session, String topic) {
         return topic != null && WAMP_DT.uri.validate(topic);
     }

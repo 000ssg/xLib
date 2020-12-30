@@ -24,6 +24,7 @@
 package ssg.lib.wamp.rpc.impl.dealer;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,10 +52,12 @@ public class DealerCall extends Call {
     String interrupted = null;
 
     // on dealer
+    String procedureName;
     DealerProcedure proc;
     private WAMPCallStatistics statistics;
     boolean callerErrorSent = false; // used to prevent multiple call errors if mutli-RPC call
     private boolean dealerTimeout = false;
+    Collection<Long> unavailable;
 
     // to/from callee
     long[] invocationIds;

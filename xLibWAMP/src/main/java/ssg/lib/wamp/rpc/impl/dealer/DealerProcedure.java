@@ -24,6 +24,7 @@
 package ssg.lib.wamp.rpc.impl.dealer;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.rpc.impl.Procedure;
 
@@ -35,11 +36,20 @@ public class DealerProcedure extends Procedure {
 
     Object owner;
     WAMPSession session;
+    AtomicInteger rerouted = new AtomicInteger();
 
     public DealerProcedure(Object owner, String name, Map<String, Object> options, WAMPSession session) {
         super(name, options);
         this.owner = owner;
         this.session = session;
+    }
+
+    @Override
+    public String toStringExt() {
+        return super.toStringExt()
+                + (owner != null ? ", owner=" + owner : "")
+                + (session != null ? ", session=" + session.getId() : "")
+                + (rerouted.get() > 0 ? ", rerouted=" + rerouted.get() : "");
     }
 
 }

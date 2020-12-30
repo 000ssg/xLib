@@ -58,11 +58,13 @@ public class TestRPC_Features {
         boolean traceCallerMessages = false;
         boolean withProgressiveCallResults = true;
         boolean calleeTimeout = true;
+        boolean callRerouting = true;
         final WAMPRouter router = new WAMPRouter(Role.dealer, Role.broker)
                 .configure(
                         WAMPFeature.sharded_registration,
                         WAMPFeature.shared_registration,
                         (withProgressiveCallResults) ? WAMPFeature.progressive_call_results : WAMPFeature.shared_registration,
+                        (callRerouting) ? WAMPFeature.call_reroute : WAMPFeature.shared_registration,
                         WAMPFeature.call_canceling,
                         WAMPFeature.call_timeout
                 )
@@ -85,6 +87,11 @@ public class TestRPC_Features {
                 WAMPFeature.shared_registration,
                 //WAMPFeature.progressive_call_results,
                 (calleeTimeout) ? WAMPFeature.call_timeout : WAMPFeature.shared_registration
+            },
+            {
+                WAMPFeature.sharded_registration,
+                WAMPFeature.shared_registration,
+                WAMPFeature.call_reroute
             }
         };
         for (int i = 0; i < callees.length; i++) {
@@ -195,6 +202,7 @@ public class TestRPC_Features {
                 });
             }
         };
+
         Callee shardedProc = new Callee() {
             @Override
             public Future invoke(final CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {

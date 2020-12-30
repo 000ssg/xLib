@@ -40,6 +40,7 @@ public interface WAMPConstantsBase {
     public static final String INFO_SystemShutdown = "wamp.close.system_shutdown";
     public static final String INFO_CloseRealm = "wamp.close.close_realm";
     public static final String INFO_AckClose = "wamp.close.goodbye_and_out";
+    public static final String INFO_CloseNormal = "wamp.close.normal";
     public static final String ERROR_ProtocolViolation = "wamp.error.protocol_violation";
 
     // Authorization

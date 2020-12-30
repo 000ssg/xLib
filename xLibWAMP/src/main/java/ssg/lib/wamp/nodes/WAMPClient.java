@@ -62,6 +62,7 @@ import ssg.lib.wamp.rpc.impl.WAMPRPCListener.CALL_STATE;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerWrapper;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
+import ssg.lib.wamp.util.LS;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
@@ -74,7 +75,8 @@ public class WAMPClient extends WAMPNode {
     WAMPSession session;
 
     Collection<WAMPEventListener> eventListeners = WAMPTools.createSynchronizedList();
-    Collection<WAMPRPCListener> rpcListeners = WAMPTools.createSynchronizedList();
+    //Collection<WAMPRPCListener> rpcListeners = WAMPTools.createSynchronizedList();
+    LS<WAMPRPCListener> rpcListeners = new LS<>(new WAMPRPCListener[0]);
     List<Runnable> pendingActions = WAMPTools.createSynchronizedList();
     Map<String, Object> properties = WAMPTools.createDict(null);
     private int maxPendingMessagesQueue = 100;
@@ -205,7 +207,7 @@ public class WAMPClient extends WAMPNode {
         }
         if (session.getRealm().getActor(WAMP.Role.caller) instanceof WAMPRPCCaller) {
             if (!rpcListeners.isEmpty()) {
-                for (WAMPRPCListener l : rpcListeners) {
+                for (WAMPRPCListener l : rpcListeners.get()) {
                     tryCall(l);
                 }
             }
@@ -230,7 +232,7 @@ public class WAMPClient extends WAMPNode {
             }
         }
         if (!rpcListeners.isEmpty()) {
-            for (WAMPRPCListener l : rpcListeners) {
+            for (WAMPRPCListener l : rpcListeners.get()) {
                 // invalidate call
                 if (l != null) {
                     l.onCancel(0, WAMPConstantsBase.INFO_CloseRealm);
@@ -296,18 +298,7 @@ public class WAMPClient extends WAMPNode {
 
     public void removeWAMPRPCListener(WAMPRPCListener l) throws WAMPException {
         if (l != null) {
-            synchronized (rpcListeners) {
-                if (rpcListeners.contains(l)) {
-                    rpcListeners.remove(l);
-                    if (session.getRealm().getActor(WAMP.Role.caller) instanceof WAMPRPCCaller) {
-                        // TODO: handle cancel for the listener...
-                        //if (WAMP_DT.id.validate(l.getCallId())) {
-                        // -> send cancel if advanced profile
-                        //l.onCancel("cancel.client");
-                        //}
-                    }
-                }
-            }
+            rpcListeners.add(l);
         }
     }
 
@@ -421,13 +412,7 @@ public class WAMPClient extends WAMPNode {
             if (WAMPSessionState.established == session.getState()) {
                 if (session.getRealm().getActor(WAMP.Role.caller) instanceof WAMPRPCCaller) {
                     if (!rpcListeners.isEmpty() && (getMaxPendingMessagesQueue() <= 0 || session.getPendingCount() < getMaxPendingMessagesQueue())) {
-                        WAMPRPCListener[] ls = null;
-                        while (ls == null) {
-                            try {
-                                ls = rpcListeners.toArray(new WAMPRPCListener[rpcListeners.size()]);
-                            } catch (Throwable th) {
-                            }
-                        }
+                        WAMPRPCListener[] ls = rpcListeners.get();
                         if (ls != null) {
                             for (WAMPRPCListener l : ls) {
                                 if (l == null) {
@@ -590,10 +575,6 @@ public class WAMPClient extends WAMPNode {
                 sb.append(actor.toString().replace("\n", "\n      "));
             }
         }
-//        if (session.getRealm().getActor(WAMP.Role.callee) instanceof WAMPRPCCallee) {
-//            WAMPRPCCallee rpcee = session.getRealm().getActor(WAMP.Role.callee);
-//            sb.append("\n  " + rpcee.dumpInfo().replace("\n", "\n  "));
-//        }
         Collection<WAMPMessage> lost = getLostMessages();
         if (!lost.isEmpty()) {
             sb.append("\n  Lost messages[" + lost.size() + "]");

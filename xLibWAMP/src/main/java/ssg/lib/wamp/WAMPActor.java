@@ -24,6 +24,7 @@
 package ssg.lib.wamp;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * WAMP actor represents initializable/closeable implementation of WAMP
@@ -40,6 +41,8 @@ public interface WAMPActor {
     <T extends WAMPActor> T init(WAMPRealm realm);
 
     <T extends WAMPActor> T done(WAMPSession... sessions);
+    
+    void initFeatures(WAMP.Role[] roles, Map<WAMPFeature, WAMPFeatureProvider> featureProviders);
 
     Collection<WAMPFeature> features();
 }

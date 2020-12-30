@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.wamp.WAMP;
+import static ssg.lib.wamp.WAMPConstantsBase.INFO_CloseNormal;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPSession;
@@ -12,7 +13,6 @@ import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
 import ssg.lib.wamp.auth.impl.WAMPAuthTicket;
-import ssg.lib.wamp.events.WAMPEventListener;
 import ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
@@ -55,10 +55,10 @@ public class TestWorld implements Runnable {
     List<WAMPClient> clients = WAMPTools.createSynchronizedList();
 
     // authenticators
-    WAMPAuthProvider wapcra = new WAMPAuthCRA("testCRA");
+    public WAMPAuthProvider wapcra = new WAMPAuthCRA("testCRA");
     WAMPAuthProvider wapcra2 = new WAMPAuthCRA("testCRA2");
     WAMPAuthProvider wapcra3 = new WAMPAuthCRA("testCRA3");
-    WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket") {
+    public WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket") {
         @Override
         public Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException {
             Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, name());
@@ -76,7 +76,14 @@ public class TestWorld implements Runnable {
             .configure(WAMPFeature.x_session_meta_api, wfpSessionMeta);
     Thread runner;
 
+    public WAMPRouter getRouter() {
+        return router;
+    }
+
+    @Override
     public void run() {
+        String old=Thread.currentThread().getName();
+        Thread.currentThread().setName("WORLD-RUNNER");
         try {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
@@ -96,13 +103,14 @@ public class TestWorld implements Runnable {
                     }
                 }
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(1);
                 } catch (Throwable th) {
                     break;
                 }
             }
         } finally {
             runner = null;
+            Thread.currentThread().setName(old);
         }
     }
 
@@ -116,6 +124,19 @@ public class TestWorld implements Runnable {
 
     public void stop() {
         if (runner != null) {
+            for (WAMPClient client : clients.toArray(new WAMPClient[clients.size()])) {
+                if (client != null && client.isConnected()) {
+                    try {
+                        client.disconnect(INFO_CloseNormal);
+                    } catch (WAMPException wex) {
+                        wex.printStackTrace();
+                    }
+                }
+            }
+            try {
+                Thread.sleep(100);
+            } catch (Throwable th) {
+            }
             if (!runner.isInterrupted()) {
                 runner.interrupt();
             }
@@ -130,6 +151,7 @@ public class TestWorld implements Runnable {
 
         final WAMPClient client = new WAMPClient()
                 .configure(authProvider)
+                .configure(WAMPFeature.x_session_meta_api, wfpSessionMeta)
                 .configure(features);
         client.configure(transport.local, agent, realm, roles);
         //client.addWAMPNodeListener(new WAMPNodeListenerDebug("CLIENT#" + i + ": "));
@@ -154,23 +176,23 @@ public class TestWorld implements Runnable {
 
         String[] realms = new String[]{"realm.1.com", "realm.2.com"};
 
-        final WAMPClient client = world.connect(realms[0], "publisher.1", new WAMP.Role[]{WAMP.Role.publisher, WAMP.Role.subscriber, WAMP.Role.caller}, "user1", world.wapticket, WAMPFeature.x_session_meta_api);
+        final WAMPClient client = world.connect(realms[0], "publisher.1", new WAMP.Role[]{WAMP.Role.publisher, WAMP.Role.subscriber, WAMP.Role.caller, WAMP.Role.callee}, "user1", world.wapticket, WAMPFeature.x_session_meta_api);
 
-        client.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN,
-                WAMPTools.EMPTY_DICT,
-                (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
-                    System.out.println("CLIENT " + client.getAgent() + " onEvent[" + WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN + "]: " + publicationId + "/" + subscriptionId + " -> " + arguments + ", " + argumentsKw);
-                }
-        ));
-
-        client.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
-                WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE,
-                WAMPTools.EMPTY_DICT,
-                (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
-                    System.out.println("CLIENT " + client.getAgent() + " onEvent[" + WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE + "]: " + publicationId + "/" + subscriptionId + " -> " + arguments + ", " + argumentsKw);
-                }
-        ));
+//        client.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
+//                WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN,
+//                WAMPTools.EMPTY_DICT,
+//                (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
+//                    System.out.println("CLIENT " + client.getAgent() + " onEvent[" + WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN + "]: " + publicationId + "/" + subscriptionId + " -> " + arguments + ", " + argumentsKw);
+//                }
+//        ));
+//
+//        client.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
+//                WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE,
+//                WAMPTools.EMPTY_DICT,
+//                (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
+//                    System.out.println("CLIENT " + client.getAgent() + " onEvent[" + WAMP_FP_SessionMetaAPI.SM_EVENT_ON_LEAVE + "]: " + publicationId + "/" + subscriptionId + " -> " + arguments + ", " + argumentsKw);
+//                }
+//        ));
         System.out.println("SLEEP 100");
         Thread.sleep(100);
 
@@ -186,6 +208,10 @@ public class TestWorld implements Runnable {
 
         System.out.println("SLEEP 1000");
         Thread.sleep(1000);
+        System.out.println("---------------------------------------\n-------------- CLIENT SUMMARY 1\n----------------------------------\n  "
+                + client.toString().replace("\n", "\n  ")
+                + "\n-----------------------------------------------"
+        );
         Long count = (Long) ((List) client.call(WAMP_FP_SessionMetaAPI.SM_RPC_SESSION_COUNT, null, null)).get(0);
         System.out.println("SESSION COUNT: " + count);
         List<Long> sessionList = (List) client.call(WAMP_FP_SessionMetaAPI.SM_RPC_SESSION_LIST, null, null);
@@ -218,6 +244,10 @@ public class TestWorld implements Runnable {
             System.out.println("SESSIONS LIST (async2   ): " + (error != null ? "ERR: " + error : result));
         });
 
+        System.out.println("---------------------------------------\n-------------- CLIENT SUMMARY 2\n----------------------------------\n  "
+                + client.toString().replace("\n", "\n  ")
+                + "\n-----------------------------------------------"
+        );
         System.out.println("SLEEP 1000");
         Thread.sleep(1000);
         for (WAMPClient c : cs) {
@@ -226,6 +256,7 @@ public class TestWorld implements Runnable {
 
         System.out.println("LAST SLEEP 1000");
         Thread.sleep(1000);
+        //client.disconnect(INFO_CloseNormal);
         world.stop();
     }
 

@@ -23,9 +23,8 @@
  */
 package ssg.lib.wamp;
 
-import ssg.lib.wamp.WAMP;
-import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
+import ssg.lib.wamp.util.WAMPException;
 
 /**
  *
@@ -34,6 +33,8 @@ import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
 public interface WAMPFeatureProvider {
 
     WAMPFeature[] getFeatures(WAMP.Role role);
+
+    void prepareFeature(WAMPSession session) throws WAMPException;
 
     DealerProcedure[] getFeatureProcedures(WAMP.Role role);
 }
