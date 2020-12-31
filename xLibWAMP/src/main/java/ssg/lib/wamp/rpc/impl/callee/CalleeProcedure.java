@@ -51,7 +51,7 @@ public class CalleeProcedure extends Procedure {
 
         default void partial(CalleeCall call, List args, Map<String, Object> argsKw) throws WAMPException {
             WAMPCallee wc = call.session.getRealm().getActor(WAMP.Role.callee);
-            wc.yield(call.session, call.getId(), false, args, argsKw);
+            wc.yield_(call.session, call.getId(), false, args, argsKw);
         }
 
         Future<T> invoke(CalleeCall call, ExecutorService executor, String name, List args, Map<String, Object> argsKw) throws WAMPException;

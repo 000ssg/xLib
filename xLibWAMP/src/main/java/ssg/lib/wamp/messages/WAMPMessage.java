@@ -281,15 +281,15 @@ public class WAMPMessage {
         return new WAMPMessage(WAMPMessageType.getType(WAMPMessageType.T_INVOCATION, 5), request, registeredRegistration, details, callArguments, callArgumentsKw);
     }
 
-    public static WAMPMessage yield(long invocationRequest, Map<String, Object> options) throws WAMPException {
+    public static WAMPMessage yield_(long invocationRequest, Map<String, Object> options) throws WAMPException {
         return new WAMPMessage(WAMPMessageType.getType(WAMPMessageType.T_YIELD, 2), invocationRequest, options);
     }
 
-    public static WAMPMessage yield(long invocationRequest, Map<String, Object> options, List arguments) throws WAMPException {
+    public static WAMPMessage yield_(long invocationRequest, Map<String, Object> options, List arguments) throws WAMPException {
         return new WAMPMessage(WAMPMessageType.getType(WAMPMessageType.T_YIELD, 3), invocationRequest, options, arguments);
     }
 
-    public static WAMPMessage yield(long invocationRequest, Map<String, Object> options, List arguments, Map<String, Object> argumentsKw) throws WAMPException {
+    public static WAMPMessage yield_(long invocationRequest, Map<String, Object> options, List arguments, Map<String, Object> argumentsKw) throws WAMPException {
         return new WAMPMessage(WAMPMessageType.getType(WAMPMessageType.T_YIELD, 4), invocationRequest, options, arguments, argumentsKw);
     }
 

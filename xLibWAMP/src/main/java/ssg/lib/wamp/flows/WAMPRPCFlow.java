@@ -168,7 +168,7 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
                 }
             case T_YIELD:
                 if (isDealer) {
-                    return ((WAMPDealer) session.getRealm().getActor(WAMP.Role.dealer)).yield(session, msg);
+                    return ((WAMPDealer) session.getRealm().getActor(WAMP.Role.dealer)).yield_(session, msg);
                 } else {
                     return WAMPFlowStatus.failed;
                 }

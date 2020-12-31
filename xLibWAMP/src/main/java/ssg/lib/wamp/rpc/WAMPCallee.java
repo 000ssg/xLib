@@ -44,7 +44,7 @@ public interface WAMPCallee {
 
     void unregister(WAMPSession session, long registrationId) throws WAMPException;
 
-    void yield(WAMPSession session, long invocationId, boolean lastFragment, List args, Map<String, Object> argsKw) throws WAMPException;
+    void yield_(WAMPSession session, long invocationId, boolean lastFragment, List args, Map<String, Object> argsKw) throws WAMPException;
 
     ////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////// re-actions

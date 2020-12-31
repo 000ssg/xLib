@@ -59,7 +59,7 @@ public interface WAMPDealer {
      */
     WAMPFlowStatus call(WAMPSession session, WAMPMessage msg) throws WAMPException;
 
-    WAMPFlowStatus yield(WAMPSession session, WAMPMessage msg) throws WAMPException;
+    WAMPFlowStatus yield_(WAMPSession session, WAMPMessage msg) throws WAMPException;
 
     /**
      * Cancel or mark as cancelled existing call

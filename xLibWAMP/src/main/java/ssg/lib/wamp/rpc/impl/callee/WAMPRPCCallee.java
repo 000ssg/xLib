@@ -243,7 +243,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
     }
 
     @Override
-    public void yield(WAMPSession session, long invocationId, boolean lastFragment, List args, Map<String, Object> argsKw) throws WAMPException {
+    public void yield_(WAMPSession session, long invocationId, boolean lastFragment, List args, Map<String, Object> argsKw) throws WAMPException {
         boolean isRouter = session.hasLocalRole(WAMP.Role.router);
         if (isRouter) {
             throw new WAMPException("Only client can yield, not router.");
@@ -265,11 +265,11 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             }
         }
         if (argsKw != null) {
-            session.send(WAMPMessage.yield(invocationId, details, args, argsKw));
+            session.send(WAMPMessage.yield_(invocationId, details, args, argsKw));
         } else if (args != null) {
-            session.send(WAMPMessage.yield(invocationId, details, args));
+            session.send(WAMPMessage.yield_(invocationId, details, args));
         } else {
-            session.send(WAMPMessage.yield(invocationId, details));
+            session.send(WAMPMessage.yield_(invocationId, details));
         }
 
         if (call.proc != null && call.proc.getStatistics() != null) {
@@ -540,7 +540,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                             try {
                                 try {
                                     Object result = call.future.get();
-                                    yield(call.session, call.getId(), true, resultArgs(result), resultArgsKw(result));
+                                    yield_(call.session, call.getId(), true, resultArgs(result), resultArgsKw(result));
                                     if (call.getStatistics() != null) {
                                         call.getStatistics().onDuration(call.durationNano());
                                     }

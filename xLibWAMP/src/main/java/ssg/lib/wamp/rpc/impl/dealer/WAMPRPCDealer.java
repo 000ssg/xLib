@@ -431,7 +431,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
     }
 
     @Override
-    public WAMPMessagesFlow.WAMPFlowStatus yield(WAMPSession session, WAMPMessage msg) throws WAMPException {
+    public WAMPMessagesFlow.WAMPFlowStatus yield_(WAMPSession session, WAMPMessage msg) throws WAMPException {
         if (msg == null) {
             return WAMPMessagesFlow.WAMPFlowStatus.failed;
         }
