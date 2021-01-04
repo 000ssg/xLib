@@ -138,7 +138,7 @@ public class WAMPActorFactory {
                 throw new WAMPException("Failed to create WAMPActor instance for '" + role + "': implementation '" + clazz.getName() + "'.", iex);
             }
         } else {
-            //throw new WAMPException("No WAMPActor implementation is configured or possible for '" + role + "'.");
+            throw new WAMPException("No WAMPActor implementation is configured or possible for '" + role + "'.");
         }
 
         return r;

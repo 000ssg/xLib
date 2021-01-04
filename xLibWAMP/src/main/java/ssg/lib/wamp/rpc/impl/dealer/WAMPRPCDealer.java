@@ -288,7 +288,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 call.argsKw = argsKw;
                 call.cancelable = session.supportsFeature(WAMPFeature.call_canceling);// && call.session.supportsFeature(WAMPFeature.call_canceling);
 
-                // TODO: find standard!!! to ensure procedure name is passed if does not match exactly...
+                // set procedure name if registration is pattern/prefix based
                 if (proc != null && !proc.getName().equals(procedure)) {
                     call.details.put(RPC_INVOCATION_PROCEDURE_EXACT_KEY, procedure);
                 }
@@ -540,7 +540,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                                     }
                                     doInvoke(call, proc, call.getInvocationId(0));
                                 }
-                                // report handled error
+                                // error is handled successfully with re-routed invocation
                                 return WAMPMessagesFlow.WAMPFlowStatus.handled;
                             }
                         }
