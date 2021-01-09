@@ -1,0 +1,110 @@
+xLibWAMP overview
+
+Intention of xLibWAMP is to provide lightweight implementation of WAMP protocol (https://wamp-proto.org/) 
+without external dependencies.
+
+In draft the library is built around key WAMP concepts: node, realm, session, message, transport, feature.
+
+WAMP organizes interoperability of nodes that perform router or client functionality for RPC and/or events 
+handling. The RPC and events represent 2 separated yet cooperating messages flows, the 3rd flow is session 
+management (establish, authenticate, finalize). Nodes communication is organized as paired sessions (router - client) 
+within named realm over communication channel (represented as “transport”). Realm defines shared context 
+for clients yet may have different subset of functionality per client connection depending on set of 
+supported roles and features by both router and client. Router defines maximal possible set of features in 
+the realm that may be reduced depending on roles/features requested by client.
+
+WAMP defines protocol on transport and application levels. 
+
+On transport level data exchange between nodes is performed using messages of fixed structure that may use 
+only limited set of data types. WAMP data types are enumerated in ssg.lib.wamp.messages.WAMP_DT class (enum) 
+that also provides types validation. A message is always list of items, 1st of which represents message 
+type (long value), the rest items are defined per message type. All supported message types are 
+defined/described in ssg.lib.wamp.messages.WAMPMessageType class in two ways: by message 
+type ID (T_<name> constants) and message type specification (message variants as sets of ordered typed items) 
+as <name> constants (since WAMP strictly defines each message structure). This class provides message 
+validation based on its definition. To build message of specified type, there’re utility (static) methods 
+defined in ssg.lib.wamp.messages.WAMPMessage class (that defines message itself with utility indexed methods 
+to access message items as certain data types. WAMP connection is abstracted to ssg.lib.wamp.WAMPTransport 
+interface with following base operations: isOpen, close, send, receive, unreceive. To support protocol 
+analysis it enables use of statistics (see below) via set/get statistics methods. Since establishing 
+connection is out of scope of WAMP, this functionality is not defined on the transport though it allows to 
+test if connection is open and initialize connection closing.
+
+Base concept of WAMP is defined via roles. The 2 main functionalities (RPC and events) form 2 sets of roles: 
+caller, dealer, callee (RPC) and subscriber, broker, publisher (events). Router can play dealer and/or 
+broker role only. Client can play all other roles in any combination, but at least 1 role must be present. 
+Role defines set of produced/consumed message types (some are cross-role, like ERROR message). 
+Enumeration ssg.lib.wamp.WAMP.Role defines allowed roles and utility methods to test/probe role availability. 
+It defines also 2 pseudo roles (router and client) that are used to define node meta-role just for utility 
+purpose. Actual role-specific functionality is distributed between message flows and WAMP actors. Messages 
+flow encapsulate messages handling per functionality (session management, RPC, events) and utilize instances 
+of proper WAMP actors to handle those messages. There’re 3 flows defined in ssg.lib.wamp.flows package: 
+WAMPSessionFlow (session establishing, authentication, abort), WAMPRPCFlow (procedures registration and calling), 
+WAMPPublishingFlow (subscriptions registration, publishing, evants). Session flow is always in use while RPC 
+and Publishing are used only if appropriate role is available. WAMP actors implement ssg.lib.wamp.WAMPActor 
+interface and are defined in ssg.lib.wamp.events.* and ssg.lib.wamp.rpc.* packages/subpackages. 
+
+WAMP uses realms to group connections. Any client connects to router for named realm and provides info on 
+desired connection properties like role(s) (with optional extra details, e.g. feature sets), authentication, etc. 
+On handling connection request, client and router create session that have same router-assigned ID unique 
+within realm and roles/properties evaluated on client and router to match roles/features of each other. Most 
+functionality related to realms, sessions, and features is implemented in corresponding classes/descendants: 
+ssg.lib.wamp.WAMPRealm, ssg.lib.wamp.WAMPSession, ssg.lib.wamp.WAMPFeature, ssg.lib.wamp.WAMPFeatureProvider.
+
+While WAMPSession is operational element, WAMPRealm is mostly configuration element as it defines desired/supported 
+functionality both on client and router sides. When establishing connection and handshaking with WAMP 
+messages HELLO/WELCOME the WAMPSession is initialized for desired realm and roles/features are adjusted on 
+both sides of connection following same logic thus poroducing almost identical session instances. WAMPSession 
+keeps agreed configuration between router and client, provides “send” method to pass WAMPMessage over WAMPTransport.
+
+Operational unit is ssg.lib.wamp.nodes.WAMPNode. It demonstrates how to combine base components practically. 
+It provides prototype for client or router node and defines configuration and infra for running node. WAMPRouter 
+extends it to enable multi-realm multi-session processing, while WAMPClient provides single-realm single-session 
+client capable of receiving/publishing events and calling/executing RPC calls (as configured via roles). 
+Another demo is WAMPClients that may be used to model multiple client nodes cooperation via router or just 
+compose multi-realm client.
+
+WAMP features are declaratively defined in mentioned ssg.lib.wamp.WAMPFeature class and their implementation is 
+basically distributed over WAMPMessagesFlow and WAMPActor instances while some consolidated feature implementation 
+may be in form of ssg.lib.wamp.WAMPFeatureProvider interface implementation. 
+The ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI class is  an example.
+
+For monitoring and testing purposes statistics is used. That is non-standard add-on that allows in unified way 
+to measure different aspects on different levels (from node to RPC call). Statisctics is configurable on node, 
+realm or session level and once used, is propagated to all sub-operations automatically. Statistics instances build 
+a tree where leaves accept monitored events and propagate them to upper levels (e.g. from RPC to procedure definition 
+to session to realm to node). Abstract statistics is defined in (relocable?) package ssg.lib.wamp.util.stat. 
+WAMP-specific extension are in package ssg.lib.wamp.stat.
+
+To unify use and construction of frequently used WAMP data structures there’s ssg.lib.wamp.util.WAMPTools class, 
+that provides often used empties (dictionary, list) and commonly used simple constructors of those. Another utility 
+is ssg.lib.wamp.util.LS class that simplifies non-conflicting support of event listeners throughout implementation.
+
+Events publishing is defined on per-role level and uses per-role interface and implementation. 
+The ssg.lib.wamp.events package defines interfaces for the roles: WAMPBroker, WAMPPublisher, WAMPSubscriber that 
+declare related operations and handling methods. They are implemented as WAMPActor instances by adaptive extension 
+of ssg.lib.wamp.events.impl.WAMPSubscription class.
+
+RPC functionality is organized similarly but being more complex is distributed over sub-packages. Per-role interfaces 
+are defined in ssg.lib.wamp.rpc package: WAMPCaller, WAMPDealer, WAMPCallee. Also thi package contains collection 
+of RPC-specific constants in WAMPRPCConstants class. Common implementation base for all actual components is in 
+package ssg.lib.wamp.rpc.impl: Call (procedure call), Procedure (procedure definition), WAMPRPC (WAMPActor 
+implementation core for any RPC-role component). Per-role implementations are in role-named subpackages. Simplest 
+is for caller, most complex – for dealer. Procedure registrations and discovery is outsourced to 
+ssg.lib.wamp.rpc.impl.dealer.WAMPRPCRegistrations class, for this functionality is rather stand-alone and requires 
+effective (and secured) access to locally stored data structures.
+
+WAMP authentication is slightly separate functionality but it is not mandatory. It is part of session management 
+(since it interferes handshake by adding authenticaton messages between HELLO and WELCOME). But its results may 
+affect any other component. The WAMP authentication is abstracted to WAMPAuth (authentication result) and 
+WAMPAuthProvider interface in ssg.lib.wamp.auth package. A couple of authentication provider implementations 
+are in ssg.lib.wamp.auth.impl package: WAMPAuthCRA and WAMPAuthTicket.
+
+Due to personal interests’ priority, most supported advanced features refer to RPC while publishing is supported on 
+base level mostly. 
+
+The use of library is demonstrated in tests. It allows to build full WAMP infra: router and client with any combination 
+of roles. See TestWorld for basic demo, that constructs/configures router and demonstrate creation and use of client 
+nodes connecting them via pseudo-transport implementation. Other runnable test files perform some RPC/events or 
+combined tests as well as feature-specific tests. Demos use WAMPStatistics to expose details of their execution though 
+that is optional and may be switched off (by not configuring it) e.g. to evaluate related overhead.
