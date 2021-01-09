@@ -47,6 +47,16 @@ public abstract interface APICallable {
         return null;
     }
 
+    /**
+     * Returns all API procedure variants
+     *
+     * @param <T>
+     * @return
+     */
+    default <T extends APIProcedure> T[] getAPIProcedures() {
+        return null;
+    }
+
     default List toParametersList(Map<String, Object> params) {
         APIProcedure proc = getAPIProcedure(params);
         if (proc != null) {

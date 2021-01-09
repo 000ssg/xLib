@@ -40,6 +40,7 @@ public class APIGroup extends APIItem implements APISearchable {
     public Map<String, APIProcedure[]> procs = new LinkedHashMap<>();
     public Map<String, APIFunction[]> funcs = new LinkedHashMap<>();
     public Map<String, APIDataType> types = new LinkedHashMap<>();
+    public Map<String, APIError> errors = new LinkedHashMap<>();
 
     APIGroup(APIItemCategory category, String name) {
         super(category, name);
@@ -134,7 +135,13 @@ public class APIGroup extends APIItem implements APISearchable {
                 sb.append("\n    " + t.getKey() + ": " + t.getValue().toString().replace("\n", "\n      "));
             }
         }
-        if (!groups.isEmpty() || !procs.isEmpty() || !funcs.isEmpty() || !types.isEmpty()) {
+        if (!errors.isEmpty()) {
+            sb.append("\n  Errors[" + types.size() + "]:");
+            for (Map.Entry<String, APIError> t : errors.entrySet()) {
+                sb.append("\n    " + t.getKey() + ": " + t.getValue().toString().replace("\n", "\n      "));
+            }
+        }
+        if (!groups.isEmpty() || !procs.isEmpty() || !funcs.isEmpty() || !types.isEmpty() || !errors.isEmpty()) {
             sb.append('\n');
         }
         sb.append('}');
@@ -156,6 +163,9 @@ public class APIGroup extends APIItem implements APISearchable {
         }
         if (!types.isEmpty()) {
             sb.append(", types=" + types.size());
+        }
+        if (!errors.isEmpty()) {
+            sb.append(", errors=" + errors.size());
         }
         return sb.toString();
     }
@@ -202,6 +212,12 @@ public class APIGroup extends APIItem implements APISearchable {
                 sb.append("\n    " + t.getKey() + ": " + t.getValue().toFQNString().replace("\n", "\n      "));
             }
         }
+        if (!errors.isEmpty()) {
+            sb.append("\n  Errors[" + errors.size() + "]");
+            for (Map.Entry<String, APIError> t : errors.entrySet()) {
+                sb.append("\n    " + t.getKey() + ": " + t.getValue().toFQNString().replace("\n", "\n      "));
+            }
+        }
         return sb.toString();
     }
 
@@ -209,6 +225,8 @@ public class APIGroup extends APIItem implements APISearchable {
         return groups.isEmpty()
                 && procs.isEmpty()
                 && funcs.isEmpty()
-                && types.isEmpty();
+                && types.isEmpty()
+                && errors.isEmpty()
+                ;
     }
 }

@@ -43,6 +43,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import ssg.lib.api.APICallable;
+import ssg.lib.api.APIFunction;
+import ssg.lib.api.APIParameter;
+import ssg.lib.api.APIProcedure;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
 import ssg.lib.api.wamp_cs.rest.JS_API_WAMP.WAMP_Context;
@@ -55,12 +58,15 @@ import ssg.lib.service.Repository;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.stat.WAMPStatistics;
+import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.util.WAMPException;
+import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.websocket.WebSocket;
 
 /**
@@ -78,6 +84,7 @@ public class WAMP_CS_API {
     // REST support
     API_MethodsProvider dbAPI_REST_MP;
     Collection<String> registeredRESTAPIs = new HashSet<>();
+    Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createMap(true);
 
     public WAMP_CS_API() {
     }
@@ -114,14 +121,14 @@ public class WAMP_CS_API {
         }
         return this;
     }
+
     public WAMP_CS_API setRouterFrameMonitor(WebSocket.FrameMonitor fm) {
         if (wcs instanceof WSJavaCS) {
             ((WSJavaCS) wcs).setRouterFrameMonitor(fm);
         }
         return this;
     }
-    
-    
+
     public void start() throws IOException {
         wcs.start();
     }
@@ -198,12 +205,27 @@ public class WAMP_CS_API {
                 if (names != null) {
                     for (final String pn : names) {
                         final APICallable dbc = dbAPI.getCallable(pn, null);
+                        APIProcedure[] procs = dbc.getAPIProcedures();
                         try {
-                            client.addExecutor(new HashMap() {
+                            RB opts = RB.root()
+                                    .value("invoke", "roundrobin")
+                                    .element(RB.root("reflection", null)
+                                            .procedure((RB[]) Arrays.stream(procs).map(proc -> {
+                                                RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.fqn()) : RB.procedure(proc.fqn());
+                                                if (proc.params != null) {
+                                                    for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
+                                                        rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                                                    }
+                                                }
+                                                return rb;
+                                            }).toArray())
+                                    );
+                            Map opts1 = new HashMap() {
                                 {
                                     put("invoke", "roundrobin");
                                 }
-                            }, pn, new Callee() {
+                            };
+                            client.addExecutor(opts.data(), pn, new Callee() {
                                 @Override
                                 public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                                     if (apiStat != null) {

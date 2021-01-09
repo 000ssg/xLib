@@ -273,6 +273,12 @@ public class API_Publisher {
                 return null;
             }
         }
+
+        @Override
+        public <T extends APIProcedure> T[] getAPIProcedures() {
+            return (T[]) procs;
+        }
+
     }
 
     public static class API_Publishers {

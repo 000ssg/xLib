@@ -57,6 +57,7 @@ public class APINode {
                 .router(30020)
                 .rest(30011);
 
+        
         // add HTML test pages
         node.getHttpService().getDataProcessors(null, null).addItem(new HttpStaticDataProcessor()
                 .add(new HttpResourceCollection("/ui/*", "src/test/resources/ui"))

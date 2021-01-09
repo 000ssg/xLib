@@ -210,7 +210,7 @@ public class T1Engine {
             return new T1(abc);
         }
 
-        public static List<T1> random(int count) {
+        public static List<T1> random(int count) throws Exception {
             List<T1> r = new ArrayList<>();
             for (int i = 0; i < count; i++) {
                 T1 t = random();

@@ -37,7 +37,8 @@ public enum APIItemCategory {
     object, // structured data (with named properties)
     collection, // array or list data
     procedure, // callable: procedure or function 
-    access // access restrictions description
+    access, // access restrictions description
+    error // declared error
     ;
     private static final long serialVersionUID = 1L;
 

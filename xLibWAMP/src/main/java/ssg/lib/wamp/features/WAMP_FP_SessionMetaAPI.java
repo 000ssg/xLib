@@ -45,7 +45,6 @@ import ssg.lib.wamp.events.WAMPEventListener;
 import ssg.lib.wamp.events.WAMPSubscriber;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
-import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
@@ -485,46 +484,8 @@ transport|dict - Optional, implementation defined information about the WAMP tra
     public void onCreatedRealm(WAMPRealm realm) {
     }
 
-    Long onjoin_subscription_id;
-    Long onleave_subscription_id;
-
     @Override
     public void onHandled(WAMPSession session, WAMPMessage msg, WAMPMessagesFlow mf) {
-        // events "spying" for optional session JOIN/LEAVE events
-        WAMPSubscriber ms = session.getRealm().getActor(WAMP.Role.subscriber);
-        if (1==0 && ms != null) {
-            switch (msg.getType().getId()) {
-                case WAMPMessageType.T_SUBSCRIBED: {
-                    String topic = ms.getTopic(session, msg);
-                    if (SM_EVENT_ON_JOIN.equals(topic)) {
-                        onjoin_subscription_id = msg.getInt(1);
-                    } else if (SM_EVENT_ON_LEAVE.equals(topic)) {
-                        onleave_subscription_id = msg.getInt(1);
-                    }
-                    System.out.println("[" + session.getId() + "]subscribed  [" + ms.getTopic(session, msg) + "]: " + msg.toList());
-                }
-                break;
-                case WAMPMessageType.T_UNSUBSCRIBED: {
-                    String topic = ms.getTopic(session, msg);
-                    if (SM_EVENT_ON_JOIN.equals(topic)) {
-                        onjoin_subscription_id = null;
-                    } else if (SM_EVENT_ON_LEAVE.equals(topic)) {
-                        onleave_subscription_id = null;
-                    }
-                    System.out.println("[" + session.getId() + "]unsubscribed[" + ms.getTopic(session, msg) + "]: " + msg.toList());
-                }
-                break;
-                case WAMPMessageType.T_EVENT: {
-                    if (msg.getInt(0) == onjoin_subscription_id) {
-                        session.onRemoteAuthAdd(msg);
-                    } else if (msg.getInt(0) == onleave_subscription_id) {
-                        session.onRemoteAuthRemove(msg);
-                    }
-                    System.out.println("[" + session.getId() + "]event       [" + ms.getTopic(session, msg) + "]: " + msg.toList());
-                }
-                break;
-            }
-        }
     }
 
     @Override

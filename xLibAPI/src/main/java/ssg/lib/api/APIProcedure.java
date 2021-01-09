@@ -23,6 +23,7 @@
  */
 package ssg.lib.api;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,6 +45,7 @@ public class APIProcedure extends APIItem {
 
     private static final long serialVersionUID = 1L;
     public Map<String, APIParameter> params = new LinkedHashMap<>();
+    public Collection<APIError> errors=new ArrayList<>();
     public long options;
 
     public APIProcedure(String name, String... scope) {
@@ -53,7 +55,7 @@ public class APIProcedure extends APIItem {
     @Override
     public void fixUsedIn(APIItem parent) {
         super.fixUsedIn(parent);
-        for (Collection coll : new Collection[]{params.values()}) {
+        for (Collection coll : new Collection[]{params.values(),errors}) {
             if (coll != null) {
                 for (Object obj : coll) {
                     if (obj == null) {

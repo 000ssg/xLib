@@ -41,6 +41,7 @@ import ssg.lib.api.APICallable;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIParameterDirection;
 import ssg.lib.api.APIDataType;
+import ssg.lib.api.APIError;
 import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIGroup;
 import ssg.lib.api.APIParameter;
@@ -194,6 +195,17 @@ public class Reflective_API_Builder {
                 }
             }
 
+            // errors/exceptions?
+            Class[] errors = m.getExceptionTypes();
+            if (errors != null && errors.length > 0) {
+                for (Class cl : errors) {
+                    APIError error = buildError(api, cl, context);
+                    if (error != null) {
+                        f.errors.add(error);
+                    }
+                }
+            }
+
             return f;
         } else {
             // procedure
@@ -237,6 +249,17 @@ public class Reflective_API_Builder {
                 }
             }
 
+            // errors/exceptions?
+            Class[] errors = m.getExceptionTypes();
+            if (errors != null && errors.length > 0) {
+                for (Class cl : errors) {
+                    APIError error = buildError(api, cl, context);
+                    if (error != null) {
+                        f.errors.add(error);
+                    }
+                }
+            }
+
             return f;
         }
     }
@@ -277,6 +300,23 @@ public class Reflective_API_Builder {
         } else {
             return new APIProcedure[]{f};
         }
+    }
+
+    public static APIError buildError(API api, Class type, Reflective_API_Context context) {
+        APIError dt = null;
+        if (api == null || type == null || context.getFilter() != null && !context.getFilter().allowed(type, null)) {
+            return dt;
+        }
+
+        String n = type.getName();
+        if (!api.errors.containsKey(n)) {
+            dt = new APIError(n);
+            dt.usedIn.add(api);
+            api.errors.put(n, dt);
+        } else {
+            dt = api.errors.get(n);
+        }
+        return dt;
     }
 
     public static APIDataType buildType(API api, Class type, Reflective_API_Context context) {
@@ -598,6 +638,12 @@ public class Reflective_API_Builder {
         public <T extends APIProcedure> T getAPIProcedure(Object params) {
             float test = APITools.testParameters(proc, params);
             return (test != 0 || params == null) ? (T) proc : null;
+        }
+
+        public <T extends APIProcedure> T[] getAPIProcedures() {
+            T[] r = (T[]) Array.newInstance(proc.getClass(), 1);
+            r[0] = (T) proc;
+            return r;
         }
 
         @Override

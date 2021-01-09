@@ -13,6 +13,7 @@ import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
 import ssg.lib.wamp.auth.impl.WAMPAuthTicket;
+import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
@@ -69,38 +70,46 @@ public class TestWorld implements Runnable {
 
     // features
     WAMPFeatureProvider wfpSessionMeta = new WAMP_FP_SessionMetaAPI();
+    WAMPFeatureProvider wfpReflection = new WAMP_FP_Reflection();
 
     // the router
     WAMPRouter router = new WAMPRouter(WAMP.Role.broker, WAMP.Role.dealer)
             .configure(wapcra, wapticket)
-            .configure(WAMPFeature.x_session_meta_api, wfpSessionMeta);
+            .configure(WAMPFeature.x_session_meta_api, wfpSessionMeta)
+            .configure(WAMPFeature.procedure_reflection, wfpReflection)
+            .configure(WAMPFeature.topic_reflection, wfpReflection);
     Thread runner;
 
     public WAMPRouter getRouter() {
         return router;
     }
 
+    public synchronized void doNodeCycle(WAMPNode node) {
+        try {
+            node.runCycle();
+        } catch (WAMPException wex) {
+            wex.printStackTrace();
+        }
+    }
+
+    public void doRouterCycle() {
+        doNodeCycle(router);
+    }
+
     @Override
     public void run() {
-        String old=Thread.currentThread().getName();
+        String old = Thread.currentThread().getName();
         Thread.currentThread().setName("WORLD-RUNNER");
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    router.runCycle();
-                } catch (WAMPException wex) {
-                    wex.printStackTrace();
-                }
+                doNodeCycle(router);
                 WAMPClient[] cs = null;
                 synchronized (clients) {
                     cs = clients.toArray(new WAMPClient[clients.size()]);
                 }
                 for (WAMPClient client : cs) {
-                    try {
-                        client.runCycle();
-                    } catch (WAMPException wex) {
-                        wex.printStackTrace();
-                    }
+                    doNodeCycle(client);
+                    doNodeCycle(router);
                 }
                 try {
                     Thread.sleep(1);
@@ -152,6 +161,7 @@ public class TestWorld implements Runnable {
         final WAMPClient client = new WAMPClient()
                 .configure(authProvider)
                 .configure(WAMPFeature.x_session_meta_api, wfpSessionMeta)
+                .configure(WAMPFeature.procedure_reflection, wfpReflection)
                 .configure(features);
         client.configure(transport.local, agent, realm, roles);
         //client.addWAMPNodeListener(new WAMPNodeListenerDebug("CLIENT#" + i + ": "));
