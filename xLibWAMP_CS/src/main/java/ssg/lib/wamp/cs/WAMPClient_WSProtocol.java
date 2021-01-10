@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.common.CommonTools;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
@@ -42,6 +43,7 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -66,8 +68,25 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     private WAMPStatistics statistics = new WAMPStatistics("client");
     private int maxInputQueueSize = 100;
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
+    //
+    Map<WAMPFeature, WAMPFeatureProvider> wampFeatureProviders = WAMPTools.createMap(true);
 
     public WAMPClient_WSProtocol() {
+    }
+
+    public <Z extends WAMPClient_WSProtocol> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
+        if (feature != null) {
+            if (featureProvider != null) {
+                wampFeatureProviders.put(feature, featureProvider);
+            } else {
+                wampFeatureProviders.remove(feature);
+            }
+        }
+        return (Z) this;
+    }
+
+    public Map<WAMPFeature, WAMPFeatureProvider> getFeatureProviders() {
+        return wampFeatureProviders;
     }
 
     @Override
@@ -117,6 +136,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         WAMPClient wc = clients.get(provider);
         try {
             wc.setTransport(transport);
+            for (Entry<WAMPFeature, WAMPFeatureProvider> entry : getFeatureProviders().entrySet()) {
+                wc.configure(entry.getKey(), entry.getValue());
+            }
             wc.connect();
         } catch (WAMPException wex) {
             wex.printStackTrace();
@@ -284,6 +306,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         WAMPClient client = new WAMPClient()
                 .configure(null, features, agent, realm, roles)
                 .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null));
+        for (Entry<WAMPFeature, WAMPFeatureProvider> entry : getFeatureProviders().entrySet()) {
+            client.configure(entry.getKey(), entry.getValue());
+        }
         Map<String, Object> props = client.getProperties();
         props.put("version", "0.1");
         props.put("uri", uri);

@@ -182,6 +182,35 @@ public class WAMPClient extends WAMPNode {
         return session != null && WAMPSessionState.established == session.getState();
     }
 
+    /**
+     * Utility method to wait until session is established (1ms granularity) for
+     * up to timeout ms (defaults to 1000 if null or <=0).
+     *
+     * @param timeout
+     * @return >=0 - established (in ms), -1 - no timeout, -2 - thread interrupted, -3 - timed out
+     */
+    public long waitEstablished(Long timeout) {
+        long r=System.currentTimeMillis();
+        if (timeout == null || timeout <= 0) {
+            timeout = 1000L;
+        }
+        if (isConnected()) {
+            timeout = System.currentTimeMillis() + timeout;
+            while (!isSessionEstablished()) {
+                if (System.currentTimeMillis() >= timeout) {
+                    return -1;
+                }
+                try {
+                    Thread.sleep(1);
+                } catch (Throwable th) {
+                    return -2;
+                }
+            }
+            return System.currentTimeMillis()-r;
+        }
+        return -3;
+    }
+
     public Map<String, Object> getProperties() {
         return properties;
     }

@@ -34,6 +34,7 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.WAMPTransport;
@@ -90,6 +91,13 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
 
     public WAMPRouter getRouter() {
         return wampRouter;
+    }
+
+    public <Z extends WAMPRouter_WSProtocol> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
+        if (feature != null) {
+            wampRouter.configure(feature, featureProvider);
+        }
+        return (Z) this;
     }
 
     public boolean canCreateRealm(String name, Role... roles) {

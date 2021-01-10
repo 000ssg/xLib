@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import ssg.lib.api.APIAttr;
+import ssg.lib.api.APIDataType.APIObjectType;
 import ssg.lib.api.APIProcedure;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIItem;
@@ -36,7 +37,7 @@ import ssg.lib.api.APIItem;
  *
  * @author 000ssg
  */
-public class DB_ObjectType extends DB_Type implements DB_DataType {
+public class DB_ObjectType extends DB_Type implements DB_DataType, APIObjectType {
 
     private static final long serialVersionUID = 1L;
     public Map<String, APIAttr> attrs = new LinkedHashMap<>();
@@ -124,4 +125,10 @@ public class DB_ObjectType extends DB_Type implements DB_DataType {
         return sb.toString();
     }
 
+    @Override
+    public Map<String, APIAttr> attributes() {
+        return attrs;
+    }
+    
 }
+

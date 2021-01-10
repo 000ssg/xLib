@@ -100,7 +100,7 @@ public class Test_APIs {
             return null;
         }
 
-        public int createA(String name, String... bNames) {
+        public int createA(String name, String... bNames) throws TestError1 {
             if (name != null) {
                 A a = new A();
                 a.setName(name);
@@ -119,7 +119,7 @@ public class Test_APIs {
             return 0;
         }
 
-        public int createB(String nameA, String nameB) {
+        public int createB(String nameA, String nameB) throws TestError1 {
             List<A> list = find(nameA, null);
             if (list != null && !list.isEmpty()) {
                 B b = new B();
@@ -341,7 +341,7 @@ public class Test_APIs {
             return r;
         }
 
-        public int createC(String name, String... dNames) {
+        public int createC(String name, String... dNames) throws TestError2 {
             if (name != null) {
                 C a = new C();
                 a.name = name;
@@ -360,7 +360,7 @@ public class Test_APIs {
             return 0;
         }
 
-        public int createD(String nameC, String nameD) {
+        public int createD(String nameC, String nameD) throws TestError2 {
             List<C> list = find(nameC, null);
             if (list != null && !list.isEmpty()) {
                 D b = new D();
@@ -475,6 +475,42 @@ public class Test_APIs {
         }
     }
 
+    public static class TestError1 extends Exception {
+
+        public TestError1() {
+        }
+
+        public TestError1(String message) {
+            super(message);
+        }
+
+        public TestError1(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public TestError1(Throwable cause) {
+            super(cause);
+        }
+        
+    }
+    public static class TestError2 extends Exception {
+
+        public TestError2() {
+        }
+
+        public TestError2(String message) {
+            super(message);
+        }
+
+        public TestError2(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public TestError2(Throwable cause) {
+            super(cause);
+        }
+        
+    }
 //    public static void main(String... args) throws Exception {
 //        API1 api1 = new API1();
 //        api1.createA("aaa", "b1", "b2", "b3");

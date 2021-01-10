@@ -23,6 +23,8 @@
  */
 package ssg.lib.api;
 
+import java.util.Map;
+
 /**
  *
  * @author 000ssg
@@ -42,6 +44,7 @@ public class APIDataType extends APIItem {
         sb.append(super.toString());
         sb.delete(sb.length() - 1, sb.length());
         //sb.append(", len=" + len + ", scale=" + scale + ", prec=" + prec + ", cs=" + cs + ", mandatory=" + mandatory);
+        sb.append(", category=" + (isObjectType() ? "collection" : isCollectionType() ? "object" : "scalar"));
         sb.append(", mandatory=" + mandatory);
         sb.append(", java=" + ((getJavaType() != null) ? getJavaType() : "<none>"));
         sb.append('}');
@@ -52,4 +55,18 @@ public class APIDataType extends APIItem {
         return Object.class;
     }
 
+    public boolean isObjectType() {
+        return this instanceof APIObjectType;
+    }
+
+    public boolean isCollectionType() {
+        return this instanceof APICollectionType;
+    }
+    
+    public static interface APIObjectType {
+        Map<String,APIAttr> attributes();
+    }
+    public static interface APICollectionType<T extends APIDataType> {
+        T itemType();
+    }
 }

@@ -96,7 +96,7 @@ public class TestRPC_reflection {
         WAMPClient cee2 = setLimits(world.connect(realm, "cee2", new WAMP.Role[]{WAMP.Role.callee}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute), 3);
         WAMPClient cee3 = setLimits(world.connect(realm, "cee3", new WAMP.Role[]{WAMP.Role.callee}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute), 2);
 
-        Thread.sleep(300);
+        //Thread.sleep(300);
 
         final AtomicIntegerArray counters = new AtomicIntegerArray(4);
 

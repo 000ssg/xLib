@@ -42,7 +42,13 @@ import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import ssg.lib.api.APIAttr;
 import ssg.lib.api.APICallable;
+import ssg.lib.api.APIDataType;
+import ssg.lib.api.APIDataType.APICollectionType;
+import ssg.lib.api.APIDataType.APIObjectType;
+import ssg.lib.api.APIError;
 import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIParameter;
 import ssg.lib.api.APIProcedure;
@@ -59,6 +65,7 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
@@ -87,6 +94,20 @@ public class WAMP_CS_API {
     Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createMap(true);
 
     public WAMP_CS_API() {
+    }
+
+    public <Z extends WAMP_CS_API> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
+        if (feature != null) {
+            if (wcs instanceof WSJavaCS) {
+                if (featureProvider != null) {
+                    featureProviders.put(feature, featureProvider);
+                } else {
+                    featureProviders.remove(feature);
+                }
+                ((WSJavaCS) wcs).configure(feature, featureProvider);
+            }
+        }
+        return (Z) this;
     }
 
     public WAMP_CS_API router(int... ports) {
@@ -188,14 +209,20 @@ public class WAMP_CS_API {
         if (wsURI == null || realm == null || apiNames == null) {
             return null;
         }
+        boolean supportsReflection = featureProviders.containsKey(WAMPFeature.procedure_reflection);
         // prepare/keep client
         WAMPClient client = wsConnect(
                 wsURI,
                 new WAMPFeature[]{WAMPFeature.shared_registration},
                 "api_over_wamp_provider",
                 realm,
-                Role.callee
+                Role.callee,
+                supportsReflection ? Role.publisher : Role.callee
         );
+        long et = client.waitEstablished(2000L);
+        if (et < 0) {
+            System.err.println("FYI: Too long session establishing [" + et + "]... " + client);
+        }
 
         // add callable APIs
         for (String apiName : apiNames) {
@@ -203,29 +230,70 @@ public class WAMP_CS_API {
                 API_Publisher dbAPI = api.getAPIPublisher(apiName);
                 Collection<String> names = (api != null) ? api.getNames(apiName) : null;
                 if (names != null) {
+                    if (supportsReflection) {
+                        // add types/errors definitions used in procs
+                        RB root = RB.root();
+                        for (Entry<String, APIDataType> entry : dbAPI.getAPI().types.entrySet()) {
+                            APIDataType dt = entry.getValue();
+                            RB type = RB.type(entry.getKey());
+                            if (dt.isObjectType()) {
+                                type.value("category", "object");
+                                RB attrs = RB.root();
+                                for (APIAttr attr : ((APIObjectType) dt).attributes().values()) {
+                                    attrs.value(attr.name, attr.type.fqn());
+                                }
+                                type.value("attributes", attrs.data());
+                            } else if (dt.isCollectionType()) {
+                                type.value("category", "collection");
+                                APIDataType itemType = ((APICollectionType) dt).itemType();
+                                if (itemType != null) {
+                                    type.value("itemType", itemType.fqn());
+                                }
+                            } else {
+                                type.value("category", "scalar");
+                            }
+                            root.element(type);
+                        }
+                        for (Entry<String, APIError> entry : dbAPI.getAPI().errors.entrySet()) {
+                            RB err = RB.error(entry.getKey());
+                            root.element(err);
+                        }
+
+                        client.publish(WAMPTools.EMPTY_DICT, WAMP_FP_Reflection.WR_RPC_DEFINE, WAMPTools.EMPTY_LIST, root.data());
+                    }
                     for (final String pn : names) {
                         final APICallable dbc = dbAPI.getCallable(pn, null);
                         APIProcedure[] procs = dbc.getAPIProcedures();
                         try {
-                            RB opts = RB.root()
-                                    .value("invoke", "roundrobin")
-                                    .element(RB.root("reflection", null)
-                                            .procedure((RB[]) Arrays.stream(procs).map(proc -> {
-                                                RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.fqn()) : RB.procedure(proc.fqn());
-                                                if (proc.params != null) {
-                                                    for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
-                                                        rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                            Map opts = null;
+                            if (supportsReflection) {
+                                opts = RB.root()
+                                        .value("invoke", "roundrobin")
+                                        .value("reflection", ((Map) RB.root()
+                                                .procedure(Arrays.stream(procs).map(proc -> {
+                                                    RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.type.fqn()) : RB.procedure(proc.fqn());
+                                                    if (proc.params != null) {
+                                                        for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
+                                                            rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                                                        }
                                                     }
-                                                }
-                                                return rb;
-                                            }).toArray())
-                                    );
-                            Map opts1 = new HashMap() {
-                                {
-                                    put("invoke", "roundrobin");
-                                }
-                            };
-                            client.addExecutor(opts.data(), pn, new Callee() {
+                                                    if (proc.errors != null) {
+                                                        for (APIError err : proc.errors) {
+                                                            rb.element(RB.error(err.fqn()));
+                                                        }
+                                                    }
+                                                    return rb;
+                                                }).collect(Collectors.toList()))
+                                                .data().get("proc")).get(procs[0].fqn())
+                                        ).data();
+                            } else {
+                                opts = new HashMap() {
+                                    {
+                                        put("invoke", "roundrobin");
+                                    }
+                                };
+                            }
+                            client.addExecutor(opts, pn, new Callee() {
                                 @Override
                                 public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                                     if (apiStat != null) {

@@ -82,5 +82,4 @@ public class DB_Type extends APIDataType {
     public Class getJavaType() {
         return Object.class;
     }
-    
 }

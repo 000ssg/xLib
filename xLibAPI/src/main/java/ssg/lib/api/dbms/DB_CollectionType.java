@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import ssg.lib.api.APIProcedure;
 import ssg.lib.api.APIDataType;
+import ssg.lib.api.APIDataType.APICollectionType;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIItem;
 
@@ -37,7 +38,7 @@ import ssg.lib.api.APIItem;
  *
  * @author 000ssg
  */
-public class DB_CollectionType extends DB_Type implements DB_DataType {
+public class DB_CollectionType extends DB_Type implements DB_DataType, APICollectionType {
 
     private static final long serialVersionUID = 1L;
     public APIDataType itemType;
@@ -127,6 +128,11 @@ public class DB_CollectionType extends DB_Type implements DB_DataType {
             }
         }
         return sb.toString();
+    }
+
+    @Override
+    public APIDataType itemType() {
+        return itemType;
     }
 
 }

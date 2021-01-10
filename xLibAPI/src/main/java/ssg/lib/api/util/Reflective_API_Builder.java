@@ -41,6 +41,8 @@ import ssg.lib.api.APICallable;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIParameterDirection;
 import ssg.lib.api.APIDataType;
+import ssg.lib.api.APIDataType.APICollectionType;
+import ssg.lib.api.APIDataType.APIObjectType;
 import ssg.lib.api.APIError;
 import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIGroup;
@@ -395,7 +397,7 @@ public class Reflective_API_Builder {
         }
     }
 
-    public static class ReflObjectType extends ReflDataType {
+    public static class ReflObjectType extends ReflDataType implements APIObjectType {
 
         Map<String, APIAttr> attrs = new LinkedHashMap<>();
 
@@ -436,9 +438,14 @@ public class Reflective_API_Builder {
             return sb.toString();
         }
 
+        @Override
+        public Map<String, APIAttr> attributes() {
+            return attrs;
+        }
+
     }
 
-    public static class ReflCollectionType extends ReflDataType {
+    public static class ReflCollectionType extends ReflDataType implements APICollectionType {
 
         ReflDataType itemType;
 
@@ -469,6 +476,11 @@ public class Reflective_API_Builder {
                 sb.append("\n}");
             }
             return sb.toString();
+        }
+
+        @Override
+        public APIDataType itemType() {
+            return itemType;
         }
 
     }

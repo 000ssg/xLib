@@ -24,6 +24,7 @@
 package ssg.lib.wamp.features;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -167,7 +168,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
      * @param definition
      */
     public void define(RT type, String name, Map<String, Object> definition) {
-        System.out.println("DEFINE: " + type + " " + name + " " + definition);
+        //System.out.println("DEFINE: " + type + " " + name + " " + definition);
         if (type != null) {
             if (definition != null) {
                 switch (type) {
@@ -416,8 +417,16 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             Map<String, Object> opts = msg.getDict(1);
             if (opts.containsKey("reflection")) {
                 String name = msg.getString(2);
-                Map<String, Object> refl = (Map) opts.get("reflection");
-                define(RT.proc, name, refl);
+                Object obj = opts.get("reflection");
+                if (obj instanceof Collection) {
+                    for (Object obji : (Collection) obj) {
+                        if (obji instanceof Map) {
+                            define(RT.proc, name, (Map) obji);
+                        }
+                    }
+                } else if (obj instanceof Map) {
+                    define(RT.proc, name, (Map) obj);
+                }
             }
         }
     }
