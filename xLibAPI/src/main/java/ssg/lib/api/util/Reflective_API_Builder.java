@@ -56,7 +56,7 @@ import ssg.lib.api.APIProcedure;
 public class Reflective_API_Builder {
 
     public static final String[] disabledMethodNames = {"equals", "getClass", "hashCode", "notify", "notifyAll", "toString", "wait"};
-    public static final Class[] disabledTypes = {Class.class, File.class, URL.class, URI.class, ClassLoader.class};
+    public static final Class[] disabledTypes = {Class.class, File.class, URL.class, URI.class, ClassLoader.class, String.class};
     public static Collection<String> disabledMethods = new HashSet<String>() {
         {
             for (String s : disabledMethodNames) {
@@ -342,7 +342,7 @@ public class Reflective_API_Builder {
         }
 
         if (!api.types.containsKey(n)) {
-            if (type.isPrimitive()) {
+            if (type.isPrimitive() || type.isEnum()) {
                 dt = new ReflDataType(n, type);
             } else if (type.isArray() || Collection.class.isAssignableFrom(type)) {
                 dt = new ReflCollectionType(n, type);

@@ -23,6 +23,8 @@
  */
 package ssg.lib.wamp.util;
 
+import java.lang.reflect.Array;
+import java.security.InvalidParameterException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +34,7 @@ import java.util.Map;
  * @author sesidoro
  */
 public class RB {
-
+    
     public static final String TYPE = "type";
     public static final String NAME = "name";
     public static final String PROC = "proc";
@@ -42,21 +44,55 @@ public class RB {
     public static final String OPTIONAL = "optional";
     public static final String ORDER = "order";
     public static final String RETURNS = "returns";
-
+    
     Map<String, Object> data = WAMPTools.createDict(null);
-
+    
     public RB() {
     }
-
+    
     public Map<String, Object> data() {
         return data;
     }
-
+    
+    public <T> T data(Object... keys) throws InvalidParameterException {
+        Object d = data;
+        if (keys != null && keys.length > 0) {
+            int ord = 0;
+            for (Object key : keys) {
+                if (!(key instanceof Number)) {
+                    if (d instanceof Map) {
+                        d = ((Map) d).get(key);
+                    } else {
+                        throw new InvalidParameterException("Invalid key[" + ord + "]: need map for key '" + key + "'.");
+                    }
+                } else {
+                    if (d instanceof List) {
+                        try {
+                            d = ((List) d).get(((Number) key).intValue());
+                        } catch (Throwable th) {
+                            throw new InvalidParameterException("Error for key[" + ord + "] in list(" + ((List) d).size() + ") for key " + key + ": " + th);
+                        }
+                    } else if (d.getClass().isArray()) {
+                        try {
+                            d = Array.get(d, ((Number) key).intValue());
+                        } catch (Throwable th) {
+                            throw new InvalidParameterException("Error for key[" + ord + "] in array(" + Array.getLength(d) + ") for key " + key + ": " + th);
+                        }
+                    } else {
+                        throw new InvalidParameterException("Invalid key[" + ord + "]: need list/array for key " + key + ".");
+                    }
+                }
+                ord++;
+            }
+        }
+        return (T) d;
+    }
+    
     @Override
     public String toString() {
         return toString(data);
     }
-
+    
     public static String toString(Object item) {
         StringBuilder sb = new StringBuilder();
         if (item instanceof Map) {
@@ -86,14 +122,14 @@ public class RB {
         }
         return sb.toString();
     }
-
+    
     public RB procedure(Collection<RB> rbs) {
         if (rbs != null) {
             return procedure(rbs.toArray(new RB[rbs.size()]));
         }
         return this;
     }
-
+    
     public RB procedure(RB... rbs) {
         if (rbs != null) {
             for (RB rb : rbs) {
@@ -122,14 +158,14 @@ public class RB {
         }
         return this;
     }
-
+    
     public RB element(Collection<RB> rbs) {
         if (rbs != null) {
             return element(rbs.toArray(new RB[rbs.size()]));
         }
         return this;
     }
-
+    
     public RB element(RB... rbs) {
         if (rbs != null) {
             for (RB rb : rbs) {
@@ -153,17 +189,17 @@ public class RB {
         }
         return this;
     }
-
+    
     public RB value(String name, Object value) {
         data.put(name, value);
         return this;
     }
-
+    
     public RB noValue(String name) {
         data.remove(name);
         return this;
     }
-
+    
     public RB parameter(int order, String name, String type, boolean optional) {
         String ct = (String) data.get(TYPE);
         if (PROCEDURE.equals(ct) || FUNCTION.equals(ct)) {
@@ -185,7 +221,7 @@ public class RB {
         }
         return this;
     }
-
+    
     public RB returns(String type) {
         String ct = (String) data.get(TYPE);
         if (FUNCTION.equals(ct)) {
@@ -203,7 +239,7 @@ public class RB {
         RB r = new RB();
         return r;
     }
-
+    
     public static RB root(String type, String name) {
         RB r = new RB();
         r.data.put(TYPE, type);
@@ -212,23 +248,23 @@ public class RB {
         }
         return r;
     }
-
+    
     public static RB procedure(String name) {
         return root(PROCEDURE, name);
     }
-
+    
     public static RB function(String name) {
         return root(FUNCTION, name);
     }
-
+    
     public static RB type(String name) {
         return root("type", name);
     }
-
+    
     public static RB error(String name) {
         return root("error", name);
     }
-
+    
     public static RB pub(String name) {
         return root("pub", name);
     }
@@ -237,21 +273,21 @@ public class RB {
     ////////////////////////////////////////////////////////////////// utilities
     ////////////////////////////////////////////////////////////////////////////
     public static class RBException extends RuntimeException {
-
+        
         public RBException() {
         }
-
+        
         public RBException(String message) {
             super(message);
         }
-
+        
         public RBException(String message, Throwable cause) {
             super(message, cause);
         }
-
+        
         public RBException(Throwable cause) {
             super(cause);
         }
-
+        
     }
 }

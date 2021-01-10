@@ -269,7 +269,7 @@ public class WAMP_CS_API {
                             if (supportsReflection) {
                                 opts = RB.root()
                                         .value("invoke", "roundrobin")
-                                        .value("reflection", ((Map) RB.root()
+                                        .value("reflection", RB.root()
                                                 .procedure(Arrays.stream(procs).map(proc -> {
                                                     RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.type.fqn()) : RB.procedure(proc.fqn());
                                                     if (proc.params != null) {
@@ -284,7 +284,7 @@ public class WAMP_CS_API {
                                                     }
                                                     return rb;
                                                 }).collect(Collectors.toList()))
-                                                .data().get("proc")).get(procs[0].fqn())
+                                                .data("proc",procs[0].fqn())
                                         ).data();
                             } else {
                                 opts = new HashMap() {

@@ -1,14 +1,9 @@
 
 import java.io.Serializable;
-import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import ssg.lib.common.JSON;
-import ssg.lib.common.Refl.ReflImpl;
-import ssg.lib.common.buffers.BufferTools;
-import ssg.lib.wamp.util.WAMPTools;
 
 /*
  * The MIT License
@@ -45,6 +40,12 @@ public class Test_APIs {
     private static AtomicInteger NEXT_ID = new AtomicInteger(1);
 
     public static interface Proto extends Serializable, Cloneable {
+    }
+    
+    public static enum TestEnum {
+        one,
+        two,
+        three
     }
 
     /**
@@ -145,6 +146,7 @@ public class Test_APIs {
             private String name;
             private String description;
             private List<B> items = Collections.synchronizedList(new ArrayList<>());
+            private TestEnum rating=TestEnum.two;
 
             @Override
             public int hashCode() {
@@ -228,6 +230,20 @@ public class Test_APIs {
              */
             public void setItems(List<B> items) {
                 this.items = items;
+            }
+
+            /**
+             * @return the rating
+             */
+            public TestEnum getRating() {
+                return rating;
+            }
+
+            /**
+             * @param rating the rating to set
+             */
+            public void setRating(TestEnum rating) {
+                this.rating = rating;
             }
         }
 
