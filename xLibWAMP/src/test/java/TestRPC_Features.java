@@ -48,7 +48,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class TestRPC_Features {
 

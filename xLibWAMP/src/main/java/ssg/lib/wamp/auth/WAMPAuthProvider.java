@@ -37,7 +37,7 @@ import ssg.lib.wamp.util.WAMPException;
  * On AUTHENTICATE router validates result and generates proper WELCOME. On
  * WELCOME client keeps locally WAMPAuth.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPAuthProvider {
 

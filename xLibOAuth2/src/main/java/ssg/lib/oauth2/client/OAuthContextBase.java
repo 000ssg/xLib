@@ -35,7 +35,7 @@ import java.util.zip.GZIPInputStream;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public abstract class OAuthContextBase implements OAuthContext {
 

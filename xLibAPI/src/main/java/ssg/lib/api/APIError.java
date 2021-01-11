@@ -25,7 +25,7 @@ package ssg.lib.api;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIError extends APIItem {
     

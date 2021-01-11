@@ -41,7 +41,7 @@ import ssg.lib.wamp.util.WAMPException;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APINode {
 

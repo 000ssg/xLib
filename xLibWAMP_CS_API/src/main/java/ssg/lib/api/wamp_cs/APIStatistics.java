@@ -28,7 +28,7 @@ import ssg.lib.wamp.util.stat.StatisticsGroup;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIStatistics extends StatisticsGroup {
 

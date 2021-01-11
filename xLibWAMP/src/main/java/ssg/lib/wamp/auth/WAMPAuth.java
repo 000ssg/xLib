@@ -32,7 +32,7 @@ import ssg.lib.wamp.util.WAMPTools;
 /**
  * Non-WAMP utility class to store client authentication detail.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPAuth {
 

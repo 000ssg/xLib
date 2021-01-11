@@ -78,7 +78,7 @@ import ssg.lib.websocket.WebSocket;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMP_CS_API {
 

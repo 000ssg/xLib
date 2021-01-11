@@ -25,7 +25,7 @@ package ssg.lib.oauth2;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class OAuthConstants {
     public static final String TR_AUTHORIZATION_CODE = "authorization_code";

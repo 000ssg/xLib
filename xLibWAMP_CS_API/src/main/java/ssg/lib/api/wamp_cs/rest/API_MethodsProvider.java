@@ -28,7 +28,7 @@ import ssg.lib.http.rest.RESTProvider;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class API_MethodsProvider implements MethodsProvider {
 

@@ -31,7 +31,7 @@ import ssg.lib.service.DF_Service;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class ServiceGroup implements CSGroup {
 

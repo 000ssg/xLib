@@ -30,7 +30,7 @@ import static ssg.lib.wamp.util.RB.TYPE;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class RBTest {
 
