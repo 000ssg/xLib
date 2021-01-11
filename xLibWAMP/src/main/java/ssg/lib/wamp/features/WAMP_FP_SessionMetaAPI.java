@@ -53,6 +53,7 @@ import ssg.lib.wamp.rpc.impl.caller.WAMPRPCCaller;
 import ssg.lib.wamp.rpc.impl.dealer.DealerLocalProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
+import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
 
@@ -194,6 +195,15 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(SM_RPC_SESSION_COUNT, "Obtains the number of sessions currently attached to the realm.")
+                            .parameter(0, "filter_authroles", "string[]", true, "filter_authroles|list[string] - Optional filter: if provided, only count sessions with an authrole from this list.")
+                            .returns("int", "count|int - The number of sessions currently attached to the realm."))
+                    .data();
+        }
     };
 
     DealerLocalProcedure rpcSessionList = new DealerLocalProcedure(SM_RPC_SESSION_LIST) {
@@ -223,6 +233,15 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(SM_RPC_SESSION_LIST, "Retrieves a list of the session IDs for all sessions currently attached to the realm.")
+                            .parameter(0, "filter_authroles", "string[]", true, "filter_authroles|list[string] - Optional filter: if provided, only count sessions with an authrole from this list.")
+                            .returns("id[]", "session_ids|list - List of WAMP session IDs (order undefined)."))
+                    .data();
         }
     };
 
@@ -263,6 +282,21 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(SM_RPC_SESSION_GET, "Retrieves information on a specific session.")
+                            .parameter(0, "session", "id", false, "session|id - The session ID of the session to retrieve details for.")
+                            .returns("dict", "details|dict - Information on a particular session:\n"
+                                    + "session|id - The session ID of the session that joined\n"
+                                    + "authid|string - The authentication ID of the session that joined\n"
+                                    + "authrole|string - The authentication role of the session that joined\n"
+                                    + "authmethod|string - The authentication method that was used for authentication the session that joined\n"
+                                    + "authprovider|string- The provider that performed the authentication of the session that joined\n"
+                                    + "transport|dict - Optional, implementation defined information about the WAMP transport the joined session is running over."))
+                    .data();
+        }
     };
 
     DealerLocalProcedure rpcSessionKill = new DealerLocalProcedure(SM_RPC_SESSION_KILL) {
@@ -299,6 +333,23 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.procedure(SM_RPC_SESSION_KILL, "Kill a single session identified by session ID.\n"
+                            + "\n"
+                            + "The caller of this meta procedure may only specify session IDs other than its own session. Specifying the caller's own session will result in a wamp.error.no_such_session since no other session with that ID exists.\n"
+                            + "\n"
+                            + "The keyword arguments are optional, and if not provided the reason defaults to wamp.close.normal and the message is omitted from the GOODBYE sent to the closed session.")
+                            .parameter(0, "session", "id", false, "session|id - The session ID of the session to close.")
+                            .parameter(-1, "reason", "uri", true, "reason|uri - reason for closing session, sent to client in GOODBYE.Reason.")
+                            .parameter(-1, "message", "string", true, "message|string - additional information sent to client in GOODBYE.Details under the key \"message\".")
+                            .element(RB.error("wamp.error.no_such_session", "No session with the given ID exists on the router."))
+                            .element(RB.error("wamp.error.invalid_uri", "A reason keyword argument has a value that is not a valid non-empty URI."))
+                    )
+                    .data();
+        }
     };
 
     DealerLocalProcedure rpcSessionKillByAuthId = new DealerLocalProcedure(SM_RPC_SESSION_KILL_BY_AUTHID) {
@@ -329,6 +380,23 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(SM_RPC_SESSION_KILL_BY_AUTHID, "Kill all currently connected sessions that have the specified authid.\n"
+                            + "\n"
+                            + "If the caller's own session has the specified authid, the caller's session is excluded from the closed sessions.\n"
+                            + "\n"
+                            + "The keyword arguments are optional, and if not provided the reason defaults to wamp.close.normal and the message is omitted from the GOODBYE sent to the closed session.")
+                            .parameter(0, "authid", "string", true, "authid|string - The authentication ID identifying sessions to close.")
+                            .parameter(-1, "reason", "uri", true, "reason|uri - reason for closing session, sent to client in GOODBYE.Reason.")
+                            .parameter(-1, "message", "string", true, "message|string - additional information sent to client in GOODBYE.Details under the key \"message\".")
+                            .returns("int", "count|int - The number of sessions closed by this meta procedure.")
+                            .element(RB.error("wamp.error.invalid_uri", "A reason keyword argument has a value that is not a valid non-empty URI."))
+                    )
+                    .data();
+        }
     };
 
     DealerLocalProcedure rpcSessionKillByAuthRole = new DealerLocalProcedure(SM_RPC_SESSION_KILL_BY_AUTHROLE) {
@@ -358,6 +426,23 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(SM_RPC_SESSION_KILL_BY_AUTHROLE, "Kill all currently connected sessions that have the specified authrole.\n"
+                            + "\n"
+                            + "If the caller's own session has the specified authrole, the caller's session is excluded from the closed sessions.\n"
+                            + "\n"
+                            + "The keyword arguments are optional, and if not provided the reason defaults to wamp.close.normal and the message is omitted from the GOODBYE sent to the closed session.")
+                            .parameter(0, "authrole", "string", true, "authrole|string - The authentication role identifying sessions to close.")
+                            .parameter(-1, "reason", "uri", true, "reason|uri - reason for closing session, sent to client in GOODBYE.Reason.")
+                            .parameter(-1, "message", "string", true, "message|string - additional information sent to client in GOODBYE.Details under the key \"message\".")
+                            .returns("int", "count|int - The number of sessions closed by this meta procedure.")
+                            .element(RB.error("wamp.error.invalid_uri", "A reason keyword argument has a value that is not a valid non-empty URI."))
+                    )
+                    .data();
         }
     };
 

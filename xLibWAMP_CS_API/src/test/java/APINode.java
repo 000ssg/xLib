@@ -1,22 +1,3 @@
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import ssg.lib.api.API_Publisher;
-import ssg.lib.api.API_Publisher.API_Publishers;
-import ssg.lib.api.util.Reflective_API_Builder;
-import ssg.lib.api.wamp_cs.WAMP_CS_API;
-import ssg.lib.common.JSON;
-import ssg.lib.common.net.NetTools;
-import ssg.lib.http.dp.HttpResourceCollection;
-import ssg.lib.http.dp.HttpStaticDataProcessor;
-import ssg.lib.wamp.WAMP;
-import ssg.lib.wamp.WAMPFeature;
-import ssg.lib.wamp.WAMPFeatureProvider;
-import ssg.lib.wamp.features.WAMP_FP_Reflection;
-import ssg.lib.wamp.nodes.WAMPClient;
-import ssg.lib.wamp.util.WAMPException;
-
 /*
  * The MIT License
  *
@@ -40,6 +21,24 @@ import ssg.lib.wamp.util.WAMPException;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import ssg.lib.api.API_Publisher;
+import ssg.lib.api.API_Publisher.API_Publishers;
+import ssg.lib.api.util.Reflective_API_Builder;
+import ssg.lib.api.wamp_cs.WAMP_CS_API;
+import ssg.lib.common.JSON;
+import ssg.lib.common.net.NetTools;
+import ssg.lib.http.dp.HttpResourceCollection;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.wamp.WAMP;
+import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.features.WAMP_FP_Reflection;
+import ssg.lib.wamp.nodes.WAMPClient;
+import ssg.lib.wamp.util.WAMPException;
+
 /**
  *
  * @author sesidoro

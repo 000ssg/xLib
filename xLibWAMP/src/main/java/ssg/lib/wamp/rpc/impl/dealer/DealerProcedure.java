@@ -44,6 +44,10 @@ public class DealerProcedure extends Procedure {
         this.session = session;
     }
 
+    public Map<String, Object> getReflectionMeta() {
+        return null;
+    }
+
     @Override
     public String toStringExt() {
         return super.toStringExt()

@@ -43,6 +43,7 @@ import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.rpc.impl.dealer.DealerLocalProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
+import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
 
@@ -224,26 +225,28 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
      * @param defineOnly
      */
     public void define(Map<String, Object> meta, boolean defineOnly) {
-        for (String key : meta.keySet()) {
-            try {
-                RT type = RT.valueOf(key);
-                Map<String, Map<String, Object>> data = (Map) meta.get(key);
-                if (data != null) {
-                    for (String name : data.keySet()) {
-                        Object v = data.get(name);
-                        if (v instanceof List) {
-                            for (Object vi : (List) v) {
-                                Map<String, Object> descr = vi instanceof Map ? (Map) vi : null;
+        if (meta != null) {
+            for (String key : meta.keySet()) {
+                try {
+                    RT type = RT.valueOf(key);
+                    Map<String, Map<String, Object>> data = (Map) meta.get(key);
+                    if (data != null) {
+                        for (String name : data.keySet()) {
+                            Object v = data.get(name);
+                            if (v instanceof List) {
+                                for (Object vi : (List) v) {
+                                    Map<String, Object> descr = vi instanceof Map ? (Map) vi : null;
+                                    define(type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
+                                }
+                            } else {
+                                Map<String, Object> descr = v instanceof Map ? (Map) v : null;
                                 define(type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
                             }
-                        } else {
-                            Map<String, Object> descr = v instanceof Map ? (Map) v : null;
-                            define(type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
                         }
                     }
+                } catch (Throwable th) {
+                    th.printStackTrace();
                 }
-            } catch (Throwable th) {
-                th.printStackTrace();
             }
         }
     }
@@ -262,6 +265,13 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_TOPIC_LIST).returns("string[]"))
+                    .data();
+        }
     };
     DealerLocalProcedure rpcProcedureList = new DealerLocalProcedure(WR_RPC_PROCEDURE_LIST) {
         @Override
@@ -275,6 +285,13 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_PROCEDURE_LIST).returns("string[]"))
+                    .data();
         }
     };
     DealerLocalProcedure rpcErrorList = new DealerLocalProcedure(WR_RPC_ERROR_LIST) {
@@ -290,6 +307,13 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_ERROR_LIST).returns("string[]"))
+                    .data();
+        }
     };
     DealerLocalProcedure rpcTypeList = new DealerLocalProcedure(WR_RPC_TYPE_LIST) {
         @Override
@@ -303,6 +327,13 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_TYPE_LIST).returns("string[]"))
+                    .data();
         }
     };
 
@@ -324,6 +355,15 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_TOPIC_DESCR)
+                            .parameter(0, null, "string[]", false)
+                            .returns("dict[]"))
+                    .data();
+        }
     };
     DealerLocalProcedure rpcProcedureDescr = new DealerLocalProcedure(WR_RPC_PROCEDURE_DESCR) {
         @Override
@@ -342,6 +382,15 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_PROCEDURE_DESCR)
+                            .parameter(0, null, "string[]", false)
+                            .returns("dict[]"))
+                    .data();
         }
     };
     DealerLocalProcedure rpcErrorDescr = new DealerLocalProcedure(WR_RPC_ERROR_DESCR) {
@@ -362,6 +411,15 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 return false;
             }
         }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_ERROR_DESCR)
+                            .parameter(0, null, "string[]", false)
+                            .returns("dict[]"))
+                    .data();
+        }
     };
     DealerLocalProcedure rpcTypeDescr = new DealerLocalProcedure(WR_RPC_TYPE_DESCR) {
         @Override
@@ -380,6 +438,15 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Map<String, Object> getReflectionMeta() {
+            return RB.root()
+                    .procedure(RB.function(WR_RPC_TYPE_DESCR)
+                            .parameter(0, null, "string[]", false)
+                            .returns("dict[]"))
+                    .data();
         }
     };
 

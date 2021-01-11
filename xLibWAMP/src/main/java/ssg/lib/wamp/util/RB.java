@@ -34,7 +34,7 @@ import java.util.Map;
  * @author sesidoro
  */
 public class RB {
-    
+
     public static final String TYPE = "type";
     public static final String NAME = "name";
     public static final String PROC = "proc";
@@ -44,16 +44,16 @@ public class RB {
     public static final String OPTIONAL = "optional";
     public static final String ORDER = "order";
     public static final String RETURNS = "returns";
-    
+
     Map<String, Object> data = WAMPTools.createDict(null);
-    
+
     public RB() {
     }
-    
+
     public Map<String, Object> data() {
         return data;
     }
-    
+
     public <T> T data(Object... keys) throws InvalidParameterException {
         Object d = data;
         if (keys != null && keys.length > 0) {
@@ -87,12 +87,12 @@ public class RB {
         }
         return (T) d;
     }
-    
+
     @Override
     public String toString() {
         return toString(data);
     }
-    
+
     public static String toString(Object item) {
         StringBuilder sb = new StringBuilder();
         if (item instanceof Map) {
@@ -122,14 +122,14 @@ public class RB {
         }
         return sb.toString();
     }
-    
+
     public RB procedure(Collection<RB> rbs) {
         if (rbs != null) {
             return procedure(rbs.toArray(new RB[rbs.size()]));
         }
         return this;
     }
-    
+
     public RB procedure(RB... rbs) {
         if (rbs != null) {
             for (RB rb : rbs) {
@@ -158,14 +158,14 @@ public class RB {
         }
         return this;
     }
-    
+
     public RB element(Collection<RB> rbs) {
         if (rbs != null) {
             return element(rbs.toArray(new RB[rbs.size()]));
         }
         return this;
     }
-    
+
     public RB element(RB... rbs) {
         if (rbs != null) {
             for (RB rb : rbs) {
@@ -189,18 +189,22 @@ public class RB {
         }
         return this;
     }
-    
+
     public RB value(String name, Object value) {
         data.put(name, value);
         return this;
     }
-    
+
     public RB noValue(String name) {
         data.remove(name);
         return this;
     }
-    
+
     public RB parameter(int order, String name, String type, boolean optional) {
+        return parameter(order, name, type, optional, null);
+    }
+
+    public RB parameter(int order, String name, String type, boolean optional, String description) {
         String ct = (String) data.get(TYPE);
         if (PROCEDURE.equals(ct) || FUNCTION.equals(ct)) {
             List<Map<String, Object>> ps = (List) data.get(PARAMETERS);
@@ -215,17 +219,28 @@ public class RB {
             if (order >= 0) {
                 pv.put(ORDER, order);
             }
+            if (description != null) {
+                pv.put("description", description);
+            }
             ps.add(pv);
         } else {
             throw new RBException("Cannot add parameter to non procedure or function item in: " + toString(data));
         }
         return this;
     }
-    
+
     public RB returns(String type) {
+        return returns(type, null);
+    }
+
+    public RB returns(String type, String description) {
         String ct = (String) data.get(TYPE);
         if (FUNCTION.equals(ct)) {
-            data.put(RETURNS, type);
+            if (description != null) {
+                data.put(RETURNS, RB.root().value("type",type).value("description", description).data());
+            } else {
+                data.put(RETURNS, RB.root().value("type",type).data());
+            }
         } else {
             throw new RBException("Cannot add returns type to non function item in: " + toString(data));
         }
@@ -239,7 +254,7 @@ public class RB {
         RB r = new RB();
         return r;
     }
-    
+
     public static RB root(String type, String name) {
         RB r = new RB();
         r.data.put(TYPE, type);
@@ -248,23 +263,47 @@ public class RB {
         }
         return r;
     }
-    
+
     public static RB procedure(String name) {
-        return root(PROCEDURE, name);
+        return procedure(name, null);
     }
-    
+
+    public static RB procedure(String name, String description) {
+        RB r = root(PROCEDURE, name);
+        if (description != null) {
+            r.value("description", description);
+        }
+        return r;
+    }
+
     public static RB function(String name) {
-        return root(FUNCTION, name);
+        return function(name, null);
     }
-    
+
+    public static RB function(String name, String description) {
+        RB r = root(FUNCTION, name);
+        if (description != null) {
+            r.value("description", description);
+        }
+        return r;
+    }
+
     public static RB type(String name) {
         return root("type", name);
     }
-    
+
     public static RB error(String name) {
-        return root("error", name);
+        return error(name, null);
     }
-    
+
+    public static RB error(String name, String description) {
+        RB r = root("error", name);
+        if (description != null) {
+            r.value("description", description);
+        }
+        return r;
+    }
+
     public static RB pub(String name) {
         return root("pub", name);
     }
@@ -273,21 +312,21 @@ public class RB {
     ////////////////////////////////////////////////////////////////// utilities
     ////////////////////////////////////////////////////////////////////////////
     public static class RBException extends RuntimeException {
-        
+
         public RBException() {
         }
-        
+
         public RBException(String message) {
             super(message);
         }
-        
+
         public RBException(String message, Throwable cause) {
             super(message, cause);
         }
-        
+
         public RBException(Throwable cause) {
             super(cause);
         }
-        
+
     }
 }

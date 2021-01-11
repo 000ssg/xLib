@@ -23,12 +23,10 @@
  */
 package ssg.lib.wamp.util;
 
-import ssg.lib.wamp.util.RB;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static ssg.lib.wamp.util.RB.NAME;
 import static ssg.lib.wamp.util.RB.TYPE;
-import ssg.lib.wamp.util.WAMPTools;
 
 /**
  *
@@ -196,7 +194,9 @@ public class RBTest {
                 + "      order: 0\n"
                 + "    }\n"
                 + "  ]\n"
-                + "  returns: float\n"
+                + "  returns: {\n"
+                + "    type: float\n"
+                + "  }\n"
                 + "}";
         RB instance = RB.function("aaa");
         instance.parameter(0, null, "string", false);

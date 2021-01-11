@@ -23,6 +23,7 @@
  */
 package ssg.lib.wamp.rpc.impl.dealer;
 
+import java.util.Map;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -38,5 +39,4 @@ public abstract class DealerLocalProcedure extends DealerProcedure {
     }
 
     public abstract boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException;
-
 }
