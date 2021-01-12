@@ -28,14 +28,23 @@ import java.net.InetSocketAddress;
 import ssg.lib.common.TaskExecutor;
 import ssg.lib.di.DI;
 import ssg.lib.http.HttpService;
+import ssg.lib.http.dp.HttpResourceCollection;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
 import ssg.lib.service.DF_Service;
+import ssg.lib.service.DataProcessor;
+import ssg.lib.service.Repository;
 import ssg.lib.websocket.WebSocket;
 import ssg.lib.websocket.WebSocketProcessor.WebSocketMessageListener;
 import ssg.lib.websocket.impl.HttpConnectionUpgradeWS;
 
 /**
+ * Demonstrates HTTP protocol upgrade to WS. To test open WS.html either as
+ * standalone file or at http://localhost:18111/WS.html. Click on "Check status"
+ * to verify connection is established (value is 1). Write message text and
+ * click on "Send message" to send text to server. See server output for
+ * received message .
  *
  * @author 000ssg
  */
@@ -48,11 +57,12 @@ public class DemoApp_2 {
         CS server = new CS();
         server.start();
 
-        // service data processor: passes data via registered service processor(s)
-        DF_Service service = new DF_Service()
-                .configureExecutor(new TaskExecutor.TaskExecutorPool())
-                .configureService(-1, new HttpService()
-                        .configureConnectionUpgrade(-1, new HttpConnectionUpgradeWS().configure(new WebSocketMessageListener() {
+        // "recognize" protocol "protocolOne" as it is used in demo WS.html page
+        WebSocket.allProtocols.add("protocolOne");
+
+        HttpService http = new HttpService()
+                .configureConnectionUpgrade(-1, new HttpConnectionUpgradeWS()
+                        .configure(new WebSocketMessageListener() {
                             @Override
                             public void onMessage(WebSocket ws, String text, byte[] data) {
                                 try {
@@ -77,96 +87,22 @@ public class DemoApp_2 {
                             @Override
                             public void onStopped(WebSocket ws) {
                             }
-                        }))
-                //                        .configureDataProcessor(-1, new HttpWSDataProcessor(
-                //                                new HttpMatcher("/*") {
-                //                            @Override
-                //                            public float match(HttpMatcher rm) {
-                //                                return super.match(rm); //To change body of generated methods, choose Tools | Templates.
-                //                            }
-                //                        },
-                //                                new WebSocketMessageListener() {
-                //                            @Override
-                //                            public void onMessage(WebSocket ws, String text, byte[] data) {
-                //                                try {
-                //                                    System.out.println("WS MESSAGE: " + ((text != null)
-                //                                            ? text
-                //                                            : (data != null)
-                //                                                    ? new String(data, "ISO-8859-1")
-                //                                                    : ""));
-                //                                } catch (Throwable th) {
-                //                                    System.err.println("WS ERROR: " + th);
-                //                                }
-                //                            }
-                //
-                //                            @Override
-                //                            public void onPong(WebSocket ws, byte[] pong, Long delay) {
-                //                            }
-                //
-                //                            @Override
-                //                            public void onEstablished(WebSocket ws) {
-                //                            }
-                //
-                //                            @Override
-                //                            public void onStopped(WebSocket ws) {
-                //                            }
-                //                        }
-                //                        ))
-                );
+                        }));
+        if (http.getDataProcessors(null, null) == null) {
+            http.setDataProcessors(new Repository<DataProcessor>());
+        }
+        http.getDataProcessors(null, null).addItem(new HttpStaticDataProcessor()
+                .add(new HttpResourceCollection("/*", "src/test/resources/"))
+                .noCacheing()
+        );
 
-//        // Http service configuration, used to build data handler for given DF_SErvice/HttpService
-//        Http2DI http = new Http2DI();
-//
-//        // web-socket support for HttpService
-//        HttpConnectionUpgrade httpcu = new HttpConnectionUpgradeWS();
-//        if (http.getHttp().getConnectionUpgrades() == null) {
-//            http.getHttp().setConnectionUpgrades(new Repository<HttpConnectionUpgrade>());
-//        }
-//        http.getHttp().getConnectionUpgrades().addItem(httpcu);
-//        // configure for test
-//        WebSocket.allProtocols.add("protocolOne");
-//
-//        if (http.getHttp().getDataProcessors(null, null) == null) {
-//            http.getHttp().setDataProcessors(new Repository<DataProcessor>());
-//        }
-//
-//        http.getHttp().getDataProcessors(null, null).addItem(new HttpWSDataProcessor(
-//                new HttpMatcher("/*") {
-//            @Override
-//            public float match(HttpMatcher rm) {
-//                return super.match(rm); //To change body of generated methods, choose Tools | Templates.
-//            }
-//        },
-//                new WebSocketMessageListener() {
-//            @Override
-//            public void onMessage(WebSocket ws, String text, byte[] data) {
-//                try {
-//                    System.out.println("WS MESSAGE: " + ((text != null)
-//                            ? text
-//                            : (data != null)
-//                                    ? new String(data, "ISO-8859-1")
-//                                    : ""));
-//                } catch (Throwable th) {
-//                    System.err.println("WS ERROR: " + th);
-//                }
-//            }
-//
-//            @Override
-//            public void onPong(WebSocket ws, byte[] pong, Long delay) {
-//            }
-//
-//            @Override
-//            public void onEstablished(WebSocket ws) {
-//            }
-//
-//            @Override
-//            public void onStopped(WebSocket ws) {
-//            }
-//        }
-//        )
-//        );
+        // service data processor: passes data via registered service processor(s)
+        DF_Service service = new DF_Service()
+                .configureExecutor(new TaskExecutor.TaskExecutorPool())
+                .configureService(-1, http);
+
         // get data handler for DF_Service with HttpService
-        DI di = service.buildDI();//  http.buildHandler(service);
+        DI di = service.buildDI();
 
         // build TCP connection data handler for any listening interface at given port to handle pre-configured HttpService...
         TCPHandler tcplHttp = new TCPHandler(
