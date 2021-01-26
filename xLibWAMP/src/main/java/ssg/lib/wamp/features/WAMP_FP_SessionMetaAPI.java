@@ -204,6 +204,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                             .returns("int", "count|int - The number of sessions currently attached to the realm."))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
+        }
     };
 
     DealerLocalProcedure rpcSessionList = new DealerLocalProcedure(SM_RPC_SESSION_LIST) {
@@ -242,6 +247,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                             .parameter(0, "filter_authroles", "string[]", true, "filter_authroles|list[string] - Optional filter: if provided, only count sessions with an authrole from this list.")
                             .returns("id[]", "session_ids|list - List of WAMP session IDs (order undefined)."))
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
         }
     };
 
@@ -297,6 +307,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                                     + "transport|dict - Optional, implementation defined information about the WAMP transport the joined session is running over."))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
+        }
     };
 
     DealerLocalProcedure rpcSessionKill = new DealerLocalProcedure(SM_RPC_SESSION_KILL) {
@@ -350,6 +365,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                     )
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
+        }
     };
 
     DealerLocalProcedure rpcSessionKillByAuthId = new DealerLocalProcedure(SM_RPC_SESSION_KILL_BY_AUTHID) {
@@ -397,6 +417,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                     )
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
+        }
     };
 
     DealerLocalProcedure rpcSessionKillByAuthRole = new DealerLocalProcedure(SM_RPC_SESSION_KILL_BY_AUTHROLE) {
@@ -443,6 +468,11 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                             .element(RB.error("wamp.error.invalid_uri", "A reason keyword argument has a value that is not a valid non-empty URI."))
                     )
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.x_session_meta_api};
         }
     };
 

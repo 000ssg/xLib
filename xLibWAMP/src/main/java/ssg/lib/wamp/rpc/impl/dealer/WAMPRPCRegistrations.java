@@ -71,18 +71,18 @@ import ssg.lib.wamp.util.RB;
  * @author 000ssg
  */
 public class WAMPRPCRegistrations {
-    
+
     public static final WAMPFeature[] supports = new WAMPFeature[]{
         WAMPFeature.registration_meta_api,
         WAMPFeature.shared_registration,
         WAMPFeature.sharded_registration
     };
-    
+
     AtomicLong nextProcedureId = new AtomicLong(1);
-    
+
     Map<Long, DealerProcedure> procedures = WAMPTools.createSynchronizedMap();
     public static final String TIME_FORMAT_8601 = "yyyy-MM-dd'T'HH:mm:ssX";
-    
+
     WAMPCallStatistics statistics;
     Map<WAMPFeature, DealerProcedure[]> featureMethods = WAMPTools.createSynchronizedMap(true);
     // RPC implementations
@@ -91,7 +91,7 @@ public class WAMPRPCRegistrations {
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
                 WAMPRPCDealer dealer = session.getRealm().getActor(WAMP.Role.dealer);
-                
+
                 Map<String, Object> m = WAMPTools.createDict(null);
                 for (Entry<String, MatchPolicy> entry : policies.entrySet()) {
                     m.put(entry.getKey(), entry.getValue().all());
@@ -102,7 +102,7 @@ public class WAMPRPCRegistrations {
                 return false;
             }
         }
-        
+
         @Override
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
@@ -110,13 +110,18 @@ public class WAMPRPCRegistrations {
                             .returns("dict", "RegistrationLists|dict: A dictionary with a list of registration IDs for each match policy."))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
     DealerLocalProcedure rpcLookup = new DealerLocalProcedure(RPC_REG_META_PROC_LOOKUP) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
                 WAMPRPCDealer dealer = session.getRealm().getActor(WAMP.Role.dealer);
-                
+
                 String procedure = msg.getUri(0);
                 Map<String, Object> options = msg.getDict(1);
                 RPCMeta meta = lookup(procedure, options);
@@ -136,6 +141,11 @@ public class WAMPRPCRegistrations {
                             .returns("id", "(Nullable) registration|id: The ID of the registration managing the procedure, if found, or null."))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
     DealerLocalProcedure rpcMatch = new DealerLocalProcedure(RPC_REG_META_PROC_MATCH) {
         @Override
@@ -151,17 +161,22 @@ public class WAMPRPCRegistrations {
                             .returns("id", "(Nullable) registration|id: The ID of best matching registration, or null."))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
     DealerLocalProcedure rpcGet = new DealerLocalProcedure(RPC_REG_META_PROC_GET) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
                 WAMPRPCDealer dealer = session.getRealm().getActor(WAMP.Role.dealer);
-                
+
                 String procedure = msg.getUri(0);
                 Map<String, Object> options = msg.getDict(1);
                 RPCMeta rpc = lookup(procedure, options);
-                
+
                 Map<String, Object> details = rpc.details();
                 session.send(WAMPMessage.result((rpc != null) ? rpc.registrations.get(0) : 0, rpc != null ? rpc.details() : WAMPTools.EMPTY_DICT, null, null));
                 return true;
@@ -180,12 +195,18 @@ public class WAMPRPCRegistrations {
                     )
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
     DealerLocalProcedure rpcListCallees = new DealerLocalProcedure(RPC_REG_META_PROC_LIST_CALLEES) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             return false;
         }
+
         @Override
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
@@ -196,12 +217,18 @@ public class WAMPRPCRegistrations {
                     )
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
     DealerLocalProcedure rpcCountCallees = new DealerLocalProcedure(RPC_REG_META_PROC_COUNT_CALLEES) {
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             return false;
         }
+
         @Override
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
@@ -212,10 +239,15 @@ public class WAMPRPCRegistrations {
                     )
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.registration_meta_api};
+        }
     };
-    
+
     Map<String, MatchPolicy> policies = WAMPTools.createMap(true);
-    
+
     public WAMPRPCRegistrations() {
         policies.put(RPC_CALL_MATCH_EXACT, new ExactMatchPolicy());
         policies.put(RPC_CALL_MATCH_PREFIX, new PrefixMatchPolicy());
@@ -291,7 +323,7 @@ public class WAMPRPCRegistrations {
                     }
                 }
             }
-            
+
             for (DealerProcedure proc : procs) {
                 if (!WAMP_DT.id.validate(proc.getId())) {
                     RPCMeta rpc = mp.all().get(proc.getName());
@@ -305,10 +337,10 @@ public class WAMPRPCRegistrations {
                             wpRefl.define(proc.getReflectionMeta(), false);
                         }
                     }
-                    
+
                     long registrationId = nextProcedureId.getAndIncrement();
                     proc.setId(registrationId);
-                    
+
                     try {
                         rpc.add(registrationId);
                     } catch (WAMPException wex) {
@@ -319,7 +351,7 @@ public class WAMPRPCRegistrations {
             }
         }
     }
-    
+
     public WAMPFlowStatus onRegister(WAMPSession session, WAMPMessage msg) throws WAMPException {
         long request = msg.getId(0);
         Map<String, Object> options = msg.getDict(1);
@@ -332,10 +364,10 @@ public class WAMPRPCRegistrations {
                 mp = policies.get(match);
             }
         }
-        
+
         RPCMeta rpc = null;
         long registrationId = 0;
-        
+
         synchronized (mp) {
             rpc = mp.all().get(procedure);
             if (rpc == null) {
@@ -358,7 +390,7 @@ public class WAMPRPCRegistrations {
                             break;
                     }
                 }
-                
+
                 rpc = new RPCMeta(procedure, iPolicy);
                 if (statistics != null) {
                     rpc.statistics = statistics.createChild(null, procedure);
@@ -369,23 +401,23 @@ public class WAMPRPCRegistrations {
                 session.send(WAMPMessage.error(WAMPMessageType.T_REGISTER, request, WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_ProcedureAlreadyExists));
                 return WAMPFlowStatus.failed;
             }
-            
+
             registrationId = nextProcedureId.getAndIncrement();
             DealerProcedure proc = new DealerProcedure(rpc, procedure, options, session);
             proc.setStatistics(rpc.getStatistics(procedure) != null ? rpc.getStatistics(procedure).createChild(null, procedure) : null);
-            
+
             proc.setId(registrationId);
-            
+
             rpc.add(registrationId);
             procedures.put(registrationId, proc);
         }
         session.send(WAMPMessage.registered(request, registrationId));
-        
+
         if (session.getLocal().features().contains(WAMPFeature.registration_meta_api)) {
             WAMPBroker broker = session.getRealm().getActor(WAMP.Role.broker);
-            
+
             Map<String, Object> details = rpc.details();
-            
+
             if (rpc.count() == 1) {
                 // EVENT created
                 broker.doEvent(null, session.getNextRequestId(), RPC_REG_META_TOPIC_ON_CREATE, session.getId(), details, null, null);
@@ -393,10 +425,10 @@ public class WAMPRPCRegistrations {
             // EVENT registered
             broker.doEvent(null, session.getNextRequestId(), RPC_REG_META_TOPIC_ON_REGISTER, session.getId(), details, Collections.singletonList(registrationId), null);
         }
-        
+
         return WAMPFlowStatus.handled;
     }
-    
+
     public WAMPFlowStatus onUnregister(WAMPSession session, WAMPMessage msg) throws WAMPException {
         long request = msg.getId(0);
         long registrationId = msg.getId(1);
@@ -449,7 +481,7 @@ public class WAMPRPCRegistrations {
                     }
                 }
             }
-            
+
             if (session.getLocal().features().contains(WAMPFeature.registration_meta_api)) {
                 WAMPBroker broker = session.getRealm().getActor(WAMP.Role.broker);
                 // EVENT send unregister
@@ -483,18 +515,18 @@ public class WAMPRPCRegistrations {
         }
         return WAMPFlowStatus.handled;
     }
-    
+
     public DealerProcedure onCall(WAMPSession session, WAMPMessage msg) throws WAMPException {
         Map<String, Object> options = msg.getDict(1);
         String procedure = msg.getUri(2);
         return onCall(session, procedure, options, null);
     }
-    
+
     public DealerProcedure onCall(WAMPSession session, String procedure, Map<String, Object> options, Collection<Long> unavailable) throws WAMPException {
         RPCMeta rpc = lookup(procedure, options);
-        
+
         long[] registeredIds = (rpc != null) ? rpc.next(options) : null;
-        
+
         if (registeredIds != null && registeredIds.length > 1) {
             Object[] ll = rpc.registrations.toArray();
             DealerProcedure[] rpcs = new DealerProcedure[ll.length];
@@ -532,7 +564,7 @@ public class WAMPRPCRegistrations {
                     registeredId = registeredIds[0];
                 }
             }
-            
+
             DealerProcedure proc = (DealerProcedure) procedures.get(registeredId);
             if (rpc != null && proc == null) {
                 rpc.registrations.remove(registeredId);
@@ -547,7 +579,7 @@ public class WAMPRPCRegistrations {
         }
         return null;
     }
-    
+
     public synchronized RPCMeta lookup(String procedure, Map<String, Object> options) {
         for (Entry<String, MatchPolicy> entry : policies.entrySet()) {
             RPCMeta rpc = entry.getValue().match(procedure);
@@ -557,7 +589,7 @@ public class WAMPRPCRegistrations {
         }
         return null;
     }
-    
+
     public synchronized void close(WAMPSession... sessions) {
         for (WAMPSession session : sessions) {
             for (Entry<Long, DealerProcedure> entry : procedures.entrySet().toArray(new Entry[procedures.size()])) {
@@ -574,7 +606,7 @@ public class WAMPRPCRegistrations {
                 }
             }
         }
-        
+
         Collection<Long> ids = new HashSet<>();
         for (Entry<Long, DealerProcedure> entry : procedures.entrySet()) {
             for (WAMPSession session : sessions) {
@@ -611,7 +643,7 @@ public class WAMPRPCRegistrations {
             }
         }
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -656,12 +688,12 @@ public class WAMPRPCRegistrations {
         sb.append('}');
         return sb.toString();
     }
-    
+
     public static class RPCMeta {
 
         // represents ALL procedures IDs (fro sharded mode)
         public static Long ALL = -3L;
-        
+
         public static enum InvocationPolicy {
             single,
             roundrobin,
@@ -678,14 +710,14 @@ public class WAMPRPCRegistrations {
         int lastRR = -1;
         WAMPCallStatistics statistics;
         Map<String, WAMPCallStatistics> nameStatistics = WAMPTools.createSynchronizedMap();
-        
+
         public RPCMeta(String name, InvocationPolicy invocation) {
             this.name = name;
             if (invocation != null) {
                 this.invocation = invocation;
             }
         }
-        
+
         public WAMPCallStatistics getStatistics(String name) {
             if (name == null || name.equals(this.name)) {
                 return statistics;
@@ -703,11 +735,11 @@ public class WAMPRPCRegistrations {
                 }
             }
         }
-        
+
         public int count() {
             return registrations.size();
         }
-        
+
         public synchronized long[] next(Map<String, Object> details) throws WAMPException {
             long l = get();
             if (l == ALL) {
@@ -721,7 +753,7 @@ public class WAMPRPCRegistrations {
                 return (l >= 0) ? new long[]{l} : null;
             }
         }
-        
+
         public synchronized long get() throws WAMPException {
             if (!registrations.isEmpty()) {
                 switch (invocation) {
@@ -755,7 +787,7 @@ public class WAMPRPCRegistrations {
             }
             throw new WAMPException("No registered procedure to invoke in " + this);
         }
-        
+
         public synchronized void add(long id) throws WAMPException {
             if (!WAMP_DT.id.validate(id)) {
                 throw new WAMPException("Invalid procedure registration id when adding RPC meta: " + id + " to " + this);
@@ -771,7 +803,7 @@ public class WAMPRPCRegistrations {
                 registrations.add(id);
             }
         }
-        
+
         public synchronized void remove(long id) throws WAMPException {
             if (registrations.contains(id)) {
                 registrations.remove(id);
@@ -779,7 +811,7 @@ public class WAMPRPCRegistrations {
                 throw new WAMPException("No registration id (" + id + ") to remove from " + this);
             }
         }
-        
+
         public Map<String, Object> details() {
             Map<String, Object> details = WAMPTools.createDict(null);
             details.put("id", registrations.get(0));
@@ -794,38 +826,38 @@ public class WAMPRPCRegistrations {
             return details;
         }
     }
-    
+
     public static interface MatchPolicy {
-        
+
         Map<String, RPCMeta> all();
-        
+
         RPCMeta match(String uri);
     }
-    
+
     public static class ExactMatchPolicy implements MatchPolicy {
-        
+
         Map<String, RPCMeta> all = WAMPTools.createSynchronizedMap();
-        
+
         @Override
         public Map<String, RPCMeta> all() {
             return all;
         }
-        
+
         @Override
         public RPCMeta match(String uri) {
             return (all().containsKey(uri)) ? all.get(uri) : null;
         }
     }
-    
+
     public static class PrefixMatchPolicy implements MatchPolicy {
-        
+
         Map<String, RPCMeta> all = WAMPTools.createSynchronizedMap();
-        
+
         @Override
         public Map<String, RPCMeta> all() {
             return all;
         }
-        
+
         @Override
         public RPCMeta match(String uri) {
             for (String s : all().keySet()) {
@@ -836,16 +868,16 @@ public class WAMPRPCRegistrations {
             return null;
         }
     }
-    
+
     public static class WildcardMatchPolicy implements MatchPolicy {
-        
+
         Map<String, RPCMeta> all = WAMPTools.createSynchronizedMap();
-        
+
         @Override
         public Map<String, RPCMeta> all() {
             return all;
         }
-        
+
         @Override
         public RPCMeta match(String uri) {
             String[] us = uri.split("\\.");

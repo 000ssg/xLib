@@ -272,6 +272,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                     .procedure(RB.function(WR_RPC_TOPIC_LIST).returns("string[]"))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
+        }
     };
     DealerLocalProcedure rpcProcedureList = new DealerLocalProcedure(WR_RPC_PROCEDURE_LIST) {
         @Override
@@ -292,6 +297,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             return RB.root()
                     .procedure(RB.function(WR_RPC_PROCEDURE_LIST).returns("string[]"))
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
         }
     };
     DealerLocalProcedure rpcErrorList = new DealerLocalProcedure(WR_RPC_ERROR_LIST) {
@@ -314,6 +324,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                     .procedure(RB.function(WR_RPC_ERROR_LIST).returns("string[]"))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
+        }
     };
     DealerLocalProcedure rpcTypeList = new DealerLocalProcedure(WR_RPC_TYPE_LIST) {
         @Override
@@ -334,6 +349,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             return RB.root()
                     .procedure(RB.function(WR_RPC_TYPE_LIST).returns("string[]"))
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
         }
     };
 
@@ -364,6 +384,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                             .returns("dict[]"))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
+        }
     };
     DealerLocalProcedure rpcProcedureDescr = new DealerLocalProcedure(WR_RPC_PROCEDURE_DESCR) {
         @Override
@@ -391,6 +416,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                             .parameter(0, null, "string[]", false)
                             .returns("dict[]"))
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
         }
     };
     DealerLocalProcedure rpcErrorDescr = new DealerLocalProcedure(WR_RPC_ERROR_DESCR) {
@@ -420,6 +450,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                             .returns("dict[]"))
                     .data();
         }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
+        }
     };
     DealerLocalProcedure rpcTypeDescr = new DealerLocalProcedure(WR_RPC_TYPE_DESCR) {
         @Override
@@ -447,6 +482,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                             .parameter(0, null, "string[]", false)
                             .returns("dict[]"))
                     .data();
+        }
+
+        @Override
+        public WAMPFeature[] featuredBy() {
+            return new WAMPFeature[]{WAMPFeature.procedure_reflection, WAMPFeature.topic_reflection};
         }
     };
 
