@@ -448,7 +448,7 @@ public class WAMP_CS_API {
                             }
                             if (rest == null) {
                                 rest = new RESTHttpDataProcessor("/rest");
-                                rep.addItem(rest);
+                                rep.addItem(rest,0);
                                 rest.getRESTHelper().addAPITypes(new JS_API_WAMP(new WAMP_Context() {
                                     @Override
                                     public String getURI() {
