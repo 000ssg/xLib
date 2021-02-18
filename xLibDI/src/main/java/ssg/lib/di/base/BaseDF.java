@@ -48,4 +48,19 @@ public abstract class BaseDF<T, P> implements DF<T, P> {
     public DF<T, P> filter() {
         return filter;
     }
+
+    @Override
+    public String toString(P provider) {
+        StringBuilder sb=new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        if(filter!=null) {
+            sb.append("\n  filter=");
+            sb.append(filter.toString(provider).replace("\n", "\n    "));
+            sb.append('\n');
+        }
+        sb.append('}');
+        return sb.toString();
+    }
+    
 }

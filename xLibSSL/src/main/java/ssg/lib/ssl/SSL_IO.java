@@ -24,6 +24,8 @@
 package ssg.lib.ssl;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.security.cert.Certificate;
@@ -51,6 +53,7 @@ public class SSL_IO<P> {
     public static boolean DEBUG = false;
     public static boolean DEBUG_WRAP = false;
     public static boolean DEBUG_UNWRAP = false;
+    public static boolean DEBUG_INITIALIZED = false;
 
     P provider;
     SSLEngine ssl;
@@ -135,6 +138,16 @@ public class SSL_IO<P> {
     }
 
     public void setInitialized(boolean initialized) {
+        if (initialized && DEBUG_INITIALIZED) {
+            try (StringWriter sw = new StringWriter();) {
+                new Exception("").printStackTrace(new PrintWriter(sw));
+                System.out.println("[" + System.currentTimeMillis() + ", " + Thread.currentThread().getName() + "] ssl initialized (" + this.initialized + " -> " + initialized + "): " + ssl.getPeerHost() + ":" + ssl.getPeerPort() + "  " + provider
+                        + "\n  net   in/out=" + BufferTools.getRemaining(netIn) + "/" + BufferTools.getRemaining(netOut)
+                        + "\n  cache in/out=" + BufferTools.getRemaining(this.unwrapCache) + "/" + BufferTools.getRemaining(wrapCache)
+                        + "\n" + sw.toString().indent(2));
+            } catch (IOException ioex) {
+            }
+        }
         this.initialized = initialized;
     }
 
@@ -244,7 +257,7 @@ public class SSL_IO<P> {
             case NEED_WRAP:
                 SSLEngineResult er = ssl.wrap(bb, netOut);
                 if (DEBUG_WRAP) {
-                    System.out.println("wrap  [left=" + BufferTools.getRemaining(bb) + "]  : " + er.toString().replace("\n", "\\n ") + "  " + provider);
+                    System.out.println(System.currentTimeMillis()+": wrap  [left=" + BufferTools.getRemaining(bb) + "]  : " + er.toString().replace("\n", "\\n ") + "  " + provider);
                 }
                 runDelegatedTask(er);
                 if (er.bytesProduced() > 0) {
@@ -397,18 +410,18 @@ public class SSL_IO<P> {
         // choose proper buffer and if cached -> fill with data from "data".
         ByteBuffer data = bb;
         if (DEBUG_UNWRAP && bb.remaining() > 4) {
-            System.out.println("unwrap: SSL packet[" + bb.remaining() + "]: " + getSSLPacketInfo(bb) + "  " + provider);
+            System.out.println(System.currentTimeMillis()+": unwrap: SSL packet[" + bb.remaining() + "]: " + getSSLPacketInfo(bb) + "  " + provider);
         }
         if (unwrapCache.position() > 0) {
             if (bb.hasRemaining()) {
                 if (DEBUG_UNWRAP) {
-                    System.out.println("unwrap: cached SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
+                    System.out.println(System.currentTimeMillis()+": unwrap: cached SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
                 }
                 while (unwrapCache.hasRemaining() && bb.hasRemaining()) {
                     unwrapCache.put(bb.get());
                 }
                 if (DEBUG_UNWRAP) {
-                    System.out.println("unwrap: merged SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
+                    System.out.println(System.currentTimeMillis()+": unwrap: merged SSL packet[" + unwrapCache.position() + "] " + unwrapCache + "  " + provider);
                 }
             }
             ((Buffer) unwrapCache).flip();
@@ -422,11 +435,11 @@ public class SSL_IO<P> {
                 case NOT_HANDSHAKING:
                 case NEED_UNWRAP:
                     if (DEBUG_UNWRAP && data.remaining() > 4) {
-                        System.out.println("unwrap:   [" + data.remaining() + "]: " + getSSLPacketInfo(data) + "  " + provider);
+                        System.out.println(System.currentTimeMillis()+": unwrap:   [" + data.remaining() + "]: " + getSSLPacketInfo(data) + "  " + provider);
                     }
                     SSLEngineResult er = ssl.unwrap(data, netIn);
                     if (DEBUG_UNWRAP) {
-                        System.out.println("unwrap[left=" + BufferTools.getRemaining(data) + " ,netIn=" + netIn + "]: " + er.toString().replace("\n", "\\n ") + "  " + provider);
+                        System.out.println(System.currentTimeMillis()+": unwrap[left=" + BufferTools.getRemaining(data) + " ,netIn=" + netIn + "]: " + er.toString().replace("\n", "\\n ") + "  " + provider);
                     }
                     runDelegatedTask(er);
 
@@ -496,7 +509,9 @@ public class SSL_IO<P> {
                         }
                     }
                     if (er.getHandshakeStatus() == HandshakeStatus.FINISHED) {
-                        setInitialized(true);
+                        if (!initialized || DEBUG_INITIALIZED) {
+                            setInitialized(true);
+                        }
                     }
                     break;
                 case FINISHED:
@@ -518,44 +533,9 @@ public class SSL_IO<P> {
 
             int a = 0;
         }
-//        checkPS();
         return r;
     }
 
-//    private Field handshakerF;
-//    private Object handshaker;
-//    private Field handshakerPCF;
-//
-//    public void checkPS() {
-//        if (handshaker == null) {
-//            if (handshakerF == null) {
-//                try {
-//                    Field[] fs = ssl.getClass().getDeclaredFields();
-//                    for (Field f : fs) {
-//                        if (f.getName().equals("handshaker")) {
-//                            handshakerF = f;
-//                            handshakerF.setAccessible(true);
-//                            break;
-//                        }
-//                    }
-//                } catch (Throwable th) {
-//                    int a = 0;
-//                }
-//            }
-//
-//            try {
-//                handshaker = handshakerF.get(ssl);
-//            } catch (Throwable th) {
-//                int a = 0;
-//            }
-//
-//            if (handshaker != null) {
-//                int a = 0;
-//            }
-//        }else {
-//            int a=0;
-//        }
-//    }
     /**
      * If the result indicates that we have outstanding tasks to do, go ahead
      * and run them in this thread.
@@ -576,8 +556,28 @@ public class SSL_IO<P> {
                 System.out.println("*** " + Thread.currentThread().getName() + ": delegatedTask -> " + st);
             }
         } else if (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
-            setInitialized(true);
+            if (!initialized || DEBUG_INITIALIZED) {
+                setInitialized(true);
+            }
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        //+ "provider=" + provider 
+        sb.append("ssl=" + (ssl != null ? ssl.getHandshakeStatus() : "none"));
+        sb.append(", netPacketSize=" + netPacketSize);
+        sb.append(", appPacketSize=" + appPacketSize);
+        sb.append(", initialized=" + initialized);
+        sb.append(", netIn=" + BufferTools.getRemaining(netIn));
+        sb.append(", netOut=" + BufferTools.getRemaining(netOut));
+        sb.append(", wrapCache=" + BufferTools.getRemaining(wrapCache));
+        sb.append(", unwrapCache=" + BufferTools.getRemaining(unwrapCache));
+        sb.append('}');
+        return sb.toString();
     }
 
 }

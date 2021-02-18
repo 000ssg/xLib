@@ -87,17 +87,18 @@ public class BufferingDI<T extends Buffer, P> extends BaseDI<T, P> {
 
     @Override
     public List<T> produce(P provider) throws IOException {
-        List<T> buf = getBuffer(provider, false);
-        if (buf != null && !buf.isEmpty()) {
-            List<T> r = new ArrayList<>();
-            synchronized (buf) {
-                r.addAll(buf);
-                buf.clear();
+        if (hasOutput(provider)) {
+            List<T> buf = getBuffer(provider, false);
+            if (buf != null && !buf.isEmpty()) {
+                List<T> r = new ArrayList<>();
+                synchronized (buf) {
+                    r.addAll(buf);
+                    buf.clear();
+                }
+                return r;
             }
-            return r;
-        } else {
-            return null;
         }
+        return null;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -178,4 +179,20 @@ public class BufferingDI<T extends Buffer, P> extends BaseDI<T, P> {
             return null;
         }
     }
+
+    @Override
+    public String toString(P provider) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString(provider));
+        int idx=sb.indexOf("\n");
+        List<T>[] bufs = buffers.get(provider);
+        if(bufs!=null) {
+            int off=(idx==-1) ? sb.length()-1 : idx;
+            if(idx==-1) sb.insert(off,'\n');
+            sb.insert(off, "\n  out="+BufferTools.getRemaining(bufs[1]));
+            sb.insert(off, "\n  in ="+BufferTools.getRemaining(bufs[0]));
+        }
+        return sb.toString();
+    }
+
 }

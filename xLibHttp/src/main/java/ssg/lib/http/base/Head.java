@@ -139,10 +139,15 @@ public class Head {
     public void updateMatcher() {
         if (matcher == null) {
             if (isRequest()) {//protocol != null && !protocol[0].startsWith("HTTP")) {
-                matcher = new HttpMatcher(protocol[1], protocol[0]);
-                String ct = getHeader1(HttpData.HH_CONTENT_TYPE);
-                if (ct != null) {
-                    matcher.setContentType(ct);
+                if (protocol.length > 1) {
+                    matcher = new HttpMatcher(protocol[1], protocol[0]);
+                    String ct = getHeader1(HttpData.HH_CONTENT_TYPE);
+                    if (ct != null) {
+                        matcher.setContentType(ct);
+                    }
+                } else {
+                    // TODO: invalid protocol (must be space-separated 2 or 3 values) -> ???
+                    int a = 0;
                 }
             }
         } else {

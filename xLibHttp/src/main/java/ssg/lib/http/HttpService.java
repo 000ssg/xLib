@@ -209,6 +209,12 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (!isAllowedProvider(meta.getProvider())) {
             return SERVICE_MODE.failed;
         }
+        
+//        try {
+//            System.out.println("HTTP PROBE: " + meta.getProvider() + "\n  " + BufferTools.toText("ISO-8859-1", data).replace("\n", "\n  "));
+//        } catch (Throwable th) {
+//            System.out.println("HTTP PROBE: " + meta.getProvider() + "\n  " + th.toString().replace("\n", "\n  "));
+//        }
 
         byte[] buf = new byte[10 + ((root != null) ? root.length() + 2 : 0)];
         ByteBuffer probe = BufferTools.probe(ByteBuffer.wrap(buf), data);
@@ -258,8 +264,10 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         try {
             switch (initialState) {
                 case request:
+
                     HttpRequest req = new HttpRequest(data);
                     req.secure(meta.isSecure());
+                    req.getProperties().put("connection", "" + meta.getProvider());
 
                     if (meta.getStatistics() != null) {
                         meta.getStatistics().updateCounter(req.getQuery(), null, 0, 0, 0);
@@ -502,6 +510,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     }
 
     public void onHttpDataCompleted(P provider, HttpData http) {
+        System.out.println("" + provider + ": HttpDataCompleted: " + http.toString().replace("\n", "\n    "));
     }
 
     @Override

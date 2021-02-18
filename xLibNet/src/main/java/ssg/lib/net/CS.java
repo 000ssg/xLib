@@ -37,6 +37,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -74,7 +75,8 @@ public class CS implements Runnable {
     List<CSListener> listeners = new ArrayList<>();
     List<CSGroup> groups = new ArrayList<>();
     Map<Handler, Boolean> registered = Collections.synchronizedMap(new HashMap<>());
-    Map<Object, ByteBuffer[]> unwritten = new ConcurrentHashMap<>();// Collections.synchronizedMap(new HashMap<>()); // keep fetched but not written data...
+    Map<Object, ByteBuffer[]> unread = new ConcurrentHashMap<>();
+    Map<Object, ByteBuffer[]> unwritten = new ConcurrentHashMap<>();
     long inactivityTimeout = 1000 * 60 * 5;
 
     public CS() {
@@ -273,13 +275,25 @@ public class CS implements Runnable {
                                     if (key.isReadable()) {
                                         long c = 0;
                                         if (di.isReady(sc)) {
+                                            ByteBuffer[] bbs = unread.remove(key);
                                             ByteBuffer buf = read(sc);
-                                            if (buf != null && buf.hasRemaining()) {
+                                            if (bbs != null && BufferTools.hasRemaining(bbs)) {
+                                                bbs = Arrays.copyOf(bbs, bbs.length + 1);
+                                                bbs[bbs.length - 1] = buf;
+                                            } else {
+                                                bbs = new ByteBuffer[]{buf};
+                                            }
+
+                                            if (bbs != null && BufferTools.hasRemaining(bbs)) {
                                                 lastIO.put(key, ts);
                                                 for (CSListener l : listeners()) {
                                                     l.onRead(this, key, buf);
                                                 }
-                                                c += di.write(sc, Collections.singletonList(buf));
+                                                c += di.write(sc, Arrays.asList(bbs));
+                                                if (BufferTools.hasRemaining(bbs)) {
+                                                    bbs = BufferTools.getNonEmpties(bbs);
+                                                    unread.put(key, bbs);
+                                                }
                                             } else if (buf == null) {
                                                 di.onProviderEvent(sc, DM.PN_INPUT_CLOSED);
                                                 // EOF -> close?
@@ -287,9 +301,20 @@ public class CS implements Runnable {
                                             } else {
                                                 lastIO.put(key, ts);
                                             }
-//                                    if (c > 0) {
-//                                        System.out.println("CS.read : " + c);
-//                                    }
+
+//                                            if (buf != null && buf.hasRemaining()) {
+//                                                lastIO.put(key, ts);
+//                                                for (CSListener l : listeners()) {
+//                                                    l.onRead(this, key, buf);
+//                                                }
+//                                                c += di.write(sc, Collections.singletonList(buf));
+//                                            } else if (buf == null) {
+//                                                di.onProviderEvent(sc, DM.PN_INPUT_CLOSED);
+//                                                // EOF -> close?
+//                                                int a = 0;
+//                                            } else {
+//                                                lastIO.put(key, ts);
+//                                            }
                                         }
                                     }
                                     if (key.isWritable()) {
@@ -308,7 +333,7 @@ public class CS implements Runnable {
                                                 bbsSize = 0;
                                             } else {
                                                 processedNewData = true;
-                                                List<ByteBuffer> bufs = ((DI<ByteBuffer, Channel>) key.attachment()).read(sc);
+                                                List<ByteBuffer> bufs = di.read(sc);
                                                 if (bufs != null && !bufs.isEmpty()) {
                                                     for (CSListener l : listeners()) {
                                                         l.onWrite(this, key, bufs);
@@ -339,6 +364,12 @@ public class CS implements Runnable {
                                         }
                                         if (actualWrite) {
                                             lastIO.put(key, ts);
+                                        }
+                                        if (!key.isReadable()) {
+                                            // remove once unconsumed data in SSL are treated correctly
+                                            if (di.filter() != null && di.filter().isReady(sc)) {
+                                                di.write(sc, Collections.emptyList());
+                                            }
                                         }
                                     }
                                 } else {
@@ -566,7 +597,7 @@ public class CS implements Runnable {
         ByteBuffer buf = null;
         if (readBuf != null) {
             buf = readBuf;
-            readBuf=null;
+            readBuf = null;
         } else {
             buf = ByteBuffer.allocateDirect(1024 * 16);
         }

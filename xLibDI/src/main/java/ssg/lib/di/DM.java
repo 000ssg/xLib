@@ -54,8 +54,8 @@ public interface DM<P> {
     //////////////////////////////////////////////////////////////// Maintenance
     ////////////////////////////////////////////////////////////////////////////
     /**
-     * Enable blocking of actual "write" and "read" operations.
-     * By default returns true (no blocking of I/O operations).
+     * Enable blocking of actual "write" and "read" operations. By default
+     * returns true (no blocking of I/O operations).
      *
      * @param provider
      * @return
@@ -96,4 +96,12 @@ public interface DM<P> {
      * @param parameters
      */
     void onProviderEvent(P provider, String event, Object... parameters);
+
+    /**
+     * Return provider-specific info.
+     *
+     * @param provider
+     * @return
+     */
+    String toString(P provider);
 }

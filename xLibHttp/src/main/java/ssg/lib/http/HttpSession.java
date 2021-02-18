@@ -185,9 +185,11 @@ public class HttpSession implements HttpContext {
             for (String sCookie : sCookies) {
                 String[] ss = sCookie.split(";");
                 for (String s : ss) {
-                    s=s.trim();
+                    s = s.trim();
                     HttpCookie cookie = new HttpCookie(s);
-                    r.put(cookie.name, cookie);
+                    if (!r.containsKey(cookie.name)) {
+                        r.put(cookie.name, cookie);
+                    }
                 }
             }
         }

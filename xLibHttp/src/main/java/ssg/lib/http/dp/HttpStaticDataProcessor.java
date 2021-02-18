@@ -117,6 +117,17 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         });
     }
 
+    public HttpStaticDataProcessor configureUseDataPipes(boolean use) {
+        useDataPipes = use;
+        return this;
+    }
+
+    public HttpStaticDataProcessor debug(boolean common, boolean dp) {
+        DEBUG = common;
+        DEBUG_DP = dp;
+        return this;
+    }
+
     public HttpStaticDataProcessor add(HttpResource... newResources) {
         if (newResources != null) {
             for (HttpResource resource : newResources) {
@@ -296,6 +307,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                                 while ((c = is.read(buf)) != -1) {
                                     long timeout = System.currentTimeMillis() + 1000 * 60;
                                     body.add(ByteBuffer.wrap(buf, 0, c));
+                                    //body.add(ByteBuffer.wrap(Arrays.copyOf(buf, c)));
                                     while (body.size() > 0) {
                                         Thread.sleep(1);
                                         if (System.currentTimeMillis() > timeout) {
@@ -312,6 +324,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                                 th.printStackTrace();
                             } finally {
                                 resp.onLoaded();
+                                //System.out.println(resp.getQuery() + ":  " + ((HttpRequest) data).getProperties().get("connection") + "\n  " + resp.toString().replace("\n", "\n  "));
                             }
                         }
                     };
@@ -807,6 +820,8 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
 
                 if ("id".equals(parameterName)) {
                     return "" + sess.getId();
+                } else if ("locale".equals(parameterName)) {
+                    return "" + (sess.getLocale() != null ? sess.getLocale().getLanguage() : "");
                 } else {
                     Object v = sess.getProperties().get(parameterName);
                     if (v != null) {
@@ -1018,7 +1033,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     }
                 }
             };
-            this.is = is;
+            //this.is = is;
         }
 
         public Runnable getInitializer() {
@@ -1042,7 +1057,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             }
             HttpResponse resp = req.getResponse();
             Body body = req.getResponse().getBody();
-            //System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize()+", body.size="+body.size());
+            System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize() + ", body.size=" + body.size());
             if (body.size() > 0) {
                 return 0;
             }
@@ -1061,6 +1076,11 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             }
             return c;
         }
+
+        @Override
+        public String toString() {
+            return "DataPipe{" + "req=" + (req != null ? req.getQuery() : "<none>") + ", is=" + is + ", timeout=" + timeout + ", size=" + size + ", started=" + started + ", completed=" + completed + ", cycles=" + cycles + ", initializer=" + initializer + ", error=" + error + '}';
+        }
     }
 
     public static class DataPipeStatistics {
@@ -1069,20 +1089,25 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
 
         public static void init(HttpRequest req, String suffix, Throwable error) {
             if (out != null) {
-                out.println(DataPipeStatistics.class.getSimpleName() + ".init : " + req.getHead().getHeader1(HttpData.HH_HOST) + ((suffix != null) ? " " + suffix : "") + ((error != null) ? "ERROR: " + error : ""));
+                out.println(DataPipeStatistics.class.getSimpleName() + ".init[" + getConnection(req) + "]: " + req.getHead().getHeader1(HttpData.HH_HOST) + ((suffix != null) ? " " + suffix : "") + ((error != null) ? "ERROR: " + error : ""));
             }
         }
 
         public static void add(HttpRequest req, long responseSize, long responseTime, Throwable error) {
             if (out != null) {
-                out.println(DataPipeStatistics.class.getSimpleName() + ".add : " + req.getHead().getHeader1(HttpData.HH_HOST) + ":" + req.getQuery() + ":" + req.getResponse().getResponseCode() + ": " + responseSize + "/" + req.getResponse().getOutputSize() + ((req.getResponse().isSent() ? "(completed)" : "(wip)")) + " in " + responseTime / 1000f + "s" + ((error != null) ? "ERROR: " + error : ""));
+                out.println(DataPipeStatistics.class.getSimpleName() + ".add [" + getConnection(req) + "]: " + req.getHead().getHeader1(HttpData.HH_HOST) + ":" + req.getQuery() + ":" + req.getResponse().getResponseCode() + ": " + responseSize + "/" + req.getResponse().getOutputSize() + ((req.getResponse().isSent() ? "(completed)" : "(wip)")) + " in " + responseTime / 1000f + "s" + ((error != null) ? "ERROR: " + error : ""));
             }
         }
 
         public static void done(HttpRequest req, long responseSize, long responseTime, Throwable error) {
             if (out != null) {
-                out.println(DataPipeStatistics.class.getSimpleName() + ".done: " + req.getHead().getHeader1(HttpData.HH_HOST) + ":" + req.getQuery() + ":" + req.getResponse().getResponseCode() + ": " + responseSize + "/" + req.getResponse().getOutputSize() + ((req.getResponse().isSent() ? "(completed)" : "(wip)")) + " in " + responseTime / 1000f + "s" + ((error != null) ? "ERROR: " + error : ""));
+                out.println(DataPipeStatistics.class.getSimpleName() + ".done[" + getConnection(req) + "]: " + req.getHead().getHeader1(HttpData.HH_HOST) + ":" + req.getQuery() + ":" + req.getResponse().getResponseCode() + ": " + responseSize + "/" + req.getResponse().getOutputSize() + ((req.getResponse().isSent() ? "(completed)" : "(wip)")) + " in " + responseTime / 1000f + "s" + ((error != null) ? "ERROR: " + error : ""));
             }
+        }
+
+        public static String getConnection(HttpRequest req) {
+            Object conn = req.getProperties().get("connection");
+            return (conn != null) ? "" + conn : "";
         }
     }
 }

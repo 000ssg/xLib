@@ -73,8 +73,9 @@ public interface DI<T, P> extends DMF<T, P> {
             }
         } else {
             consume(provider, data);
+            c = c - size(data);
         }
-        return c - size(data);
+        return c;
     }
 
     /**

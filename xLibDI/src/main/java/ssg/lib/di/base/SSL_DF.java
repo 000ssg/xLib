@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import static javax.net.ssl.SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
 import javax.net.ssl.SSLException;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.common.net.NetTools;
@@ -78,6 +79,10 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
         List<ByteBuffer> r = null;
         SSL_IO2 ssl = sslIO(provider, BufferTools.firstNonEmpty(data));
         long c = BufferTools.getRemaining(data);
+        if (ssl == null && c == 0) {
+            // pre-init: no data - no activity...
+            return r;
+        }
 
         DM<P> notifiee = (owner != null) ? owner : this;
         boolean sslInitialized = ssl.isInitialized();
@@ -87,6 +92,10 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
             notifiee.onProviderEvent(provider, PN_SECURE, (certs != null) ? certs : ssl.isSecure());
         } else if (sslInitialized && !ssl.isInitialized()) {
             notifiee.onProviderEvent(provider, PN_SECURE, null);
+        }
+
+        if (BufferTools.hasRemaining(data)) {
+            r1 = ssl.decode(data);
         }
 
         if (!ssl.appIn.isEmpty()) {
@@ -128,6 +137,7 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
                 Certificate[] certs = ssl.getRemoteCertificates();
                 notifiee.onProviderEvent(provider, PN_SECURE, (certs != null) ? certs : ssl.isSecure());
             }
+            ssl.encode(Collections.singletonList(SSL_IO.EMPTY));
         }
 
         if (!ssl.netOut.isEmpty()) {
@@ -137,6 +147,33 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
             }
         }
         return r;
+    }
+
+    public String toString(P provider) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString(provider));
+        int idx = sb.indexOf("\n");
+        try {
+            int off = (idx == -1) ? sb.length() - 1 : idx;
+            if (idx == -1) {
+                sb.insert(off, '\n');
+            }
+            sb.insert(off - 1, ""
+                    + ", autodetect=" + autodetect
+                    + ", client=" + client
+                    + ", needClientAuth=" + needClientAuth
+                    + ", ready=" + isReady(provider)
+            );
+
+            SSL_IO ssl = this.sslIO(provider, null);
+            if (ssl != null) {
+                sb.insert(off, "\n  ssl=" + ssl.toString());
+            }
+
+        } catch (IOException ioex) {
+        }
+
+        return sb.toString();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -283,7 +320,25 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
                     netOut.addAll(r);
                     r.clear();
                 }
-                if (!initialized && isInitialized() && hasUnwrappedData()) {
+                if (!isInitialized() && getHandshakeStatus() == NEED_UNWRAP && hasUnwrappedData()) {
+                    synchronized (appIn) {
+                        List<ByteBuffer> ru = unwrap(EMPTY);
+                        if (ru != null && !ru.isEmpty()) {
+                            appIn.addAll(ru);
+                            ru.clear();
+                        }
+                    }
+                }
+                if (!initialized && isInitialized()) {
+                    // return any extra data if present
+                    r = super.encode(bufs);
+                    if (r != null && !r.isEmpty()) {
+                        netOut.addAll(r);
+                        r.clear();
+                    }
+                }
+                //if (!initialized && isInitialized() && hasUnwrappedData()) {
+                if (!initialized && hasUnwrappedData()) {
                     // ensure initial application data are available (if any)
                     synchronized (appIn) {
                         List<ByteBuffer> ru = unwrap(EMPTY);
@@ -311,13 +366,28 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
 
         @Override
         public String toString() {
-            return "SSL_IO2{" + this.getHandshakeStatus()
-                    //                    + ", appCached=" + BufferTools.getRemaining(appCached) 
-                    + ", appIn=" + BufferTools.getRemaining(appIn)
-                    + ", netOut=" + BufferTools.getRemaining(netOut)
-                    + '}';
+            StringBuilder sb = new StringBuilder();
+            sb.append(super.toString());
+            int idx = sb.indexOf("\n");
+            int off = (idx == -1) ? sb.length() : idx;
+            sb.insert(off, ", netOut(2)=" + BufferTools.getRemaining(netOut));
+            sb.insert(off, ", appIn(2) =" + BufferTools.getRemaining(appIn));
+            return sb.toString();
         }
 
+        @Override
+        public void setInitialized(boolean initialized) {
+            StringBuilder sb = null;
+            if (initialized && DEBUG_INITIALIZED) {
+                sb = new StringBuilder();
+                sb.append("BEFORE: " + toString());
+            }
+            super.setInitialized(initialized);
+            if (sb != null) {
+                sb.append("\nAFTER : " + toString());
+                System.out.println("  ***  " + sb.toString().replace("\n", "\n  ***  "));
+            }
+        }
     }
 
     /**
