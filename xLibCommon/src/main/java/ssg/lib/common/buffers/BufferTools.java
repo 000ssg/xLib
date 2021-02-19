@@ -99,11 +99,13 @@ public class BufferTools {
      */
     public static <T extends Buffer> boolean hasRemaining(Collection<T>... bufs) {
         if (bufs != null) {
-            for (Collection<T> cbufs : bufs) {
-                if (cbufs != null) {
-                    for (T buf : cbufs) {
-                        if (buf != null && buf.hasRemaining()) {
-                            return true;
+            synchronized (bufs) {
+                for (Collection<T> cbufs : bufs) {
+                    if (cbufs != null) {
+                        for (T buf : cbufs) {
+                            if (buf != null && buf.hasRemaining()) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -810,8 +812,7 @@ public class BufferTools {
         return sb.toString();
     }
 
-    public static String toText(String encoding, byte[]  
-        ... bufs) {
+    public static String toText(String encoding, byte[]... bufs) {
         if (encoding == null) {
             encoding = "UTF-8";
         }
@@ -864,8 +865,7 @@ public class BufferTools {
         return c;
     }
 
-    public static int sizeOf(byte[]  
-        ... bufs) {
+    public static int sizeOf(byte[]... bufs) {
         int c = 0;
         if (bufs != null) {
             for (byte[] bb : bufs) {
@@ -892,8 +892,7 @@ public class BufferTools {
         return buf;
     }
 
-    public static byte[] merge(byte[]  
-        ... bufs) {
+    public static byte[] merge(byte[]... bufs) {
         if (bufs != null && bufs.length == 1) {
             return bufs[0];
         }

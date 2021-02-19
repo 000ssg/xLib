@@ -369,12 +369,12 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             List<ByteBuffer> lst2 = filter().onWrite(owner, provider, Collections.emptyList());
             if (BufferTools.hasRemaining(lst2)) {
                 List<ByteBuffer> lst = new ArrayList<>();
-                System.out.println(System.currentTimeMillis() + ":PRE : " + provider + "  out=" + (BufferTools.getRemaining(r)) + "\n  " + toString(provider)
-                +"\n  "+BufferTools.dump(lst2).replace("\n", "\n  "));
+//                System.out.println(System.currentTimeMillis() + ":PRE : " + provider + "  out=" + (BufferTools.getRemaining(r)) + "\n  " + toString(provider)
+//                +"\n  "+BufferTools.dump(lst2).replace("\n", "\n  "));
                 long c2 = toInternal(provider, lst, lst2);
                 sh = serviceHandlers.get(provider);
-                System.out.println(System.currentTimeMillis() + ":POST: " + provider + "\n  " + toString(provider)
-                +"\n  "+BufferTools.dump(lst).replace("\n", "\n  "));
+//                System.out.println(System.currentTimeMillis() + ":POST: " + provider + "\n  " + toString(provider)
+//                +"\n  "+BufferTools.dump(lst).replace("\n", "\n  "));
                 int a = 0;
             }
         }
