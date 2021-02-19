@@ -72,9 +72,9 @@ import ssg.lib.service.ServiceProcessor.ServiceProviderMeta;
  * @param <P>
  */
 public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> implements TaskProvider, RepositoryListener<TaskProvider>, TaskExecutorListener {
-
+    
     TaskExecutor taskExecutor;
-
+    
     Repository<ServiceProcessor> services = new Repository<>((RepositoryListener) this);
     Repository<DataProcessor> dataProcessors = new Repository<>((RepositoryListener) this);
     List<DF_ServiceListener> listeners = new ArrayList<>();
@@ -88,18 +88,18 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
 
     public DF_Service() {
     }
-
+    
     public DF_Service(DF<ByteBuffer, P> filter) {
         filter(filter);
     }
-
+    
     public DF_Service(TaskExecutor taskExecutor) {
         this.taskExecutor = taskExecutor;
         if (taskExecutor != null) {
             taskExecutor.addTaskExecutorListener(this);
         }
     }
-
+    
     public DF_Service(DF<ByteBuffer, P> filter, TaskExecutor taskExecutor) {
         filter(filter);
         this.taskExecutor = taskExecutor;
@@ -107,12 +107,12 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             taskExecutor.addTaskExecutorListener(this);
         }
     }
-
+    
     public DF_Service<P> configureFilter(DF<ByteBuffer, P> filter) {
         filter(filter);
         return this;
     }
-
+    
     public DF_Service<P> configureExecutor(TaskExecutor taskExecutor) {
         if (this.taskExecutor != null) {
             this.taskExecutor.removeTaskExecutorListener(this);
@@ -123,17 +123,17 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         }
         return this;
     }
-
+    
     public DF_Service<P> configureService(int order, ServiceProcessor... services) {
         this.services.configure(order, services);
         return this;
     }
-
+    
     public DF_Service<P> configureDataProcessor(int order, DataProcessor... dataProcessors) {
         this.dataProcessors.configure(order, dataProcessors);
         return this;
     }
-
+    
     public DF_Service<P> configureListener(DF_ServiceListener... ls) {
         addServiceListener(ls);
         return this;
@@ -150,14 +150,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             public long size(Collection<ByteBuffer>... data) {
                 return BufferTools.getRemaining(data);
             }
-
+            
             @Override
             public void consume(P provider, Collection<ByteBuffer>... data) throws IOException {
                 if (BufferTools.hasRemaining(data)) {
                     throw new UnsupportedOperationException("Not supported: service MUST handle (consume) all data without leaving unhandled bytes.");
                 }
             }
-
+            
             @Override
             public List<ByteBuffer> produce(P provider) throws IOException {
                 return null;
@@ -176,7 +176,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             return Collections.emptyList();
         }
         List<Task> r = new ArrayList<>();
-
+        
         for (ServiceProcessor sp : services.items()) {
             List<Task> spr = sp.getTasks(phases);
             if (spr != null) {
@@ -189,18 +189,18 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 r.addAll(dpr);
             }
         }
-
+        
         Collections.sort(r, TaskProvider.getTaskComparator(true));
         return r;
     }
-
+    
     @Override
     public void onAdded(Repository<TaskProvider> repository, TaskProvider item) {
         if (item != null && taskExecutor != null) {
             taskExecutor.execute(this, (List<Runnable>) (Object) item.getTasks(TaskPhase.initial));
         }
     }
-
+    
     @Override
     public void onRemoved(Repository<TaskProvider> repository, TaskProvider item) {
         if (item != null && taskExecutor != null) {
@@ -218,7 +218,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             ps.addTask(submittedAt);
         }
     }
-
+    
     @Override
     public void onCompleted(Object identifier, Runnable run, long submittedAt, long startedAt, long durationNano, Throwable error) {
         ProviderStatistics ps = serviceStatisticsRT.get(identifier);
@@ -249,7 +249,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         r.put("OPENED", r31);
         return r;
     }
-
+    
     public void clearStatistics(long from) {
         synchronized (serviceStatistics) {
             Iterator<ProviderStatistics> it = serviceStatistics.iterator();
@@ -261,7 +261,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
     }
-
+    
     public void addServiceListener(DF_ServiceListener... ls) {
         if (ls != null) {
             for (DF_ServiceListener l : ls) {
@@ -271,7 +271,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
     }
-
+    
     public void removeServiceListener(DF_ServiceListener... ls) {
         if (ls != null) {
             for (DF_ServiceListener l : ls) {
@@ -281,11 +281,11 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
     }
-
+    
     public boolean hasServiceListeners() {
         return !listeners.isEmpty();
     }
-
+    
     public void notifyServiceEvent(P provider, ServiceHandler handler, DF_ServiceListener.SERVICE_EVENT event, Object... params) {
         if (!listeners.isEmpty()) {
             for (DF_ServiceListener l : listeners) {
@@ -299,19 +299,19 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
     }
-
+    
     public Repository<ServiceProcessor> getServices() {
         return services;
     }
-
+    
     public Repository<DataProcessor> getDataProcessors() {
         return dataProcessors;
     }
-
+    
     public P ensureProvider(P provider) {
         return provider;
     }
-
+    
     public boolean isSecure(P provider) {
         Object v = serviceSecurity.get(provider);
         return (v != null)
@@ -322,7 +322,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                                 : false
                 : false;
     }
-
+    
     public ProviderStatistics createProviderStatistics(P provider) {
         ProviderStatistics ps = new ProviderStatistics("" + provider);
         if (providerOpened.containsKey(provider)) {
@@ -346,7 +346,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
     public List<ByteBuffer> readFilter(DM<P> owner, P provider, Collection<ByteBuffer>... data) throws IOException {
         List<ByteBuffer> r = null;
         provider = ensureProvider(provider);
-
+        
         ProviderStatistics ps = serviceStatisticsRT.get(provider);
 //        if (ps == null) {
 //            ps = createProviderStatistics(provider);
@@ -364,16 +364,31 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
 
         // enable internal data flow
         ServiceHandler sh = serviceHandlers.get(provider);
-        if (sh != null && sh.di!=null) {
+
+        if (sh == null && filter() != null && filter().isReady(provider)) {
+            List<ByteBuffer> lst2 = filter().onWrite(owner, provider, Collections.emptyList());
+            if (BufferTools.hasRemaining(lst2)) {
+                List<ByteBuffer> lst = new ArrayList<>();
+                System.out.println(System.currentTimeMillis() + ":PRE : " + provider + "  out=" + (BufferTools.getRemaining(r)) + "\n  " + toString(provider)
+                +"\n  "+BufferTools.dump(lst2).replace("\n", "\n  "));
+                long c2 = toInternal(provider, lst, lst2);
+                sh = serviceHandlers.get(provider);
+                System.out.println(System.currentTimeMillis() + ":POST: " + provider + "\n  " + toString(provider)
+                +"\n  "+BufferTools.dump(lst).replace("\n", "\n  "));
+                int a = 0;
+            }
+        }
+
+        if (sh != null && sh.di != null) {
             sh.verifyProcessing();
             sh.verifyFlow();
-
+            
             r = sh.read();
             sh.verifyFlow();
         } else {
             r = BufferTools.toList(true, data);
         }
-
+        
         if (hasServiceListeners()) {
             notifyServiceEvent(provider, sh, DF_ServiceListener.SERVICE_EVENT.read_ext, data, r);
         }
@@ -385,7 +400,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 taskExecutor.execute(getClass().getSimpleName() + "_rf_post_" + System.currentTimeMillis(), (List<Runnable>) (Object) tasks);
             }
         }
-
+        
         long c = BufferTools.getRemaining(r);
         if (c > 0) {
             if (ps != null) {
@@ -394,9 +409,10 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 int a = 0;
             }
         }
+        
         return r;
     }
-
+    
     @Override
     public List<ByteBuffer> writeFilter(DM<P> owner, P provider, Collection<ByteBuffer>... data) throws IOException {
         ProviderStatistics ps = serviceStatisticsRT.get(provider);
@@ -409,7 +425,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 taskExecutor.execute(provider, (List<Runnable>) (Object) tasks);
             }
         }
-
+        
         List<ByteBuffer> r = BufferTools.toList(true, data);
         long c = BufferTools.getRemaining(r);
         long c0 = c;
@@ -419,11 +435,11 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 //ps.addCounter(null, null);
                 serviceStatisticsRT.put(provider, ps);
             }
-
+            
             List<ByteBuffer> lst = new ArrayList<>();
             c -= toInternal(provider, lst, data);
         }
-
+        
         if (hasServiceListeners()) {
             notifyServiceEvent(provider, null, DF_ServiceListener.SERVICE_EVENT.write_ext, data, r);
         }
@@ -436,14 +452,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 taskExecutor.execute(provider, (List<Runnable>) (Object) tasks);
             }
         }
-
+        
         if (c0 > 0) {
             ps.updateCounter(null, null, 0, c0 - c, 0);
         }
-
+        
         return (c > 0) ? r : null;
     }
-
+    
     @Override
     public void delete(P provider) throws IOException {
         super.delete(provider);
@@ -492,16 +508,16 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
     }
-
+    
     public void onDeleteNoStatistics(P provider, Long opened) {
         int a = 0;
     }
-
+    
     public void onDeleteUnassociated(P provider, ServiceHandler sh) throws IOException {
         //System.out.println("DF_Service -> DELETE/CLOSE " + ((sh != null) ? "processed request/response" : "unassociated") + " provider " + provider);
         provider.close();
     }
-
+    
     @Override
     public void onProviderEvent(P provider, String event, Object... params) {
         super.onProviderEvent(provider, event, params);
@@ -534,27 +550,27 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             int a = 0;
         }
-
+        
         if (hasServiceListeners()) {
             notifyServiceEvent(provider, null, DF_ServiceListener.SERVICE_EVENT.provider_event, event, params);
         }
     }
-
+    
     public long toInternal(P provider, List<ByteBuffer> to, Collection<ByteBuffer>... from) throws IOException {
         long c = BufferTools.getRemaining(from);
         provider = ensureProvider(provider);
         ServiceHandler sh = serviceHandlers.get(provider);
-
+        
         if (hasServiceListeners()) {
             notifyServiceEvent(provider, sh, DF_ServiceListener.SERVICE_EVENT.consume_ext, from);
         }
-
+        
         if (sh == null) {
             sh = new ServiceHandler(provider);
             if (sh.ps == null) {
                 sh.ps = serviceStatisticsRT.get(sh.provider);
             }
-
+            
             sh.secure = isSecure(sh.provider);
             if (sh.secure) {
                 Object v = serviceSecurity.get(provider);
@@ -563,23 +579,23 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 }
             }
             serviceHandlers.put(provider, sh);
-
+            
             if (hasServiceListeners()) {
                 notifyServiceEvent(provider, sh, DF_ServiceListener.SERVICE_EVENT.init_handler);
             }
         }
-
+        
         while (true) {
             if (sh.service == null || sh.di == null) {
                 ServiceProcessor sp = bindService(sh, from);
             }
-
+            
             if (sh.processor == null) {
                 DataProcessor dp = bindDataProcessor(sh, (sh.service != null) ? sh.service.getDataProcessors(provider, sh.di) : null, getDataProcessors());
             }
-
+            
             sh.write(from);
-
+            
             SERVICE_PROCESSING_STATE sps = sh.verifyProcessing();
             switch (sps) {
                 case preparing:
@@ -593,7 +609,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 default:
                     break;
             }
-
+            
             if (BufferTools.getRemaining(from) > 0) {
                 // if we need to consume data check if current request or response is completed or failed -> allow to handle next request or response.
                 SERVICE_FLOW_STATE fst = sh.verifyFlow();
@@ -605,9 +621,9 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
         }
         return c - BufferTools.getRemaining(from);
-
+        
     }
-
+    
     public ServiceProcessor bindService(final ServiceHandler sh, final Collection<ByteBuffer>[] from) throws IOException {
         if (sh.ps != null) {
             sh.ps.updateRAMCounter();
@@ -663,7 +679,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                     }
                     return 0;
                 }
-
+                
                 @Override
                 public float weight() {
                     return 1;
@@ -685,7 +701,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         }
         return sh.service;
     }
-
+    
     public DataProcessor bindDataProcessor(final ServiceHandler sh, Repository<DataProcessor>... dataProcessors) {
         if (sh == null || sh.di == null || dataProcessors == null || dataProcessors.length == 0) {
             return null;
@@ -697,7 +713,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             Matched<DataProcessor>[] mps = dp.findMatched(new ListeningMatcher<DataProcessor>() {
                 DataProcessor lastProcessor;
                 HST lastHST;
-
+                
                 @Override
                 public float match(DataProcessor t) {
                     HST sst = t.probe(sh.provider, sh.di);
@@ -713,23 +729,23 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                     }
                     return 0;
                 }
-
+                
                 @Override
                 public float weight() {
                     return 1;
                 }
-
+                
                 @Override
                 public void onFound(Matched<DataProcessor> matched, Matcher<DataProcessor> matcher, boolean top) {
                     if (false) {
                         matched.setParameters(new Object[]{lastHST});
                     }
                 }
-
+                
                 @Override
                 public void onFound(Matched<DataProcessor>[] matched, Matcher<DataProcessor> matcher) {
                 }
-
+                
             },
                     null, // no explicit listener, just use combined matcher/listener above
                     true // sort results...
@@ -742,7 +758,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
 //                    System.out.println("\n  [" + i + "] " + mps[i].getLevel() + " -> " + mps[i].getItem().toString().replace("\n", "\n     |"));
 //                }
             }
-
+            
             if (mps != null && mps.length > 0 && sh.processor == null) {
                 sh.processor = mps[0].getItem();
                 if (hasServiceListeners()) {
@@ -751,7 +767,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 sh.processor.onAssigned(sh.provider, sh.di);
                 break;
             }
-
+            
             if (sh.processor != null) {
                 break;
             }
@@ -763,7 +779,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
      * Encapsulates service/processor binding to provider data
      */
     public class ServiceHandler implements ServiceProviderMeta {
-
+        
         P provider;
         boolean secure;
         Certificate[] remoteCertificates;
@@ -776,14 +792,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
         boolean processed = false;
         Throwable reportedError;
         ProviderStatistics ps;
-
+        
         public ServiceHandler() {
         }
-
+        
         public ServiceHandler(P provider) {
             this.provider = provider;
         }
-
+        
         public void reset() {
             if (hasServiceListeners()) {
                 notifyServiceEvent(provider, this, DF_ServiceListener.SERVICE_EVENT.before_reset);
@@ -799,12 +815,12 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             processing = null;
             processed = false;
         }
-
+        
         @Override
         public ProviderStatistics getStatistics() {
             return ps;
         }
-
+        
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
@@ -822,34 +838,34 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                     + '}');
             return sb.toString();
         }
-
+        
         @Override
         public P getProvider() {
             return provider;
         }
-
+        
         @Override
         public boolean isSecure() {
             return secure;
         }
-
+        
         @Override
         public Certificate[] getCertificates() {
             return remoteCertificates;
         }
-
+        
         public ServiceProcessor getService() {
             return service;
         }
-
+        
         public DataProcessor getDataProcessor() {
             return processor;
         }
-
+        
         public <Z extends DI<ByteBuffer, P>> Z getData() {
             return (Z) di;
         }
-
+        
         public SERVICE_FLOW_STATE verifyFlow() {
             try {
                 SERVICE_FLOW_STATE fst = service.test(provider, di);
@@ -879,7 +895,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 return SERVICE_FLOW_STATE.failed;
             }
         }
-
+        
         public SERVICE_PROCESSING_STATE verifyProcessing() throws IOException {
             if (service != null || processor != null) {
                 try {
@@ -945,7 +961,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                 return SERVICE_PROCESSING_STATE.failed;
             }
         }
-
+        
         public long write(Collection<ByteBuffer>... from) throws IOException {
             if (di == null) {
                 throw new IOException("No DI to write for " + provider);
@@ -956,7 +972,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return r;
         }
-
+        
         public List<ByteBuffer> read() throws IOException {
             if (di == null) {
                 throw new IOException("No DI to read for " + provider);
@@ -967,7 +983,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return r;
         }
-
+        
         public void startProcess() throws IOException {
             if (processor != null) {
                 switch (processor.check(provider, di)) {
@@ -995,7 +1011,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                                         }
                                     }
                                 };
-
+                                
                                 if (taskExecutor != null) {
                                     taskExecutor.execute(this, r);
                                 } else {
@@ -1021,7 +1037,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
      * @param <P>
      */
     public static interface DF_ServiceListener<P extends Channel> {
-
+        
         public static enum SERVICE_EVENT {
             no_event, // placeholder, used to indicate filtering but nothing is expected...
             provider_event, // catch provider-specific events
@@ -1041,36 +1057,36 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             verify_processing,
             before_reset
         }
-
+        
         void onServiceEvent(DF_Service<P> service, DF_Service<P>.ServiceHandler handler, SERVICE_EVENT type, P provider, Object... params);
     }
-
+    
     public static class DebuggingDF_ServiceListener<P extends Channel> implements DF_ServiceListener<P> {
-
+        
         PrintStream out = System.out;
         Collection<SERVICE_EVENT> events;
         Collection<P> providers;
-
+        
         public DebuggingDF_ServiceListener() {
         }
-
+        
         public DebuggingDF_ServiceListener(SERVICE_EVENT... events) {
             includeEvents(events);
         }
-
+        
         public DebuggingDF_ServiceListener(PrintStream out, SERVICE_EVENT... events) {
             this.out = out;
             includeEvents(events);
         }
-
+        
         public Collection<SERVICE_EVENT> debuggingEvents() {
             return (events != null) ? Collections.unmodifiableCollection(events) : Collections.emptyList();
         }
-
+        
         public Collection<P> debuggingProviders() {
             return (providers != null) ? Collections.unmodifiableCollection(providers) : Collections.emptyList();
         }
-
+        
         public DebuggingDF_ServiceListener includeEvents(SERVICE_EVENT... events) {
             if (this.events == null) {
                 this.events = new HashSet<>();
@@ -1084,7 +1100,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return this;
         }
-
+        
         public DebuggingDF_ServiceListener excludeEvents(SERVICE_EVENT... events) {
             if (this.events != null && !this.events.isEmpty() && events != null) {
                 for (SERVICE_EVENT event : events) {
@@ -1095,14 +1111,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return this;
         }
-
+        
         public DebuggingDF_ServiceListener allEvents() {
             if (events != null) {
                 events.clear();
             }
             return this;
         }
-
+        
         public DebuggingDF_ServiceListener includeProviders(P... providers) {
             if (this.providers == null) {
                 this.providers = new HashSet<>();
@@ -1116,7 +1132,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return this;
         }
-
+        
         public DebuggingDF_ServiceListener excludeProviders(P... providers) {
             if (this.providers != null && !this.providers.isEmpty() && providers != null) {
                 for (P provider : providers) {
@@ -1127,14 +1143,14 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             }
             return this;
         }
-
+        
         public DebuggingDF_ServiceListener allProviders() {
             if (providers != null) {
                 providers.clear();
             }
             return this;
         }
-
+        
         @Override
         public void onServiceEvent(
                 DF_Service<P> service,
@@ -1151,9 +1167,9 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
             if (providers != null && !providers.isEmpty() && !providers.contains(provider)) {
                 return;
             }
-
+            
             StringBuilder sb = new StringBuilder();
-
+            
             sb.append("[" + Thread.currentThread().getName() + "][" + System.currentTimeMillis() + "] " + type + "  " + provider);
             if (service != null) {
                 sb.append("\n  SERVICE: " + service.getClass().getName());
@@ -1171,10 +1187,10 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                     sb.append("\n    [" + i + "] " + paramToString(params[i]).replace("\n", "\n      "));
                 }
             }
-
+            
             out.println(sb.toString());
         }
-
+        
         public String paramToString(Object p) {
             if (p == null) {
                 return "<null>";

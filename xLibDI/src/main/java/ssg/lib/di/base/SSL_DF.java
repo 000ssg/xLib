@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import static javax.net.ssl.SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
 import javax.net.ssl.SSLException;
 import ssg.lib.common.buffers.BufferTools;
@@ -94,10 +95,6 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
             notifiee.onProviderEvent(provider, PN_SECURE, null);
         }
 
-        if (BufferTools.hasRemaining(data)) {
-            r1 = ssl.decode(data);
-        }
-
         if (!ssl.appIn.isEmpty()) {
             //System.out.println("SSL_DF.writeFilter:APP:"+BufferTools.getRemaining(ssl.appIn));
             r = new ArrayList<>();
@@ -119,25 +116,19 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
         }
         DM<P> notifiee = (owner != null) ? owner : this;
         if (ssl.isInitialized()) {
-//            if (BufferTools.hasRemaining(ssl.appCached)) {
-//                ssl.encode(ssl.appCached);
-//                ssl.appCached.clear();
-//            }
             ssl.encode(data);
             if (!ssl.isInitialized()) {
                 notifiee.onProviderEvent(provider, PN_SECURE, null);
             }
         } else {
             // cache app data while initializing...
-//            if (BufferTools.hasRemaining(data)) {
-//                BufferTools.moveBuffersTo(ssl.appCached, data);
-//            }
-            ssl.encode(Collections.singletonList(SSL_IO.EMPTY));
+            if (ssl.getHandshakeStatus() == HandshakeStatus.NEED_WRAP) {
+                ssl.encode(Collections.singletonList(SSL_IO.EMPTY));
+            }
             if (ssl.isInitialized()) {
                 Certificate[] certs = ssl.getRemoteCertificates();
                 notifiee.onProviderEvent(provider, PN_SECURE, (certs != null) ? certs : ssl.isSecure());
             }
-            ssl.encode(Collections.singletonList(SSL_IO.EMPTY));
         }
 
         if (!ssl.netOut.isEmpty()) {
@@ -249,7 +240,7 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
     public SSL_IO2 createSSL_IO2(P provider, boolean client) throws IOException {
         SSLEngine eng = null;
         if (sslCtx != null) {
-            eng = createSSLEngine(provider, client);// sslCtx.createSSLEngine();
+            eng = createSSLEngine(provider, client);
             eng.setUseClientMode(client);
             if (!client && getNeedClientAuth() != null) {
                 if (getNeedClientAuth()) {
@@ -303,7 +294,6 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
      */
     public static class SSL_IO2<P> extends SSL_IO<P> {
 
-        //List<ByteBuffer> appCached = new ArrayList<>(); // cached app data for external source
         List<ByteBuffer> appIn = new ArrayList<>(); // app data from external source
         List<ByteBuffer> netOut = new ArrayList<>(); // net data for external source
 
@@ -320,25 +310,17 @@ public class SSL_DF<P> extends BaseDF<ByteBuffer, P> {
                     netOut.addAll(r);
                     r.clear();
                 }
-                if (!isInitialized() && getHandshakeStatus() == NEED_UNWRAP && hasUnwrappedData()) {
+                if (isClient() && !isInitialized() && getHandshakeStatus() == NEED_UNWRAP && hasUnwrappedData()) {
                     synchronized (appIn) {
                         List<ByteBuffer> ru = unwrap(EMPTY);
-                        if (ru != null && !ru.isEmpty()) {
+                        if (ru != null && BufferTools.hasRemaining(ru)) {
                             appIn.addAll(ru);
                             ru.clear();
                         }
                     }
                 }
-                if (!initialized && isInitialized()) {
-                    // return any extra data if present
-                    r = super.encode(bufs);
-                    if (r != null && !r.isEmpty()) {
-                        netOut.addAll(r);
-                        r.clear();
-                    }
-                }
-                //if (!initialized && isInitialized() && hasUnwrappedData()) {
-                if (!initialized && hasUnwrappedData()) {
+
+                if (!isClient() && !initialized && isInitialized() && hasUnwrappedData()) {
                     // ensure initial application data are available (if any)
                     synchronized (appIn) {
                         List<ByteBuffer> ru = unwrap(EMPTY);

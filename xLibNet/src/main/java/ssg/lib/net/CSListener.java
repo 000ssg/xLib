@@ -141,7 +141,7 @@ public interface CSListener {
         @Override
         public void onRead(CS cs, SelectionKey sk, ByteBuffer buf) {
             if (isAllowedOption(DO_READ) && out != null) {
-                out.println("CS:READ      " + cs + "\n  key: " + sk + "\n  data: " + buf.remaining());
+                out.println("CS:READ      " + cs + "  len=" + buf.remaining() + "  key=" + sk);
             }
         }
 
@@ -154,7 +154,7 @@ public interface CSListener {
                         c += bb.remaining();
                     }
                 }
-                out.println("CS:WRITTEN   " + cs + "\n  key: " + sk + "\n  count: " + c);
+                out.println("CS:WRITTEN   " + cs + "  len=" + c + "  key=" + sk);
             }
         }
 
