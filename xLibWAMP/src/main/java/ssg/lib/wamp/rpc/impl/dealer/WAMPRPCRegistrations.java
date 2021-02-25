@@ -23,6 +23,9 @@
  */
 package ssg.lib.wamp.rpc.impl.dealer;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -324,7 +327,16 @@ public class WAMPRPCRegistrations {
                 }
             }
 
+            // System.out.println("registerFeatureMethods(" + mp.all().size() + "):\n  " + stackTrace(2));
             for (DealerProcedure proc : procs) {
+                // clone procedure if it is already registered and conflicts with id realm sequence
+                if (WAMP_DT.id.validate(proc.getId()) && nextProcedureId.get() > proc.getId()) {
+                    RPCMeta rpc = mp.all().get(proc.getName());
+                    if (rpc == null) {
+                        proc = proc.clone();
+                        proc.setId(0);
+                    }
+                }
                 if (!WAMP_DT.id.validate(proc.getId())) {
                     RPCMeta rpc = mp.all().get(proc.getName());
                     if (rpc == null) {
@@ -347,6 +359,34 @@ public class WAMPRPCRegistrations {
                         wex.printStackTrace();
                     }
                     procedures.put(registrationId, proc);
+                } else {
+                    // proceed with procedure already registered in other domain
+                    RPCMeta rpc = mp.all().get(proc.getName());
+                    if (rpc == null) {
+                        // do "normal" registration if not defined yet 
+                        if (rpc == null) {
+                            rpc = new RPCMeta(proc.getName(), null);
+                            if (statistics != null && rpc.statistics == null) {
+                                rpc.statistics = statistics.createChild(null, proc.getName());
+                            }
+                            mp.all().put(proc.getName(), rpc);
+                            if (wpRefl != null) {
+                                wpRefl.define(proc.getReflectionMeta(), false);
+                            }
+                            try {
+                                rpc.add(proc.getId());
+                            } catch (WAMPException wex) {
+                                wex.printStackTrace();
+                            }
+                        }
+                    }
+                    // do register in procedure id and adjust next procedure id
+                    if (rpc != null) {
+                        procedures.put(proc.getId(), proc);
+                        if (nextProcedureId.get() <= proc.getId()) {
+                            nextProcedureId.set(proc.getId() + 1);
+                        }
+                    }
                 }
             }
         }
@@ -900,4 +940,14 @@ public class WAMPRPCRegistrations {
             return null;
         }
     }
+
+    static String stackTrace(int indent) {
+        try ( StringWriter sw = new StringWriter();) {
+            new Exception("").printStackTrace(new PrintWriter(sw));
+            return sw.toString().indent(indent);
+        } catch (IOException ioex) {
+            return "";
+        }
+    }
+
 }

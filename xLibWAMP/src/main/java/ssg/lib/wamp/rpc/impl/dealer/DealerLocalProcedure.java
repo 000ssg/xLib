@@ -32,13 +32,14 @@ import ssg.lib.wamp.util.WAMPTools;
 /**
  * Defines local (no remote/remote session) method implementation base.
  */
-public abstract class DealerLocalProcedure extends DealerProcedure {
+public abstract class DealerLocalProcedure extends DealerProcedure  {
 
     public DealerLocalProcedure(String name) {
         super(null, name, WAMPTools.EMPTY_DICT, null);
     }
 
     public abstract boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException;
-    
+
     public abstract WAMPFeature[] featuredBy();
+
 }

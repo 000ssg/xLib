@@ -1057,7 +1057,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             }
             HttpResponse resp = req.getResponse();
             Body body = req.getResponse().getBody();
-            System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize() + ", body.size=" + body.size());
+            //System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize() + ", body.size=" + body.size());
             if (body.size() > 0) {
                 return 0;
             }

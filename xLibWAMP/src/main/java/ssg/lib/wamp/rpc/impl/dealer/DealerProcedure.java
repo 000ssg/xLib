@@ -32,7 +32,7 @@ import ssg.lib.wamp.rpc.impl.Procedure;
  *
  * @author 000ssg
  */
-public class DealerProcedure extends Procedure {
+public class DealerProcedure extends Procedure implements Cloneable {
 
     Object owner;
     WAMPSession session;
@@ -54,6 +54,15 @@ public class DealerProcedure extends Procedure {
                 + (owner != null ? ", owner=" + owner : "")
                 + (session != null ? ", session=" + session.getId() : "")
                 + (rerouted.get() > 0 ? ", rerouted=" + rerouted.get() : "");
+    }
+
+    @Override
+    public DealerProcedure clone() {
+        try {
+            return (DealerProcedure) super.clone();
+        } catch (CloneNotSupportedException cnsex) {
+            return null;
+        }
     }
 
 }
