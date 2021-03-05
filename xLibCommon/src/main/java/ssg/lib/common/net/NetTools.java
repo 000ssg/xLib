@@ -33,6 +33,8 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
@@ -204,6 +206,39 @@ public class NetTools {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns all variants of URI as numeric IPs (multiple, if multiple DNS
+     * entries found).
+     *
+     * @param uri
+     * @return
+     */
+    public static URI[] allURIs(URI uri) {
+        String host = uri.getHost();
+        try {
+            InetAddress[] ia = InetAddress.getAllByName(host);
+            if (ia == null || ia.length == 1) {
+                return new URI[]{uri};
+            }
+            URI[] r = new URI[ia.length];
+            int c = 0;
+            for (InetAddress a : ia) {
+                if (a.getAddress().length == 4) {
+                    try {
+                        r[c++] = new URI(uri.toString().replace(host, a.toString()));
+                    } catch (URISyntaxException usex) {
+                    }
+                }
+            }
+            if (c < r.length) {
+                r = Arrays.copyOf(r, c);
+            }
+            return r;
+        } catch (UnknownHostException uhex) {
+            return null;
+        }
     }
 
     /**

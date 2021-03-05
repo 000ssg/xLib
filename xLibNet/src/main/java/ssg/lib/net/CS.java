@@ -62,9 +62,9 @@ import ssg.lib.di.DM;
  * @author 000ssg
  */
 public class CS implements Runnable {
-    
+
     public static int scheduledPoolSize = 5;
-    
+
     private static final CSListener[] noListeners = new CSListener[0];
     private ScheduledExecutorService scheduler;
     private boolean ownedScheduler = false;
@@ -78,20 +78,20 @@ public class CS implements Runnable {
     Map<Object, ByteBuffer[]> unread = new ConcurrentHashMap<>();
     Map<Object, ByteBuffer[]> unwritten = new ConcurrentHashMap<>();
     long inactivityTimeout = 1000 * 60 * 5;
-    
+
     public CS() {
     }
-    
+
     public CS(String title) {
         this.title = title;
     }
-    
+
     public CS(String title, ScheduledExecutorService scheduler) {
         this.title = title;
         this.scheduler = scheduler;
         ownedScheduler = false;
     }
-    
+
     public synchronized void start() throws IOException {
         if (scheduler == null) {
             scheduler = Executors.newScheduledThreadPool(scheduledPoolSize);
@@ -100,17 +100,17 @@ public class CS implements Runnable {
         selector = Selector.open();
         executor = scheduler.schedule(this, 1, TimeUnit.NANOSECONDS);
     }
-    
+
     public boolean isRunning() {
         return executor != null && selector != null;
     }
-    
+
     public void onStopped(Throwable error) {
         if (error != null) {
             error.printStackTrace();
         }
     }
-    
+
     public synchronized void stop() throws IOException {
         for (CSGroup l : groups) {
             try {
@@ -139,7 +139,7 @@ public class CS implements Runnable {
             l.onStopped(this);
         }
     }
-    
+
     public <Z extends CS> Z addCSListener(CSListener... ls) {
         if (ls != null && ls.length > 0) {
             for (CSListener l : ls) {
@@ -151,7 +151,7 @@ public class CS implements Runnable {
         }
         return (Z) this;
     }
-    
+
     public void removeCSListener(CSListener... ls) {
         if (ls != null && ls.length > 0) {
             for (CSListener l : ls) {
@@ -161,7 +161,7 @@ public class CS implements Runnable {
             }
         }
     }
-    
+
     public <Z extends CS> Z addCSGroup(CSGroup... ls) {
         if (ls != null && ls.length > 0) {
             for (CSGroup l : ls) {
@@ -176,7 +176,7 @@ public class CS implements Runnable {
         }
         return (Z) this;
     }
-    
+
     public void removeCSGroup(CSGroup... ls) {
         if (ls != null && ls.length > 0) {
             for (CSGroup l : ls) {
@@ -187,26 +187,26 @@ public class CS implements Runnable {
             }
         }
     }
-    
+
     public ScheduledExecutorService getScheduledExecutorService() {
         return scheduler;
     }
-    
+
     CSListener[] listeners() {
         return (listeners.isEmpty()) ? noListeners : listeners.toArray(new CSListener[listeners.size()]);
     }
-    
+
     @Override
     public void run() {
         if (executorIsActive) {
             throw new RuntimeException("Failed to re-run already active " + getClass().getName());
         }
-        
+
         executorIsActive = true;
-        
+
         String oldName = Thread.currentThread().getName();
         Thread.currentThread().setName("CS: " + ((title != null) ? title : System.identityHashCode(this)));
-        
+
         Throwable error = null;
         try {
             for (CSGroup l : groups) {
@@ -215,14 +215,17 @@ public class CS implements Runnable {
             for (CSListener l : listeners()) {
                 l.onStarted(this);
             }
-            
+
             Handler handler = null;
             try {
                 if (!registered.isEmpty()) {
                     for (Entry<Handler, Boolean> h : registered.entrySet()) {
                         handler = h.getKey();
                         if (!h.getValue()) {
-                            handler.register(selector);
+                            // TODO: check why it might be registered before!
+                            if (!handler.isRegistered()) {
+                                handler.register(selector);
+                            }
                             h.setValue(Boolean.TRUE);
                         }
                     }
@@ -239,7 +242,7 @@ public class CS implements Runnable {
             // timestampe for next check,1st check on 1st run
             long nextCheck = System.currentTimeMillis();
             long nextHealthCheck = nextCheck - (long) (inactivityTimeout / 2.3);
-            
+
             while (true) {
                 long ts = System.currentTimeMillis();
                 try {
@@ -283,7 +286,7 @@ public class CS implements Runnable {
                                             } else {
                                                 bbs = new ByteBuffer[]{buf};
                                             }
-                                            
+
                                             if (bbs != null && BufferTools.hasRemaining(bbs)) {
                                                 lastIO.put(key, ts);
                                                 for (CSListener l : listeners()) {
@@ -322,7 +325,7 @@ public class CS implements Runnable {
                                                     bbs = bufs.toArray(new ByteBuffer[bufs.size()]);
                                                 }
                                             }
-                                            
+
                                             if (bbs != null && bbs.length > 0 && bbs[0] != null) {
                                                 long c0 = BufferTools.getRemaining(bbs);
                                                 long c = write(key.channel(), bbs);
@@ -393,7 +396,7 @@ public class CS implements Runnable {
                                     }
                                 } catch (Throwable th1) {
                                 }
-                                
+
                             } finally {
                                 keys.remove();
                             }
@@ -415,7 +418,7 @@ public class CS implements Runnable {
                     }
                     break;
                 }
-                
+
                 if (ts >= nextHealthCheck) {
                     for (SelectionKey key : selector.keys()) {
                         if (key.attachment() instanceof DM) {
@@ -486,6 +489,9 @@ public class CS implements Runnable {
                         }
                     }
                 }
+                if (Thread.currentThread().isInterrupted()) {
+                    break;
+                }
             }
         } finally {
             try {
@@ -494,13 +500,14 @@ public class CS implements Runnable {
                 executorIsActive = false;
                 Thread.currentThread().setName(oldName);
                 if (scheduler != null && ownedScheduler) {
-                    scheduler.shutdown();
+                    // do we need graceful shutdown?
+                    scheduler.shutdownNow();
                     scheduler = null;
                 }
             }
         }
     }
-    
+
     public void add(Handler handler) throws IOException {
         if (handler != null) {
             if (selector != null) {
@@ -514,7 +521,7 @@ public class CS implements Runnable {
             l.onAdded(this, handler);
         }
     }
-    
+
     public void remove(Handler handler) throws IOException {
         if (handler != null) {
             if (registered.containsKey(handler)) {
@@ -526,7 +533,7 @@ public class CS implements Runnable {
             l.onRemoved(this, handler);
         }
     }
-    
+
     public boolean hasTCPHandler(int port) {
         if (port <= 0 || port > 0xFFFF) {
             return false;
@@ -546,7 +553,7 @@ public class CS implements Runnable {
         }
         return false;
     }
-    
+
     public boolean hasUDPHandler(int port) {
         if (port <= 0 || port > 0xFFFF) {
             return false;
@@ -562,9 +569,9 @@ public class CS implements Runnable {
         }
         return false;
     }
-    
+
     ByteBuffer readBuf = null;
-    
+
     public synchronized ByteBuffer read(Channel sc) throws IOException {
         ByteBuffer buf = null;
         if (readBuf != null) {
@@ -598,22 +605,22 @@ public class CS implements Runnable {
     public int readNotByteChannel(Channel sc, ByteBuffer buf) throws IOException {
         throw new IOException("Unsupported channel: " + sc + ". Need to return ByteBuffer on read operation.");
     }
-    
+
     public long write(Channel sc, ByteBuffer... bbs) throws IOException {
         return ((SocketChannel) sc).write(bbs);
     }
-    
+
     public void onError(String message, Throwable th) {
         System.err.println(message);
         if (th != null) {
             th.printStackTrace();
         }
     }
-    
+
     public Selector selector() {
         return selector;
     }
-    
+
     public String getInfo() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
@@ -645,5 +652,5 @@ public class CS implements Runnable {
         sb.append('}');
         return sb.toString();
     }
-    
+
 }

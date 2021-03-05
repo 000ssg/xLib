@@ -209,13 +209,12 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (!isAllowedProvider(meta.getProvider())) {
             return SERVICE_MODE.failed;
         }
-        
+
 //        try {
 //            System.out.println("HTTP PROBE: " + meta.getProvider() + "\n  " + BufferTools.toText("ISO-8859-1", data).replace("\n", "\n  "));
 //        } catch (Throwable th) {
 //            System.out.println("HTTP PROBE: " + meta.getProvider() + "\n  " + th.toString().replace("\n", "\n  "));
 //        }
-
         byte[] buf = new byte[10 + ((root != null) ? root.length() + 2 : 0)];
         ByteBuffer probe = BufferTools.probe(ByteBuffer.wrap(buf), data);
         if (probe.hasRemaining()) {
@@ -444,10 +443,19 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (http.getHead().isConnectionUpgrade()) {
             Repository<HttpConnectionUpgrade> cur = this.getConnectionUpgrades();
             if (cur != null) {
+                String uRoot = root;
+                if (uRoot == null) {
+                    uRoot = "";
+                }
+                if (http instanceof HttpRequest && ((HttpRequest) http).getHttpSession().getApplication() != null) {
+                    String aRoot=((HttpRequest) http).getHttpSession().getApplication().getRoot();
+                    uRoot+=aRoot;
+                }
+                final String mRoot=uRoot;
                 List<HttpConnectionUpgrade> cus = cur.find(new Matcher<HttpConnectionUpgrade>() {
                     @Override
                     public float match(HttpConnectionUpgrade t) {
-                        if (t != null && t.testUpgrade(root != null ? root : "", http.getHead())) {
+                        if (t != null && t.testUpgrade(mRoot, http.getHead())) {
                             return 1;
                         } else {
                             return 0;
@@ -510,7 +518,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     }
 
     public void onHttpDataCompleted(P provider, HttpData http) {
-        System.out.println("" + provider + ": HttpDataCompleted: " + http.toString().replace("\n", "\n    "));
+        //System.out.println("" + provider + ": HttpDataCompleted: " + http.toString().replace("\n", "\n    "));
     }
 
     @Override

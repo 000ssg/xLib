@@ -56,6 +56,9 @@ public class HttpMatcher {
     private String contentType;
     int pathParamCount = 0;
 
+    // temporary var to allow relative path evaluation with respect to parent...
+    transient ThreadLocal<HttpMatcher> parent = new ThreadLocal<>();
+
     public HttpMatcher() {
     }
 
@@ -240,7 +243,7 @@ public class HttpMatcher {
             }
         }
         if (!pathOnly) {
-            if (rm!=null && rm.qpm != null) {
+            if (rm != null && rm.qpm != null) {
                 for (int i = 0; i < rm.qpm.length; i++) {
                     // TODO: no value ? null or "" ???
                     String key = rm.qpm[i][0];
@@ -296,6 +299,25 @@ public class HttpMatcher {
     }
 
     /**
+     * Evaluates matching level for provided URI representation with optional
+     * parent matcher (for use with relative path only!)
+     *
+     * @param parent
+     * @param rm
+     * @return
+     */
+    public float match(HttpMatcher parent, HttpMatcher rm) {
+        synchronized (this) {
+            this.parent.set(parent);
+            try {
+                return match(rm);
+            } finally {
+                this.parent.set(null);
+            }
+        }
+    }
+
+    /**
      * Evaluates matching level for provided URI representation.
      *
      * @param rm
@@ -346,32 +368,6 @@ public class HttpMatcher {
         cur += weights[1] * matchExt(rm);
         cur += weights[2] * matchContentType(rm);
 
-//        if (paths.length == 0 && path != null && rm.path != null && rm.path.startsWith(path)) {
-//            // explicit match for root...
-//            cur = weights[0] * 1;
-//        } else if (paths.length <= rm.paths.length) {
-//            // check length match
-//            float f0 = (paths.length == rm.paths.length) ? 1 : 0.5f;
-//            float f1 = 0;
-//            for (int i = 0; i < Math.min(paths.length, rm.paths.length); i++) {
-//                if (paths[i].startsWith("{")) {
-//                    f1 += (1f / paths.length);
-//                } else if (paths[i].equals(rm.paths[i])) {
-//                    f1 += (1f / paths.length);
-//                } else {
-//                    break;
-//                }
-//            }
-//            cur += weights[0] * ((f1 >= 0.99f) ? (f0 + f1) / 2 : 0);
-//        }
-//        if (ext != null) {
-//            cur += weights[1] * ((rm.ext != null && ext.equalsIgnoreCase(rm.ext)) ? 1 : 0);
-//        }
-//        if (contentType != null) {
-//            if (rm.contentType != null) {
-//                cur += weights[2] * ((contentType.equalsIgnoreCase(rm.contentType)) ? 1 : ((rm.contentType.contains(contentType))) ? 0.5 : 0);
-//            }
-//        }
         return cur / max;
     }
 
@@ -402,8 +398,36 @@ public class HttpMatcher {
                 }
                 f = ((f1 >= 0.99f) ? (f0 + f1) / 2 : 0);
             }
-        } else {
-
+        } else if (parent.get() != null) {
+            HttpMatcher p = parent.get();
+            if (p.paths != null && p.paths.length > 0) {
+                if (paths == null) {
+                    // this is root - any path will match...
+                    f = 1;
+                } else if (rm.paths == null) {
+                    f = 0;
+                } else {
+                    // check length match
+                    int ppl = p.paths.length;
+                    float f0 = (paths.length + ppl ==  rm.paths.length) ? 1 : 0.5f;
+                    float f1 = 0;
+                    for (int i = 0; i < Math.min(paths.length + ppl, rm.paths.length); i++) {
+                        HttpMatcher pi = i < ppl ? p : this;
+                        int off = i < ppl ? i : i - ppl;
+                        if (pi.paths[off].startsWith("{")) {
+                            f1 += (1f / (ppl + paths.length));
+                        } else if (pi.paths[off].equals(rm.paths[i])) {
+                            f1 += (1f / (paths.length + ppl));
+                        } else if (pi.wildcards != null && pi.wildcards[off] != null) {
+                            WildcardMatcher m = pi.wildcards[off];
+                            f1 += (m.match(rm.paths[i]) / paths.length);
+                        } else {
+                            break;
+                        }
+                    }
+                    f = ((f1 >= 0.99f) ? (f0 + f1) / 2 : 0);
+                }
+            }
         }
         return f;
     }

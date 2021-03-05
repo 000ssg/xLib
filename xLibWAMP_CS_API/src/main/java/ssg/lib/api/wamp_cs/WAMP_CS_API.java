@@ -60,6 +60,7 @@ import ssg.lib.http.HttpService;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
 import ssg.lib.http.rest.ReflectiveMethodsProvider;
+import ssg.lib.net.CS;
 import ssg.lib.service.Repository;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
@@ -82,7 +83,7 @@ import ssg.lib.websocket.WebSocket;
  */
 public class WAMP_CS_API {
 
-    IWS wcs = new WSJavaCS();
+    IWS wcs;
     // published APIs info per Dealer instance...
     Map<URL, WAMPClient> publishers = Collections.synchronizedMap(new LinkedHashMap<>());
     // DB connections
@@ -94,6 +95,11 @@ public class WAMP_CS_API {
     Map<WAMPFeature, WAMPFeatureProvider> featureProviders = WAMPTools.createMap(true);
 
     public WAMP_CS_API() {
+        wcs = new WSJavaCS();
+    }
+
+    public WAMP_CS_API(CS cs) {
+        wcs = new WSJavaCS(cs);
     }
 
     public <Z extends WAMP_CS_API> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
@@ -113,6 +119,13 @@ public class WAMP_CS_API {
     public WAMP_CS_API router(int... ports) {
         if (wcs instanceof WSJavaCS) {
             ((WSJavaCS) wcs).router(ports);
+        }
+        return this;
+    }
+
+    public WAMP_CS_API noRouter() {
+        if (wcs instanceof WSJavaCS) {
+            ((WSJavaCS) wcs).noRouter();
         }
         return this;
     }
@@ -284,7 +297,7 @@ public class WAMP_CS_API {
                                                     }
                                                     return rb;
                                                 }).collect(Collectors.toList()))
-                                                .data("proc",procs[0].fqn())
+                                                .data("proc", procs[0].fqn())
                                         ).data();
                             } else {
                                 opts = new HashMap() {
@@ -448,7 +461,7 @@ public class WAMP_CS_API {
                             }
                             if (rest == null) {
                                 rest = new RESTHttpDataProcessor("/rest");
-                                rep.addItem(rest,0);
+                                rep.addItem(rest, 0);
                                 rest.getRESTHelper().addAPITypes(new JS_API_WAMP(new WAMP_Context() {
                                     @Override
                                     public String getURI() {

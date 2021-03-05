@@ -432,6 +432,22 @@ public interface HttpAuthenticator<P> {
                 } catch (IOException ioex) {
                     ioex.printStackTrace();
                 }
+            } else if (ba != null && ba.startsWith("Bearer ")) {
+                try {
+                    VerificationResult vr = store.verify(ba);
+                    if (vr != null && vr.userId!=null) {
+                        HttpUser user = new HttpUser();
+                        user.domain = (vr.userDomain != null) ? vr.userDomain : this.name;
+                        user.id = vr.userId;
+                        user.user = vr.userName;
+                        user.rat = store.getRAT(vr.userId);
+                        users.put(provider, user);
+                        user.getProperties().put(HttpUser.P_AUTH_TYPE, HttpUser.AUTH_TYPE.password);
+                        return user;
+                    }
+                } catch (IOException ioex) {
+                    ioex.printStackTrace();
+                }
             }
             return null;
         }

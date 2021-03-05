@@ -39,6 +39,7 @@ import java.nio.channels.Channel;
 import java.util.List;
 import ssg.lib.common.CommonTools;
 import ssg.lib.di.DI;
+import ssg.lib.http.base.HttpContext;
 import ssg.lib.service.DataProcessor;
 import ssg.lib.service.DataProcessor.HST;
 import ssg.lib.service.SERVICE_PROCESSING_STATE;
@@ -46,7 +47,7 @@ import ssg.lib.service.SERVICE_PROCESSING_STATE;
 /**
  *
  * @author 000ssg
- * @param <P> 
+ * @param <P>
  */
 public class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, HttpEventListener {
 
@@ -90,9 +91,14 @@ public class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, H
     public HST probe(P provider, DI<ByteBuffer, P> data) {
         HttpData http = http(provider, data);
         if (http != null) {
+            HttpContext ctx = http.getContext();
+            HttpMatcher parent = null;
+            if (!matcher.absolutePath && ctx instanceof HttpSession && ((HttpSession) ctx).getApplication() != null) {
+                parent = ((HttpSession) ctx).getApplication().getMatcher();
+            }
             if (matcher == null) {
                 int a = 0;
-            } else if (matcher.match(http.getMatcher()) > 0) {
+            } else if (matcher.match(parent, http.getMatcher()) > 0) {
                 return processingScope;
             }
         }

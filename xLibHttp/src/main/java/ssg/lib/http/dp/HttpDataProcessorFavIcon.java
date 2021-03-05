@@ -26,6 +26,7 @@ package ssg.lib.http.dp;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
+import ssg.lib.http.base.HttpData;
 
 /**
  * Sample favicon provider as extension to static data processor with predefine

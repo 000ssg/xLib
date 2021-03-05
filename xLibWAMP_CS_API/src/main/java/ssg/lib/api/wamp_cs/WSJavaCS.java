@@ -105,14 +105,30 @@ public class WSJavaCS implements Runnable, IWS {
     HttpService httpService;
 
     // socket caller/handler
-    CS cs = new CS(getClass().getSimpleName())
-            .addCSGroup(wsGroup);
+    CS cs;
+    // if false, CS is managed externally!
+    boolean ownCS = true;
 
     ScheduledExecutorService executorService;
 
     // counters
     WSCSCounters counters = new WSCSCounters(routerCS, clientCS);
     WSCSCountersREST countersREST = new WSCSCountersREST();
+
+    public WSJavaCS() {
+        cs = new CS(getClass().getSimpleName())
+                .addCSGroup(wsGroup);
+    }
+
+    public WSJavaCS(CS cs) {
+        if (cs == null) {
+            cs = new CS(getClass().getSimpleName());
+        } else {
+            ownCS = false;
+        }
+        this.cs = cs
+                .addCSGroup(wsGroup);
+    }
 
     public <Z extends WSJavaCS> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
         if (feature != null) {
@@ -177,6 +193,14 @@ public class WSJavaCS implements Runnable, IWS {
                 } catch (IOException ioex) {
                 }
             }
+        }
+        return this;
+    }
+    
+    public WSJavaCS noRouter() {
+        if(routerCS!=null) {
+            wsGroup.removeWebSocketProtocolHandler(routerCS);
+            routerCS=null;
         }
         return this;
     }
@@ -309,7 +333,9 @@ public class WSJavaCS implements Runnable, IWS {
     public void start() throws IOException {
         if (runner == null) {
             clientCS.setStatistics(new WAMPStatistics("ws-cs-client"));
-            cs.start();
+            if (!cs.isRunning() || ownCS) {
+                cs.start();
+            }
             runner = cs.getScheduledExecutorService().submit(this);
         }
     }
@@ -323,7 +349,9 @@ public class WSJavaCS implements Runnable, IWS {
     public void stop() throws IOException {
         if (runner != null) {
             runner.cancel(true);
-            cs.stop();
+            if (ownCS && cs.isRunning()) {
+                cs.stop();
+            }
         }
         if (executorService != null) {
             executorService.shutdownNow();
@@ -356,6 +384,10 @@ public class WSJavaCS implements Runnable, IWS {
         String old = Thread.currentThread().getName();
         Thread.currentThread().setName(((getClass().isAnonymousClass()) ? getClass().getName() : getClass().getSimpleName()) + ":runner");
         while (!Thread.currentThread().isInterrupted()) {
+            try {
+                Thread.sleep(5);
+            } catch (Throwable th) {
+            }
 //            try {
 //                if (!clients.isEmpty()) {
 //                    Collection<WAMPClient> cs = new ArrayList<>();

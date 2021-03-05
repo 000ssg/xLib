@@ -93,6 +93,9 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
             for (MethodsProvider mp : methodsProviders) {
                 if (providers != null) {
                     for (Object p : providers) {
+                        if (p == null) {
+                            continue;
+                        }
                         Class pc = (p instanceof Class) ? (Class) p : p.getClass();
                         if (p instanceof Class) {
                             try {
@@ -275,6 +278,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
 
     public RESTMethod prepareMethodAndParams(HttpRequest req, Map params) throws IOException {
         HttpMatcher qrm = req.getMatcher();
+        HttpMatcher parentRM= req.getHttpSession().getApplication()!=null ? req.getHttpSession().getApplication().getMatcher() : null;
 
         // add form-data parameters, if any
         if (req.canHaveFormParameters()) {
@@ -318,7 +322,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
 //        }
 
         // get path-based matches
-        HttpMatcher[] brms = bestMatches(qrm);
+        HttpMatcher[] brms = bestMatches(parentRM, qrm);
         if (brms != null) {
             for (HttpMatcher brm : brms) {
                 Map probeParams = new LinkedHashMap();
@@ -465,13 +469,13 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         return result;
     }
 
-    public HttpMatcher[] bestMatches(HttpMatcher r) {
+    public HttpMatcher[] bestMatches(HttpMatcher parent, HttpMatcher r) {
         HttpMatcher[] result = new HttpMatcher[methods.size()];
         Float[] resultf = new Float[result.length];
         int off = 0;
         //System.out.println("brm: " + r);
         for (HttpMatcher rm : methods.keySet()) {
-            float f = rm.match(r);
+            float f = rm.match(parent, r);
             //System.out.println("  [" + resultf + "]\t-> " + f + "\t" + rm.toString().replace("\n", "\n    \t\t"));
             if (f > 0) {
                 result[off] = rm;

@@ -41,3 +41,10 @@ hs_err_pid*
 /xLibNet/target/
 /xLibWAMP_CS/target/
 /xLibWAMP/nbproject/
+/xLibHttp_CS/nbproject/
+/xLibHttp_CS/target/
+/xLibHttpAPI_CS/target/
+/xLibWAMPHttpAPI_CS/target/
+/xLibHttpAPI_CS/nbproject/
+/xLibWAMPHttpAPI_CS/nbproject/
+/xLibCommon/nbproject/

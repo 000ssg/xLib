@@ -49,12 +49,12 @@ import ssg.lib.websocket.impl.WebSocketProtocolHandler;
  * @author 000ssg
  */
 public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
-
+    
     WAMPRouter wampRouter;
     ScheduledFuture<?> executor; // process to perform regular execution of wampServer.runCycle
     Map<WebSocket, WAMPTransportJSON> wampTransports = WAMPTools.createSynchronizedMap(false);
     private int maxInputQueueSize = 100;
-
+    
     public WAMPRouter_WSProtocol() {
         wampRouter = new WAMPRouter(Role.broker, Role.dealer) {
             @Override
@@ -69,7 +69,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                 .configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration)
                 .configure(new WAMPStatistics("router"));
     }
-
+    
     public WAMPRouter_WSProtocol(Role[] roles, final WAMPFeature... routerFeatures) {
         wampRouter = new WAMPRouter(roles) {
             @Override
@@ -84,34 +84,34 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                 .configure(WAMPFeature.registration_meta_api, WAMPFeature.shared_registration)
                 .configure(new WAMPStatistics("router"));
     }
-
+    
     public WAMPRouter_WSProtocol(WAMPRouter router) {
         wampRouter = router;
     }
-
+    
     public WAMPRouter getRouter() {
         return wampRouter;
     }
-
+    
     public <Z extends WAMPRouter_WSProtocol> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
         if (feature != null) {
             wampRouter.configure(feature, featureProvider);
         }
         return (Z) this;
     }
-
+    
     public boolean canCreateRealm(String name, Role... roles) {
         boolean isRouter = Role.hasRole(Role.router, roles);
         boolean isClient = Role.hasRole(Role.client, roles);
         return WAMP_DT.uri.validate(name) && (isRouter || isClient) && !(isRouter && isClient);
     }
-
+    
     @Override
     public boolean canInitialize(Channel provider, WebSocket ws) {
         //return (provider == null || provider.isOpen() && ws != null && ws.isInitialized()) && ws != null && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol()) && !ws.isClient();
         return (provider == null || provider.isOpen()) && ws != null && WAMP.WS_SUB_PROTOCOL_JSON.equals(ws.getProtocol()) && !ws.isClient();
     }
-
+    
     @Override
     public void initialize(Channel provider, WebSocket ws) {
         WAMPTransportJSON transport = new WAMPTransportJSON(provider, new WAMPTransportJSON.TransportData(String.class) {
@@ -133,7 +133,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                     }
                 }
             }
-
+            
             @Override
             public void close() {
                 if (ws != null && ws.isConnected()) {
@@ -144,15 +144,15 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                     }
                 }
             }
-
+            
         });
         wampTransports.put(ws, transport);
         wampRouter.onNewTransport(transport);
     }
-
+    
     public void onSend(WebSocket ws, Object message) {
     }
-
+    
     @Override
     public void delete(Channel provider, WebSocket ws) {
         final WAMPTransport transport = (ws != null) ? wampTransports.get(ws) : null;
@@ -166,7 +166,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
             wampTransports.remove(ws);
         }
     }
-
+    
     @Override
     public WebSocket.WebSocketAddons prepareAddons(Channel provider, boolean client, WebSocket.WebSocketAddons addOns) throws IOException {
         if (addOns == null) {
@@ -175,7 +175,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         addOns.addProtocol(WAMP.WS_SUB_PROTOCOL_JSON, this);
         return addOns;
     }
-
+    
     @Override
     public boolean onConsume(Channel provider, WebSocket ws, Object message) throws IOException {
         if (message != null && ws != null && wampTransports.get(ws) != null) {
@@ -184,7 +184,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         }
         return false;
     }
-
+    
     @Override
     public boolean onProduce(Channel provider, WebSocket ws) throws IOException {
         WAMPTransport wt = (ws != null) ? wampTransports.get(ws) : null;
@@ -194,7 +194,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         }
         return false;
     }
-
+    
     @Override
     public boolean isReady(Channel provider, WebSocket ws) throws IOException {
         WAMPTransportJSON wt = wampTransports.get(ws);
@@ -203,7 +203,7 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         }
         return true;
     }
-
+    
     @Override
     public void onStarted(Object... parameters) {
         CS cs = null;
@@ -218,6 +218,8 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         executor = cs.getScheduledExecutorService().scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                String old = Thread.currentThread().getName();
+                Thread.currentThread().setName("wamp-router-run-" + System.identityHashCode(WAMPRouter_WSProtocol.this));
                 try {
                     while (executor != null && !executor.isCancelled()) {
                         try {
@@ -228,11 +230,12 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                     }
                 } finally {
                     executor = null;
+                    Thread.currentThread().setName(old);
                 }
             }
         }, 5, 10, TimeUnit.MILLISECONDS);
     }
-
+    
     @Override
     public void onStop(Object... parameters) {
         CS cs = null;

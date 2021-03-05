@@ -50,10 +50,12 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
     private Repository<DataProcessor> dataProcessors;
     private boolean basicAuthEnabled = false;
     transient HttpAuthenticator auth;
+    HttpMatcher matcher;
 
     public HttpApplication() {
         name = "Default";
         root = "/";
+        matcher = new HttpMatcher(root);
     }
 
     public HttpApplication(
@@ -64,6 +66,11 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         this.root = root;
         getProperties().put("name", name);
         getProperties().put("root", root);
+        matcher = new HttpMatcher(root);
+    }
+
+    public HttpMatcher getMatcher() {
+        return matcher;
     }
 
     public <T extends HttpApplication> T configureName(String name) {
@@ -84,6 +91,7 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
             throw new IOException("Cannot change root from '" + this.root + "' to '" + root + "'.");
         }
         getProperties().put("root", root);
+        matcher = new HttpMatcher(root);
         return (T) this;
     }
 

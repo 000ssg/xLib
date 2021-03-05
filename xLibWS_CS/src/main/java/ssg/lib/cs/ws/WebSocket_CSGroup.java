@@ -377,7 +377,7 @@ public class WebSocket_CSGroup implements CSGroup {
 
             @Override
             public boolean testWSPath(String root, Head head) {
-                return super.testWSPath(root, head) && head.getProtocolInfo()[1].equals(root + path);
+                return super.testWSPath(root, head) && head.getProtocolInfo()[1].equals(root + (!root.isEmpty() && !root.endsWith("/") && !path.startsWith("/") ? "/" : "") + path);
             }
         };
 

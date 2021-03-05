@@ -1000,6 +1000,8 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                                 Runnable r = new Runnable() {
                                     @Override
                                     public void run() {
+                                        String old=Thread.currentThread().getName();
+                                        Thread.currentThread().setName("DF_Service-processing-"+System.identityHashCode(DF_Service.this));
                                         processing = prr;
                                         try {
                                             processing.run();
@@ -1008,6 +1010,7 @@ public class DF_Service<P extends Channel> extends BaseDF<ByteBuffer, P> impleme
                                         } finally {
                                             processed = true;
                                             processing = null;
+                                            Thread.currentThread().setName(old);
                                         }
                                     }
                                 };
