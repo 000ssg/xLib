@@ -35,6 +35,7 @@ public class APIRunner<T> extends HttpRunner {
 
     public class APIGroup {
 
+        public String authid;
         public String agent;
         public String realm;
         public API_Publisher.API_Publishers apis = new API_Publisher.API_Publishers();
@@ -42,7 +43,7 @@ public class APIRunner<T> extends HttpRunner {
 
         public void connect(URI uri) throws IOException {
             // publish APIs to DEMO WAMP namespace..., implicitly as REST bridge to WAMP.
-            T client = publishPrefixedAPI(uri, realm, apis, apis.getAPINames());
+            T client = APIRunner.this.publishAPI(uri, this, apis.getAPINames());
             if (client != null) {
                 clients.put(uri, client);
             }
@@ -75,9 +76,22 @@ public class APIRunner<T> extends HttpRunner {
      * @return
      */
     public APIRunner configureAPI(String realm, String name, API_Publisher api) {
+        return this.configureAPI(realm, name, api, null);
+    }
+
+    /**
+     * Add API to realm (WAMP client functionality and/or REST)
+     *
+     * @param realm
+     * @param name
+     * @param api
+     * @return
+     */
+    public APIRunner configureAPI(String realm, String name, API_Publisher api, String authid) {
         APIGroup group = apis.get(realm);
         if (group == null) {
             group = new APIGroup();
+            group.authid = authid;
             group.realm = realm;
             apis.put(realm, group);
         }
@@ -86,32 +100,6 @@ public class APIRunner<T> extends HttpRunner {
         return this;
     }
 
-//    /**
-//     * Publish APIs for realm on given router.
-//     *
-//     * @param router - URI to WAMP router
-//     * @param resolveMultiDNS - convert URI to IP (possibly several)
-//     * @param realms - names of realm to publish, if none - publish all realms
-//     * @throws WAMPException
-//     * @throws IOException
-//     */
-//    public void publish(URI router, boolean resolveMultiDNS, String... realms) throws IOException {
-//        if (realms == null) {
-//            realms = apis.keySet().toArray(new String[apis.size()]);
-//        }
-//        URI[] all = (resolveMultiDNS) ? allURIs(router) : null;
-//        if (all == null || all.length == 1) {
-//            all = new URI[]{router};
-//        }
-//        for (String realm : realms) {
-//            APIGroup group = apis.get(realm);
-//            if (group != null) {
-//                for (URI r : all) {
-//                    group.connect(r);
-//                }
-//            }
-//        }
-//    }
     @Override
     public void onStarted() throws IOException {
         super.onStarted();
@@ -136,61 +124,98 @@ public class APIRunner<T> extends HttpRunner {
         return new URI[]{uri};
     }
 
-    public T publishPrefixedAPI(URI wsURI, String realm, API_Publishers api, String... apiNames) throws IOException {
-        if (apiNames != null) {
-            return this.publishPrefixedAPI(wsURI, realm, api, Arrays.asList(apiNames));
-        }
-        return null;
-    }
-
     /**
      * Placeholder for actual initializer when needed.
      *
      * @param uri
-     * @param agent
-     * @param realm
+     * @param group
+     * @param title
      * @return
      */
-    public T initClient(URI uri, String agent, String realm) {
+    public T initClient(URI uri, APIGroup group, String title) {
         return null;
     }
 
-    public T publishPrefixedAPI(final URI wsURI, final String realm, API_Publishers apis, final Collection<String> apiNames) throws IOException {
-        if (realm == null || apiNames == null) {
+    /**
+     * Publish apis (names) from API group. If no names - all API group apis are
+     * published.
+     *
+     * @param wsURI
+     * @param group
+     * @param names
+     * @return
+     * @throws IOException
+     */
+    public T publishAPI(final URI wsURI, APIGroup group, String... names) throws IOException {
+        return publishAPI(wsURI, group, names != null ? Arrays.asList(names) : null);
+    }
+
+    /**
+     * Publish apis (names) from API group. If no names - all API group apis are
+     * published.
+     *
+     * @param wsURI
+     * @param group
+     * @param names
+     * @return
+     * @throws IOException
+     */
+    public T publishAPI(final URI wsURI, APIGroup group, Collection<String> names) throws IOException {
+        if (group == null) {
             return null;
         }
 
-        T client = initClient(wsURI, "api_over_wamp", realm);
+        final String realm = group.realm;
+        API_Publishers apis = group.apis;
+        final Collection<String> apiNames = names != null ? names : group.apis.getAPINames();
+        if (apiNames == null || apiNames.isEmpty()) {
+            return null;
+        }
+
+        T client = initClient(wsURI, group, "api-pub");
 
         // add callable APIs
         for (String apiName : apiNames) {
             if (apiName != null) {
                 final API_Publisher api = apis.getAPIPublisher(apiName);
+                // enable API-level publishing
+                onPublishingAPI(wsURI, group, client, apiName, api, null);
                 for (final String pn : apis.getNames(apiName)) {
-                    onPublishingAPI(wsURI, client, realm, apiName, api, pn);
-                    onPublishedAPI(wsURI, client, apiName, api);
+                    // proceed with procedure-level publishing
+                    onPublishingAPI(wsURI, group, client, apiName, api, pn);
+                    onPublishedAPI(wsURI, group, client, apiName, api);
                 }
             }
         }
         // connect and register API calls
-        onPublishedAPI(wsURI, client, null, null);
+        onPublishedAPI(wsURI, group, client, null, null);
         return client;
     }
 
     /**
      * Client-specific API publishing.
      *
-     * @param wsURI
+     * @param uri
+     * @param group
      * @param client
-     * @param realm
      * @param apiName
      * @param api
-     * @param pn
+     * @param procedure
      */
-    public void onPublishingAPI(final URI wsURI, final T client, final String realm, String apiName, API_Publisher api, String pn) {
+    public void onPublishingAPI(URI uri, APIGroup group, T client, String apiName, API_Publisher api, String procedure) {
     }
 
-    public void onPublishedAPI(final URI wsURI, final T client, String apiName, API_Publisher api) throws IOException {
+    /**
+     * Invoked once API is published to allow post-processing
+     *
+     * @param uri
+     * @param group
+     * @param client
+     * @param apiName
+     * @param api
+     * @throws IOException
+     */
+    public void onPublishedAPI(URI uri, APIGroup group, T client, String apiName, API_Publisher api) throws IOException {
         if (client == null && getREST() != null) {
             getREST().registerProviders(new MethodsProvider[]{new API_MethodsProvider()}, api);
         }

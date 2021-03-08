@@ -26,13 +26,16 @@ package ssg.lib.wamp;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.LS;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.wamp.WAMP.Role;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.stat.WAMPStatistics;
 
 /**
@@ -52,6 +55,7 @@ public class WAMPRealm implements Serializable, Cloneable {
     private WAMPStatistics statistics;
     LS<WAMPRealmListener> listeners = new LS<>(new WAMPRealmListener[0]);
     Map<WAMPFeature, WAMPFeatureProvider> featureProviders;
+    private List<WAMPAuthProvider> authProviders = new ArrayList<>();
 
     private WAMPRealm() {
     }
@@ -133,6 +137,10 @@ public class WAMPRealm implements Serializable, Cloneable {
                 l.onActorEvent(WAMPRealmListener.WAMPActorEvent.postInit, actor);
             }
         }
+    }
+
+    public List<WAMPAuthProvider> getAuthProviders() {
+        return authProviders;
     }
 
     /**

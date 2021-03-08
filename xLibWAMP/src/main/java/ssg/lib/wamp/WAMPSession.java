@@ -352,7 +352,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         sb.append("{");
-        sb.append("realm=" + realm.getName());
+        sb.append("realm=" + (realm!=null ? realm.getName() : "<no realm>"));
         sb.append(", id=" + id);
         sb.append(", state=" + state);
         if (getCloseReason() != null) {

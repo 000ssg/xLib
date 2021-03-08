@@ -44,6 +44,7 @@ import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -70,11 +71,12 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
     //
     Map<WAMPFeature, WAMPFeatureProvider> wampFeatureProviders = WAMPTools.createMap(true);
+    WAMPRealmFactory realmFactory;
 
     public WAMPClient_WSProtocol() {
     }
 
-    public <Z extends WAMPClient_WSProtocol> Z configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
+    public WAMPClient_WSProtocol configure(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
         if (feature != null) {
             if (featureProvider != null) {
                 wampFeatureProviders.put(feature, featureProvider);
@@ -82,11 +84,16 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
                 wampFeatureProviders.remove(feature);
             }
         }
-        return (Z) this;
+        return this;
     }
 
     public Map<WAMPFeature, WAMPFeatureProvider> getFeatureProviders() {
         return wampFeatureProviders;
+    }
+
+    public WAMPClient_WSProtocol configure(WAMPRealmFactory realmFactory) {
+        this.realmFactory = realmFactory;
+        return this;
     }
 
     @Override
@@ -290,22 +297,40 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         }
     }
 
+//    /**
+//     * Base WAMP client initialization: build predefined client and initializes
+//     * connection procedure.
+//     *
+//     * @param uri
+//     * @param protocol
+//     * @param agent
+//     * @param realm
+//     * @param roles
+//     * @return
+//     * @throws IOException
+//     */
+//    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String agent, String realm, WAMP.Role... roles) throws IOException {
+//        return connect(uri, protocol, features, null, agent, realm, roles);
+//    }
+
     /**
      * Base WAMP client initialization: build predefined client and initializes
      * connection procedure.
      *
      * @param uri
      * @param protocol
+     * @param authid
      * @param agent
      * @param realm
      * @param roles
      * @return
      * @throws IOException
      */
-    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String agent, String realm, WAMP.Role... roles) throws IOException {
-        WAMPClient client = new WAMPClient()
-                .configure(null, features, agent, realm, roles)
-                .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null));
+    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String authid, String agent, String realm, WAMP.Role... roles) throws IOException {
+        WAMPClient client = new WAMPClient(authid)
+                .configure(realmFactory)
+                .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null))
+                .configure(null, features, agent, realm, roles);
         for (Entry<WAMPFeature, WAMPFeatureProvider> entry : getFeatureProviders().entrySet()) {
             client.configure(entry.getKey(), entry.getValue());
         }

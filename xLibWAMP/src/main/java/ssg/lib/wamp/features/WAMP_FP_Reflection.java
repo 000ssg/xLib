@@ -23,11 +23,14 @@
  */
 package ssg.lib.wamp.features;
 
+import static com.sun.tools.javac.tree.TreeInfo.types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import static jdk.internal.net.http.common.Log.errors;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
@@ -76,10 +79,15 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         pub
     }
 
-    Map<String, Map<String, Object>> types = WAMPTools.createSynchronizedMap();
-    Map<String, List<Map<String, Object>>> procs = WAMPTools.createSynchronizedMap();
-    Map<String, Map<String, Object>> errors = WAMPTools.createSynchronizedMap();
-    Map<String, Map<String, Object>> pubs = WAMPTools.createSynchronizedMap();
+    private Map<String, RR> registrations = new LinkedHashMap<>();
+
+    class RR {
+
+        Map<String, Map<String, Object>> types = WAMPTools.createSynchronizedMap();
+        Map<String, List<Map<String, Object>>> procs = WAMPTools.createSynchronizedMap();
+        Map<String, Map<String, Object>> errors = WAMPTools.createSynchronizedMap();
+        Map<String, Map<String, Object>> pubs = WAMPTools.createSynchronizedMap();
+    }
 
     @Override
     public WAMPFeature[] getFeatures(WAMP.Role role) {
@@ -113,13 +121,14 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
 
     @Override
     public void prepareFeature(WAMPSession session) {
+        RR rr=getRegistrations(session.getRealm().getName());
         if (session.hasLocalRole(WAMP.Role.subscriber) && session.hasLocalRole(WAMP.Role.caller)) try {
             final WAMPSubscriber ws = session.getRealm().getActor(WAMP.Role.subscriber);
             ws.subscribe(session, new WAMPEventListener.WAMPEventListenerBase(
                     WR_RPC_DEFINE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
-                        define(argumentsKw, true);
+                        define(session.getRealm().getName(), argumentsKw, true);
                     }
             ));
 
@@ -127,7 +136,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                     WR_RPC_DESCRIBE,
                     WAMPTools.EMPTY_DICT,
                     (subscriptionId, publicationId, options, arguments, argumentsKw) -> {
-                        define(argumentsKw, false);
+                        define(session.getRealm().getName(), argumentsKw, false);
                     }
             ));
         } catch (WAMPException wex) {
@@ -142,20 +151,21 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
      * @param name
      * @return
      */
-    public Map<String, Object>[] describe(RT type, String name) {
+    public Map<String, Object>[] describe(String realm, RT type, String name) {
+        RR rr=getRegistrations(realm);
         Map<String, Object> r = null;
         switch (type) {
             case type:
-                r = types.get(name);
+                r = rr.types.get(name);
                 break;
             case proc:
-                List<Map<String, Object>> lst = procs.get(name);
+                List<Map<String, Object>> lst = rr.procs.get(name);
                 return (lst != null) ? lst.toArray(new Map[lst.size()]) : null;
             case error:
-                r = errors.get(name);
+                r = rr.errors.get(name);
                 break;
             case pub:
-                r = pubs.get(name);
+                r = rr.pubs.get(name);
         }
         return r != null ? new Map[]{r} : null;
     }
@@ -168,49 +178,50 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
      * @param name
      * @param definition
      */
-    public void define(RT type, String name, Map<String, Object> definition) {
+    public void define(String realm, RT type, String name, Map<String, Object> definition) {
+        RR rr=getRegistrations(realm);
         //System.out.println("DEFINE: " + type + " " + name + " " + definition);
         if (type != null) {
             if (definition != null) {
                 switch (type) {
-                    case type:synchronized (types) {
-                            types.put(name, definition);
+                    case type:synchronized (rr.types) {
+                            rr.types.put(name, definition);
                             if ("type".equals(definition.get("type"))) {
                                 definition.remove("type");
                             }
                         }
                         break;
-                    case proc:synchronized (procs) {
-                            List<Map<String, Object>> procsData = procs.get(name);
+                    case proc:synchronized (rr.procs) {
+                            List<Map<String, Object>> procsData = rr.procs.get(name);
                             if (procsData == null) {
                                 procsData = WAMPTools.createSynchronizedList();
-                                procs.put(name, procsData);
+                                rr.procs.put(name, procsData);
                             }
                             procsData.add(definition);
                         }
                         break;
-                    case error:synchronized (errors) {
-                            errors.put(name, definition);
+                    case error:synchronized (rr.errors) {
+                            rr.errors.put(name, definition);
                         }
                         break;
-                    case pub:synchronized (pubs) {
-                            pubs.put(name, definition);
+                    case pub:synchronized (rr.pubs) {
+                            rr.pubs.put(name, definition);
                         }
                         break;
                 }
             } else {
                 switch (type) {
                     case type:
-                        types.remove(name);
+                        rr.types.remove(name);
                         break;
                     case proc:
-                        procs.remove(name);
+                        rr.procs.remove(name);
                         break;
                     case error:
-                        errors.remove(name);
+                        rr.errors.remove(name);
                         break;
                     case pub:
-                        pubs.remove(name);
+                        rr.pubs.remove(name);
                         break;
                 }
             }
@@ -224,7 +235,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
      * @param meta
      * @param defineOnly
      */
-    public void define(Map<String, Object> meta, boolean defineOnly) {
+    public void define(String realm, Map<String, Object> meta, boolean defineOnly) {
         if (meta != null) {
             for (String key : meta.keySet()) {
                 try {
@@ -236,11 +247,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                             if (v instanceof List) {
                                 for (Object vi : (List) v) {
                                     Map<String, Object> descr = vi instanceof Map ? (Map) vi : null;
-                                    define(type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
+                                    define(realm, type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
                                 }
                             } else {
                                 Map<String, Object> descr = v instanceof Map ? (Map) v : null;
-                                define(type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
+                                define(realm, type, name, descr != null ? descr : (defineOnly) ? WAMPTools.EMPTY_DICT : null);
                             }
                         }
                     }
@@ -256,8 +267,9 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> lst = new ArrayList<>();
-                lst.addAll(pubs.keySet());
+                lst.addAll(rr.pubs.keySet());
                 Collections.sort(lst);
                 session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, lst));
                 return true;
@@ -282,8 +294,9 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> lst = new ArrayList<>();
-                lst.addAll(procs.keySet());
+                lst.addAll(rr.procs.keySet());
                 Collections.sort(lst);
                 session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, lst));
                 return true;
@@ -308,8 +321,9 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> lst = new ArrayList<>();
-                lst.addAll(errors.keySet());
+                lst.addAll(rr.errors.keySet());
                 Collections.sort(lst);
                 session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, lst));
                 return true;
@@ -334,8 +348,9 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> lst = new ArrayList<>();
-                lst.addAll(types.keySet());
+                lst.addAll(rr.types.keySet());
                 Collections.sort(lst);
                 session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, lst));
                 return true;
@@ -361,10 +376,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> names = msg.getList(3);
                 Map<String, Object> map = WAMPTools.createDict(null);
                 for (String s : names) {
-                    Map<String, Object> mapi = (s != null) ? pubs.get(s) : null;
+                    Map<String, Object> mapi = (s != null) ? rr.pubs.get(s) : null;
                     if (mapi != null) {
                         map.put(s, mapi);
                     }
@@ -394,10 +410,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> names = msg.getList(3);
                 Map<String, Object> map = WAMPTools.createDict(null);
                 for (String s : names) {
-                    List<Map<String, Object>> mapi = (s != null) ? procs.get(s) : null;
+                    List<Map<String, Object>> mapi = (s != null) ? rr.procs.get(s) : null;
                     if (mapi != null) {
                         map.put(s, mapi);
                     }
@@ -427,10 +444,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> names = msg.getList(3);
                 Map<String, Object> map = WAMPTools.createDict(null);
                 for (String s : names) {
-                    Map<String, Object> mapi = (s != null) ? errors.get(s) : null;
+                    Map<String, Object> mapi = (s != null) ? rr.errors.get(s) : null;
                     if (mapi != null) {
                         map.put(s, mapi);
                     }
@@ -460,10 +478,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                RR rr=getRegistrations(session.getRealm().getName());
                 List<String> names = msg.getList(3);
                 Map<String, Object> map = WAMPTools.createDict(null);
                 for (String s : names) {
-                    Map<String, Object> mapi = (s != null) ? types.get(s) : null;
+                    Map<String, Object> mapi = (s != null) ? rr.types.get(s) : null;
                     if (mapi != null) {
                         map.put(s, mapi);
                     }
@@ -514,9 +533,9 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
             if (ws != null && msg.getDataLength() > 4) {
                 String topic = ws.getTopic(session, msg);
                 if (WR_RPC_DEFINE.equals(topic)) {
-                    define(msg.getDict(4), true);
+                    define(session.getRealm().getName(), msg.getDict(4), true);
                 } else if (WR_RPC_DESCRIBE.equals(topic)) {
-                    define(msg.getDict(4), false);
+                    define(session.getRealm().getName(), msg.getDict(4), false);
                 }
             }
         } else if (WAMPMessageType.T_REGISTER == msg.getType().getId()) {
@@ -528,11 +547,11 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 if (obj instanceof Collection) {
                     for (Object obji : (Collection) obj) {
                         if (obji instanceof Map) {
-                            define(RT.proc, name, (Map) obji);
+                            define(session.getRealm().getName(), RT.proc, name, (Map) obji);
                         }
                     }
                 } else if (obj instanceof Map) {
-                    define(RT.proc, name, (Map) obj);
+                    define(session.getRealm().getName(), RT.proc, name, (Map) obj);
                 }
             }
         }
@@ -548,6 +567,19 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
 
     @Override
     public void onSent(WAMPSession session, WAMPMessage msg, Throwable error) {
+    }
+
+    /**
+     * @return the registrations
+     */
+    public RR getRegistrations(String realm) {
+        if(realm==null) return null;
+        RR r= registrations.get(realm);
+        if(r==null) {
+            r=new RR();
+            registrations.put(realm, r);
+        }
+        return r;
     }
 
 }

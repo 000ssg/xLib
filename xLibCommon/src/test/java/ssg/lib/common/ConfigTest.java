@@ -136,6 +136,11 @@ public class ConfigTest {
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
         String[] ss= config.get("bb");
         System.out.println("  bb -> "+Arrays.asList(ss).toString());
+
+        config = new Config("");
+        Config.load(config, args);
+        System.out.println("Any config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
+                + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
     }
 
 }

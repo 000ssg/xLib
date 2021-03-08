@@ -618,6 +618,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
         if (realm.getStatistics() != null && realm.getStatistics().getCallStatistics() != null) {
             setStatistics(realm.getStatistics().getCallStatistics().createChild(null, "dealer"));
         }
+        registrations.setRealm(realm);
         return super.init(realm);
     }
 

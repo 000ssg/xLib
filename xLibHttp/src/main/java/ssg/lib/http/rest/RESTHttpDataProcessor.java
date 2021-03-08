@@ -278,7 +278,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
 
     public RESTMethod prepareMethodAndParams(HttpRequest req, Map params) throws IOException {
         HttpMatcher qrm = req.getMatcher();
-        HttpMatcher parentRM= req.getHttpSession().getApplication()!=null ? req.getHttpSession().getApplication().getMatcher() : null;
+        HttpMatcher parentRM = req.getHttpSession().getApplication() != null ? req.getHttpSession().getApplication().getMatcher() : null;
 
         // add form-data parameters, if any
         if (req.canHaveFormParameters()) {
@@ -492,6 +492,10 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                     }
                     if (pos != -1) {
                         for (int i = off - 1; i >= pos; i--) {
+                            if (i == 0) {
+                                // why are we here?
+                                break;
+                            }
                             result[i] = result[i - 1];
                         }
                         result[pos] = rm;

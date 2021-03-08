@@ -41,6 +41,7 @@ import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.events.WAMPBroker;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
@@ -81,6 +82,7 @@ public class WAMPRPCRegistrations {
         WAMPFeature.sharded_registration
     };
 
+    WAMPRealm realm;
     AtomicLong nextProcedureId = new AtomicLong(1);
 
     Map<Long, DealerProcedure> procedures = WAMPTools.createSynchronizedMap();
@@ -257,6 +259,10 @@ public class WAMPRPCRegistrations {
         policies.put(RPC_CALL_MATCH_WILDCARD, new WildcardMatchPolicy());
     }
 
+    public void setRealm(WAMPRealm realm) {
+        this.realm = realm;
+    }
+
     /**
      * Returns set of local methods to register for the feature.
      *
@@ -346,7 +352,7 @@ public class WAMPRPCRegistrations {
                         }
                         mp.all().put(proc.getName(), rpc);
                         if (wpRefl != null) {
-                            wpRefl.define(proc.getReflectionMeta(), false);
+                            wpRefl.define(realm.getName(), proc.getReflectionMeta(), false);
                         }
                     }
 
@@ -371,7 +377,7 @@ public class WAMPRPCRegistrations {
                             }
                             mp.all().put(proc.getName(), rpc);
                             if (wpRefl != null) {
-                                wpRefl.define(proc.getReflectionMeta(), false);
+                                wpRefl.define(realm.getName(), proc.getReflectionMeta(), false);
                             }
                             try {
                                 rpc.add(proc.getId());

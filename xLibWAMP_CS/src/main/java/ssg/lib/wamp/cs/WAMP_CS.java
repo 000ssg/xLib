@@ -257,6 +257,7 @@ public class WAMP_CS {
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
                     null,
+                    null, // no authid
                     "spy",
                     "OPENPOINT.TEST.1",
                     Role.subscriber);
@@ -264,6 +265,7 @@ public class WAMP_CS {
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
                     new WAMPFeature[]{WAMPFeature.shared_registration},
+                    null, // no authid
                     "rpc.1",
                     "OPENPOINT.TEST.1",
                     Role.callee);
@@ -271,6 +273,7 @@ public class WAMP_CS {
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
                     new WAMPFeature[]{WAMPFeature.shared_registration},
+                    null, // no authid
                     "rpc.2",
                     "OPENPOINT.TEST.1",
                     Role.caller);

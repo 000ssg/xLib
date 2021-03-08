@@ -186,10 +186,12 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         }
         List<Task> r = new ArrayList<>();
 
-        for (DataProcessor dp : dataProcessors.items()) {
-            List<Task> dpr = dp.getTasks(phases);
-            if (dpr != null) {
-                r.addAll(dpr);
+        if (dataProcessors != null) {
+            for (DataProcessor dp : dataProcessors.items()) {
+                List<Task> dpr = dp.getTasks(phases);
+                if (dpr != null) {
+                    r.addAll(dpr);
+                }
             }
         }
 

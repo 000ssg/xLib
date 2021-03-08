@@ -28,6 +28,7 @@ import ssg.lib.wamp.util.LS;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -258,11 +259,17 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
             }
             session.addWAMPSessionListener(this);
 
-            if (authProviders != null) {
+            if (authProviders != null || !realm.getAuthProviders().isEmpty()) {
+                Collection<WAMPAuthProvider> aps = new ArrayList<>();
+                if (realm.getAuthProviders().isEmpty()) {
+                    aps.addAll(authProviders);
+                } else {
+                    aps.addAll(realm.getAuthProviders());
+                }
                 for (WAMPMessagesFlow f : session.getFlows()) {
                     if (f instanceof WAMPSessionFlow) {
                         WAMPSessionFlow wsf = (WAMPSessionFlow) f;
-                        wsf.configure(authProviders.toArray(new WAMPAuthProvider[authProviders.size()]));
+                        wsf.configure(aps.toArray(new WAMPAuthProvider[aps.size()]));
                     }
                 }
             }

@@ -109,7 +109,7 @@ public class Config {
     }
 
     public static void load(Config config, String... args) {
-        String base = config.getBase() + ".";
+        String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
         Field[] fs = config.getClass().getFields();
         Map<String, Field> fm = new HashMap<>();
         for (Field f : fs) {

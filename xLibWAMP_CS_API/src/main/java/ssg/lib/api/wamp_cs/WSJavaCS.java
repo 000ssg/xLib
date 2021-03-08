@@ -370,7 +370,7 @@ public class WSJavaCS implements Runnable, IWS {
     ) throws WAMPException {
         WAMPClient client = null;
         try {
-            client = clientCS.connect(uri, api, features, agent, realm, roles);
+            client = clientCS.connect(uri, api, features, null, agent, realm, roles);
             return client;
         } catch (WAMPException wex) {
             throw wex;

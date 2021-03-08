@@ -35,8 +35,11 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPActor;
 import ssg.lib.wamp.WAMPConstantsBase;
+import static ssg.lib.wamp.WAMPConstantsBase.INFO_CloseNormal;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
+import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
@@ -62,6 +65,7 @@ import ssg.lib.wamp.rpc.impl.WAMPRPCListener.CALL_STATE;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerWrapper;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.CallListener;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
+import ssg.lib.wamp.stat.WAMPStatistics;
 import ssg.lib.wamp.util.LS;
 import ssg.lib.wamp.util.WAMPTools;
 
@@ -82,8 +86,13 @@ public class WAMPClient extends WAMPNode {
     private int maxPendingMessagesQueue = 100;
     private long maxWaitTimeForSynchronousCall = 1000 * 15;
     private Object connectionContext;
+    private String authid;
 
     public WAMPClient() {
+    }
+
+    public WAMPClient(String authid) {
+        this.authid = authid;
     }
 
     /**
@@ -102,12 +111,12 @@ public class WAMPClient extends WAMPNode {
      * @param context
      * @return
      */
-    public <T extends WAMPClient> T configureContext(Object context) {
+    public WAMPClient configureContext(Object context) {
         this.connectionContext = context;
-        return (T) this;
+        return this;
     }
 
-    public <T extends WAMPClient> T configure(WAMPTransport transport, String agent, String realmS, Role... roles) throws WAMPException {
+    public WAMPClient configure(WAMPTransport transport, String agent, String realmS, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
         }
@@ -117,10 +126,10 @@ public class WAMPClient extends WAMPNode {
         session = createSession(WAMPClient.this.transport, realm, roles);
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
-        return (T) this;
+        return this;
     }
 
-    public <T extends WAMPClient> T configure(WAMPTransport transport, WAMPFeature[] features, String agent, String realmS, Role... roles) throws WAMPException {
+    public WAMPClient configure(WAMPTransport transport, WAMPFeature[] features, String agent, String realmS, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
         }
@@ -130,14 +139,43 @@ public class WAMPClient extends WAMPNode {
         session = createSession(WAMPClient.this.transport, realm, roles);
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
-        return (T) this;
+        return this;
     }
 
-    public <T extends WAMPClient> T configure(WAMPAuthProvider authProviders) {
-        return (T) super.configure(authProviders);
+    public WAMPClient configure(WAMPAuthProvider authProviders) {
+        super.configure(authProviders);
+        return this;
     }
 
-    public <T extends WAMPClient> T configure(WAMPTransport transport, String agent, WAMPRealm realm, Role... roles) throws WAMPException {
+    @Override
+    public WAMPClient configure(WAMPAuthProvider... authProviders) {
+        return super.configure(authProviders);
+    }
+
+    @Override
+    public WAMPClient configure(WAMPRealmFactory realmFactory) {
+        return super.configure(realmFactory);
+    }
+
+    @Override
+    public WAMPClient configure(WAMPStatistics statistics) {
+        super.configure(statistics);
+        return this;
+    }
+
+    @Override
+    public WAMPClient configure(WAMPFeature feature, WAMPFeatureProvider provider) {
+        super.configure(feature, provider);
+        return this;
+    }
+
+    @Override
+    public WAMPClient configure(WAMPFeature... features) {
+        super.configure(features);
+        return this;
+    }
+
+    public WAMPClient configure(WAMPTransport transport, String agent, WAMPRealm realm, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
         }
@@ -158,7 +196,7 @@ public class WAMPClient extends WAMPNode {
         };
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
-        return (T) this;
+        return this;
     }
 
     public synchronized void setTransport(WAMPTransport transport) throws WAMPException {
@@ -187,10 +225,11 @@ public class WAMPClient extends WAMPNode {
      * up to timeout ms (defaults to 1000 if null or <=0).
      *
      * @param timeout
-     * @return >=0 - established (in ms), -1 - no timeout, -2 - thread interrupted, -3 - timed out
+     * @return >=0 - established (in ms), -1 - no timeout, -2 - thread
+     * interrupted, -3 - timed out
      */
     public long waitEstablished(Long timeout) {
-        long r=System.currentTimeMillis();
+        long r = System.currentTimeMillis();
         if (timeout == null || timeout <= 0) {
             timeout = 1000L;
         }
@@ -206,7 +245,7 @@ public class WAMPClient extends WAMPNode {
                     return -2;
                 }
             }
-            return System.currentTimeMillis()-r;
+            return System.currentTimeMillis() - r;
         }
         return -3;
     }
@@ -339,7 +378,7 @@ public class WAMPClient extends WAMPNode {
     }
 
     public void connect() throws WAMPException {
-        connect(null);
+        connect(authid);
     }
 
     public void connect(String authid) throws WAMPException {
@@ -380,7 +419,7 @@ public class WAMPClient extends WAMPNode {
 
     public void disconnect(String reason) throws WAMPException {
         if (session != null && WAMPSessionState.established == session.getState()) {
-            session.send(WAMPMessage.goodbye(WAMPTools.EMPTY_DICT, reason));
+            session.send(WAMPMessage.goodbye(WAMPTools.EMPTY_DICT, reason != null ? reason : INFO_CloseNormal));
         }
     }
 
@@ -593,6 +632,9 @@ public class WAMPClient extends WAMPNode {
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         sb.append("{");
         sb.append("agent=" + getAgent());
+        if (authid != null) {
+            sb.append(", authid==" + authid);
+        }
         sb.append(", eventListeners=" + eventListeners.size());
         sb.append("\n  transport=" + transport);
         sb.append("\n  session=" + session.toString().replace("\n", "\n  "));

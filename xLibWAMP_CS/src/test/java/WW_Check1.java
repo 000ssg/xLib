@@ -248,7 +248,7 @@ public class WW_Check1 {
         URI wsURI = new URI("ws://localhost:" + wsPort + "/ws");
 
         // prepare spy
-        WAMPClient spy = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, null, "agent_spy", "OPENPOINT.TEST2", Role.subscriber);
+        WAMPClient spy = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, null, null, "agent_spy", "OPENPOINT.TEST2", Role.subscriber);
         if (1 == 0) {
             spy.addWAMPEventListener(new WAMPEventListener.WAMPEventListenerBase(
                     RPC_REG_META_TOPIC_ON_CREATE,
@@ -302,7 +302,7 @@ public class WW_Check1 {
         // prepare
         WAMPClient[] callers = new WAMPClient[10];
         for (int i = 0; i < callers.length; i++) {
-            callers[i] = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, new WAMPFeature[]{WAMPFeature.shared_registration}, "agent_" + i, "OPENPOINT.TEST2", Role.callee, Role.caller, Role.publisher, Role.subscriber);
+            callers[i] = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, new WAMPFeature[]{WAMPFeature.shared_registration}, null, "agent_" + i, "OPENPOINT.TEST2", Role.callee, Role.caller, Role.publisher, Role.subscriber);
             callers[i].addWAMPNodeListener(new WAMPNodeListenerDebug("CLIENT[" + i + "]: ").filter((session, msg, mf, error) -> {
                 return false;//msg == null || msg.getType().getId() != WAMPMessageType.T_EVENT;
             }));

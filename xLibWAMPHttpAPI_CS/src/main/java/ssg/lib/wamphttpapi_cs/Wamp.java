@@ -19,6 +19,7 @@ import ssg.lib.net.CS;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.cs.WSCSCounters;
@@ -34,7 +35,7 @@ import ssg.lib.websocket.WebSocket;
  * @author sesidoro
  */
 public class Wamp {
-    
+
     public boolean TRACE_MESSAGES = false;
 
     // WAMP sockets transport support
@@ -47,14 +48,15 @@ public class Wamp {
 
     // extra wamp features
     Map<WAMPFeature, WAMPFeatureProvider> features = new LinkedHashMap<>();
-    
+    WAMPRealmFactory realmFactory;
+
     public void onStarted(CS cs) {
         wsGroup.onStarted(cs);
         if (clientCS != null) {
             executor = cs.getScheduledExecutorService().scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
-                    String old=Thread.currentThread().getName();
+                    String old = Thread.currentThread().getName();
                     Thread.currentThread().setName("wamp-client-run-" + System.identityHashCode(Wamp.this));
                     try {
                         while (executor != null && !executor.isCancelled()) {
@@ -79,7 +81,7 @@ public class Wamp {
             }, 5, 10, TimeUnit.MILLISECONDS);
         }
     }
-    
+
     public void onStop(CS cs) {
 //        if (clientCS != null) {
 //            WAMPClient[] clients = clientCS.getClients().toArray(new WAMPClient[clientCS.getClients().size()]);
@@ -90,7 +92,18 @@ public class Wamp {
 //        }
         wsGroup.onStop(cs);
     }
-    
+
+    public <Z extends Wamp> Z configure(WAMPRealmFactory realmFactory) {
+        this.realmFactory = realmFactory;
+        if (clientCS != null) {
+            clientCS.configure(realmFactory);
+        }
+        if (routerCS != null) {
+            routerCS.configure(realmFactory);
+        }
+        return (Z) this;
+    }
+
     public <Z extends Wamp> Z configureClient(boolean withStatistics, final WebSocket.FrameMonitor fm) {
         if (clientCS == null) {
             clientCS = new WAMPClient_WSProtocol() {
@@ -101,14 +114,14 @@ public class Wamp {
                     }
                     return super.onConsume(provider, ws, message);
                 }
-                
+
                 @Override
                 public void onSend(WebSocket ws, Object message) {
                     if (TRACE_MESSAGES) {
                         System.out.println("[" + System.currentTimeMillis() + "][WC-" + ws.id + "]-OU: " + ("" + message).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
                     }
                 }
-                
+
                 @Override
                 public void initialize(Channel provider, WebSocket ws) {
                     if (fm != null) {
@@ -116,7 +129,7 @@ public class Wamp {
                     }
                     super.initialize(provider, ws);
                 }
-            };
+            }.configure(realmFactory);
         }
         if (withStatistics) {
             clientCS.setStatistics(new WAMPStatistics("wamp-cs-client"));
@@ -132,7 +145,7 @@ public class Wamp {
         wsGroup.addWebSocketProtocolHandler(clientCS);
         return (Z) this;
     }
-    
+
     public <Z extends Wamp> Z configureRouter(boolean withStatistics, final WebSocket.FrameMonitor fm) {
         if (routerCS == null) {
             routerCS = new WAMPRouter_WSProtocol() {
@@ -143,14 +156,14 @@ public class Wamp {
                     }
                     return super.onConsume(provider, ws, message);
                 }
-                
+
                 @Override
                 public void onSend(WebSocket ws, Object message) {
                     if (TRACE_MESSAGES) {
                         System.out.println("[" + System.currentTimeMillis() + "][WR-" + ws.id + "]-OU: " + ("" + message).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
                     }
                 }
-                
+
                 @Override
                 public void initialize(Channel provider, WebSocket ws) {
                     if (fm != null) {
@@ -158,7 +171,7 @@ public class Wamp {
                     }
                     super.initialize(provider, ws);
                 }
-            };
+            }.configure(realmFactory);
             if (withStatistics) {
                 routerCS.getRouter().setStatistics(new WAMPStatistics("wamp-cs-router"));
             }
@@ -174,7 +187,7 @@ public class Wamp {
         }
         return (Z) this;
     }
-    
+
     public <Z extends Wamp> Z configureFeature(WAMPFeature feature, WAMPFeatureProvider featureProvider) {
         if (feature != null) {
             features.put(feature, featureProvider);
@@ -189,12 +202,16 @@ public class Wamp {
         }
         return (Z) this;
     }
-    
+
+    public boolean supportsFeature(WAMPFeature f) {
+        return f != null && features != null && features.containsKey(f);
+    }
+
     public <Z extends Wamp> Z trace(boolean enableTrace) {
         TRACE_MESSAGES = enableTrace;
         return (Z) this;
     }
-    
+
     public WebSocket_CSGroup getCSGroup() {
         return wsGroup;
     }
@@ -224,18 +241,19 @@ public class Wamp {
     public WAMPRouter getRouter() {
         return routerCS != null ? routerCS.getRouter() : null;
     }
-    
+
     public WAMPClient connect(
             URI uri,
             String api,
             WAMPFeature[] features,
+            String authid,
             String agent,
             String realm,
             WAMP.Role... roles
     ) throws WAMPException {
         WAMPClient client = null;
         try {
-            client = clientCS.connect(uri, api, features, agent, realm, roles);
+            client = clientCS.connect(uri, api, features, authid, agent, realm, roles);
             return client;
         } catch (WAMPException wex) {
             throw wex;
@@ -269,13 +287,13 @@ public class Wamp {
                 //                + "\n  clients=" + getStat().replace("\n", "\n    ")
                 + '}';
     }
-    
+
     public void addRouterListener(WAMPNode.WAMPNodeListener... ls) {
         if (routerCS != null) {
             routerCS.getRouter().addWAMPNodeListener(ls);
         }
     }
-    
+
     public void removeRouterListener(WAMPNode.WAMPNodeListener... ls) {
         if (routerCS != null) {
             routerCS.getRouter().removeWAMPNodeListener(ls);

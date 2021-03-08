@@ -61,6 +61,12 @@ public class WAMPRealmFactory {
     private WAMPRealmFactory() {
     }
 
+    public WAMPRealmFactory(List<RealmVerifier> verifiers) {
+        if (verifiers != null) {
+            this.verifiers.addAll(verifiers);
+        }
+    }
+
     public WAMPRealm newRealm(Object context, String name, WAMPFeature[] features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders, Role... roles) throws WAMPException {
         if (test(context, name, features, roles)) {
             return WAMPRealm.createRealm(actorFactory, name, features, featureProviders, roles);
