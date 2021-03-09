@@ -187,6 +187,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                     case type:synchronized (rr.types) {
                             rr.types.put(name, definition);
                             if ("type".equals(definition.get("type"))) {
+                                // why remove? 
                                 definition.remove("type");
                             }
                         }

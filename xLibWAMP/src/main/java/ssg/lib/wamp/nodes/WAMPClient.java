@@ -405,6 +405,7 @@ public class WAMPClient extends WAMPNode {
                     }
                 }
             }
+            //System.out.println("CLIENT CONNECT "+authid+" for "+(""+session).replace("\n", "\n    "));
             if (authid != null) {
                 WAMPSessionFlow wsf = session.getFlow(WAMPSessionFlow.class);
                 List<String> auths = (wsf != null) ? wsf.getAuthMethods() : null;

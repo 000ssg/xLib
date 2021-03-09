@@ -180,9 +180,16 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                                 return WAMPFlowStatus.failed;
                             }
                             // prepare and send WELCOME
-                            Map<String, Object> details = prepareWelcomeDetails(session);
-                            session.send(WAMPMessage.welcome(session.getId(), details));
-                            session.setState(WAMPSessionState.established);
+                            try {
+                                session.getRealm().verifySession(session, null);
+                                Map<String, Object> details = prepareWelcomeDetails(session);
+                                session.send(WAMPMessage.welcome(session.getId(), details));
+                                session.setState(WAMPSessionState.established);
+                            } catch (WAMPException wex) {
+                                wex.printStackTrace();
+                                session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_AuthorizationFailed));
+                                return WAMPFlowStatus.failed;
+                            }
                         } else {
                             session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_NoSuchRole));
                             if (session.getCloseReason() == null) {
@@ -208,14 +215,22 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                         if (ap != null) {
                             Map<String, Object> authInfo = ap.authenticated(session, msg);
                             if (authInfo != null) {
-                                // prepare and send WELCOME
-                                Map<String, Object> details = prepareWelcomeDetails(session);
-                                details.putAll(authInfo);
-                                session.send(WAMPMessage.welcome(session.getId(), details));
-                                // set WAMPAuth on router
-                                session.setAuth(new WAMPAuth(authInfo));
-                                session.setState(WAMPSessionState.established);
-                                return WAMPFlowStatus.handled;
+                                try {
+                                    WAMPAuth auth = new WAMPAuth(authInfo);
+                                    session.getRealm().verifySession(session, auth);
+                                    // prepare and send WELCOME
+                                    Map<String, Object> details = prepareWelcomeDetails(session);
+                                    details.putAll(authInfo);
+                                    session.send(WAMPMessage.welcome(session.getId(), details));
+                                    // set WAMPAuth on router
+                                    session.setAuth(auth);
+                                    session.setState(WAMPSessionState.established);
+                                    return WAMPFlowStatus.handled;
+                                } catch (WAMPException wex) {
+                                    wex.printStackTrace();
+                                    session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_AuthorizationFailed));
+                                    return WAMPFlowStatus.failed;
+                                }
                             }
                         }
                         // no auth or not authenticated...

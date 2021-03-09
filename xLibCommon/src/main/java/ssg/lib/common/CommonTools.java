@@ -26,6 +26,8 @@ package ssg.lib.common;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -509,6 +511,22 @@ public class CommonTools {
             }
         }
         return !waitCondition.needWaiting();
+    }
+
+    /**
+     * Builds stacktrace by generating exception and writing its output to
+     * returned string.
+     *
+     * @param indent
+     * @return
+     */
+    public static String stackTrace(int indent) {
+        try (final StringWriter sw = new StringWriter()) {
+            new Exception("").printStackTrace(new PrintWriter(sw));
+            return sw.toString().indent(indent);
+        } catch (IOException ioex) {
+            return "";
+        }
     }
 
     @FunctionalInterface

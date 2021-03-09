@@ -30,7 +30,6 @@ import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIParameter;
 import ssg.lib.api.APIProcedure;
 import ssg.lib.api.API_Publisher;
-import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpConnectionUpgrade;
@@ -68,7 +67,6 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     boolean multiHost = false; // expand URI to all DNS IPs...
     Integer routerPort; // stand-alone (non-embedded) router port (optional)
     HttpConnectionUpgrade ws_wamp_connection_upgrade;
-    //WAMPRealmFactory realmFactory;
 
     // WAMP/REST support
     API_MethodsProvider wampOverREST;
@@ -94,8 +92,13 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     }
 
     @Override
-    public WAMPRunner configureAPI(String realm, String name, API_Publisher api, String authid) {
-        return (WAMPRunner) super.configureAPI(realm, name, api, authid);
+    public WAMPRunner configureAPI(String realm, String name, API_Publisher api, URI uri) {
+        return (WAMPRunner) super.configureAPI(realm, name, api, uri, null);
+    }
+
+    @Override
+    public WAMPRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid) {
+        return (WAMPRunner) super.configureAPI(realm, name, api, uri, authid);
     }
 
     @Override
@@ -272,6 +275,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         boolean supportsReflection = wamp != null ? wamp.supportsFeature(WAMPFeature.procedure_reflection) : false;
         if (client != null)
                     try {
+            boolean est = 0 == client.waitEstablished(2000L);
             if (procedure == null) { // API level publishing
                 if (supportsReflection) {
                     // add types/errors definitions used in procs
@@ -302,7 +306,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         root.element(err);
                     }
 
-                    client.publish(WAMPTools.EMPTY_DICT, WAMP_FP_Reflection.WR_RPC_DEFINE, WAMPTools.EMPTY_LIST, root.data());
+                    if (!client.publish(WAMPTools.EMPTY_DICT, WAMP_FP_Reflection.WR_RPC_DEFINE, WAMPTools.EMPTY_LIST, root.data())) {
+                        // TODO: error or notification that reflection is not supported due to missing "publisher" role?
+                        boolean est1 = client.isSessionEstablished();
+                        boolean can = client.canPublish();
+                        int a = 0;
+                    }
                 }
             } else { // procedure level publishing
                 final APICallable dbc = api.getCallable(procedure, null);
@@ -409,7 +418,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     title + "_provider",
                     group.realm,
                     new WAMPFeature[]{WAMPFeature.shared_registration},
-                    WAMP.Role.callee);
+                    WAMP.Role.callee, WAMP.Role.publisher, WAMP.Role.subscriber);
         } catch (WAMPException wex) {
             wex.printStackTrace();
         }
@@ -441,32 +450,5 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             }
         }
         return null;
-    }
-
-    public static class DemoHW {
-
-        public String getHello(String who) {
-            return "Hello, " + who + "!";
-        }
-    }
-
-    public static void main(String... args) throws Exception {
-        WAMP_FP_Reflection reflectionFeature = new WAMP_FP_Reflection();
-
-        HttpApplication app = new HttpApplication("App", "/app");
-        WAMPRunner r1 = new WAMPRunner(app)
-                .configureWAMPRouter("wamp")
-                //.configureWAMPRouter(30002)
-                .configureAPI("demo", "test", new API_Publisher()
-                        .configure(Reflective_API_Builder.buildAPI("test", null, DemoHW.class))
-                        .configureContext(new DemoHW())
-                )
-                .configureHttp(30001)
-                .configureREST("rest");
-        if (r1.wamp != null) {
-            r1.wamp.configureFeature(WAMPFeature.procedure_reflection, reflectionFeature);
-        }
-        r1.start();
-        int a = 0;
     }
 }

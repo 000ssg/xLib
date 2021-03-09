@@ -251,6 +251,7 @@ public class Wamp {
             String realm,
             WAMP.Role... roles
     ) throws WAMPException {
+        //System.out.println("++++++++++++++++++ wamp.connect: realm="+realm+", authid="+authid);
         WAMPClient client = null;
         try {
             client = clientCS.connect(uri, api, features, authid, agent, realm, roles);

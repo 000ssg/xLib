@@ -30,11 +30,22 @@ public class APIRunner<T> extends HttpRunner {
     public static final String CFG_API_NAME = "apiName";
 
     // API support
-    Map<String, APIGroup> apis = new LinkedHashMap<>();
+    Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     Collection<String> registeredRESTAPIs = new HashSet<>();
 
+    /**
+     * API group enables defining multiple APIs for same context, that is realm,
+     * authid, and uri.
+     *
+     * authid and uri are optional.
+     *
+     * On connection API groups are treated separately by establishing per-group
+     * connections.
+     *
+     */
     public class APIGroup {
 
+        public URI uri;
         public String authid;
         public String agent;
         public String realm;
@@ -48,6 +59,12 @@ public class APIRunner<T> extends HttpRunner {
                 clients.put(uri, client);
             }
         }
+
+        @Override
+        public String toString() {
+            return "APIGroup{" + "uri=" + uri + ", authid=" + authid + ", agent=" + agent + ", realm=" + realm + ", apis=" + apis + ", clients=" + clients.keySet() + '}';
+        }
+
     }
 
     public APIRunner() {
@@ -76,7 +93,7 @@ public class APIRunner<T> extends HttpRunner {
      * @return
      */
     public APIRunner configureAPI(String realm, String name, API_Publisher api) {
-        return this.configureAPI(realm, name, api, null);
+        return this.configureAPI(realm, name, api, null, null);
     }
 
     /**
@@ -85,15 +102,36 @@ public class APIRunner<T> extends HttpRunner {
      * @param realm
      * @param name
      * @param api
+     * @param uri
      * @return
      */
-    public APIRunner configureAPI(String realm, String name, API_Publisher api, String authid) {
-        APIGroup group = apis.get(realm);
+    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri) {
+        return this.configureAPI(realm, name, api, uri, null);
+    }
+
+    /**
+     * Add API to realm (WAMP client functionality and/or REST)
+     *
+     * @param realm
+     * @param name
+     * @param api
+     * @param uri
+     * @param authid
+     * @return
+     */
+    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid) {
+        Map<String, APIGroup> groups = apis.get(realm);
+        if (groups == null) {
+            groups = new LinkedHashMap<>();
+            apis.put(realm, groups);
+        }
+        APIGroup group = groups.get(authid != null ? authid : "");
         if (group == null) {
             group = new APIGroup();
+            group.uri = uri;
             group.authid = authid;
             group.realm = realm;
-            apis.put(realm, group);
+            groups.put(authid != null ? authid : "", group);
         }
         group.apis.add(name != null ? name : api.getAPI().name, api);
         configUpdated(CFG_API_NAME, null, name != null ? name : api.getAPI().name);
@@ -105,10 +143,12 @@ public class APIRunner<T> extends HttpRunner {
         super.onStarted();
         if (!apis.isEmpty()) {
             URI[] uris = publishingURIs(null);
-            for (Entry<String, APIGroup> entry : apis.entrySet()) {
-                APIGroup group = entry.getValue();
-                for (URI uri : uris) {
-                    group.connect(uri);
+            for (Entry<String, Map<String, APIGroup>> ge : apis.entrySet()) {
+                for (Entry<String, APIGroup> entry : ge.getValue().entrySet()) {
+                    APIGroup group = entry.getValue();
+                    for (URI uri : group.uri != null ? new URI[]{group.uri} : uris) {
+                        group.connect(uri);
+                    }
                 }
             }
         }
@@ -219,5 +259,9 @@ public class APIRunner<T> extends HttpRunner {
         if (client == null && getREST() != null) {
             getREST().registerProviders(new MethodsProvider[]{new API_MethodsProvider()}, api);
         }
+    }
+
+    public Map<String, Map<String, APIGroup>> getAPIGroups() {
+        return apis;
     }
 }

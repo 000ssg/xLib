@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.wamp.WAMP.Role;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.stat.WAMPStatistics;
 
@@ -56,6 +57,7 @@ public class WAMPRealm implements Serializable, Cloneable {
     LS<WAMPRealmListener> listeners = new LS<>(new WAMPRealmListener[0]);
     Map<WAMPFeature, WAMPFeatureProvider> featureProviders;
     private List<WAMPAuthProvider> authProviders = new ArrayList<>();
+    LS<SessionVerifier> sessionVerifiers = new LS<>(new SessionVerifier[0]);
 
     private WAMPRealm() {
     }
@@ -100,6 +102,16 @@ public class WAMPRealm implements Serializable, Cloneable {
 
     public synchronized void removeListener(WAMPRealmListener... ls) {
         listeners.remove(ls);
+    }
+
+    public WAMPRealm addSessisonVerifier(SessionVerifier... ls) {
+        sessionVerifiers.add(ls);
+        return this;
+    }
+
+    public WAMPRealm removeSessisonVerifier(SessionVerifier... ls) {
+        sessionVerifiers.remove(ls);
+        return this;
     }
 
     /**
@@ -221,6 +233,24 @@ public class WAMPRealm implements Serializable, Cloneable {
         this.statistics = statistics;
     }
 
+    /**
+     * Check if session is valid for given realm. Used to ensure all established
+     * session characteristics match realm requirements.
+     *
+     * Should be/is used just before sending "WELCOME" message on router or
+     * anytime when changed context may require session invalidation.
+     *
+     * @param session
+     * @throws WAMPException
+     */
+    public void verifySession(WAMPSession session, WAMPAuth auth) throws WAMPException {
+        if (!sessionVerifiers.isEmpty()) {
+            for (SessionVerifier verifier : sessionVerifiers.get()) {
+                verifier.verifySession(this, session, auth);
+            }
+        }
+    }
+
     public static interface WAMPRealmListener {
 
         public static enum WAMPActorEvent {
@@ -231,6 +261,11 @@ public class WAMPRealm implements Serializable, Cloneable {
         }
 
         void onActorEvent(WAMPActorEvent type, WAMPActor actor, WAMPSession... sessions);
+    }
+
+    public static interface SessionVerifier {
+
+        void verifySession(WAMPRealm realm, WAMPSession session, WAMPAuth auth) throws WAMPException;
     }
 
 }

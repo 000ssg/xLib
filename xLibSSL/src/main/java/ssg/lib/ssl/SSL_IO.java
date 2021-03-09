@@ -40,6 +40,7 @@ import static javax.net.ssl.SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
+import ssg.lib.common.CommonTools;
 import ssg.lib.common.buffers.BufferTools;
 
 /**
@@ -142,7 +143,7 @@ public class SSL_IO<P> {
             System.out.println("[" + System.currentTimeMillis() + ", " + Thread.currentThread().getName() + "] ssl initialized (" + this.initialized + " -> " + initialized + "): " + ssl.getPeerHost() + ":" + ssl.getPeerPort() + "  " + provider
                     + "\n  net   in/out=" + BufferTools.getRemaining(netIn) + "/" + BufferTools.getRemaining(netOut)
                     + "\n  cache in/out=" + BufferTools.getRemaining(this.unwrapCache) + "/" + BufferTools.getRemaining(wrapCache)
-                    + "\n" + stackTrace(2));
+                    + "\n" + CommonTools.stackTrace(2));
         }
         this.initialized = initialized;
     }
@@ -593,14 +594,5 @@ public class SSL_IO<P> {
         sb.append(", unwrapCache=" + BufferTools.getRemaining(unwrapCache));
         sb.append('}');
         return sb.toString();
-    }
-
-    static String stackTrace(int indent) {
-        try (StringWriter sw = new StringWriter();) {
-            new Exception("").printStackTrace(new PrintWriter(sw));
-            return sw.toString().indent(indent);
-        } catch (IOException ioex) {
-            return "";
-        }
     }
 }
