@@ -167,6 +167,7 @@ public class API_MethodsProvider implements MethodsProvider {
                                 RESTParameter wsp = new RESTParameter();
                                 wsp.setName(pn);
                                 wsp.setType(prm.type.getJavaType());
+                                wsp.setOptional(!prm.mandatory);
                                 mth.getParams().add(wsp);
                                 pri++;
                             }

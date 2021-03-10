@@ -682,10 +682,12 @@ public class Reflective_API_Builder {
             if (pp == null || pp.length == 0) {
             } else {
                 r = new Object[pp.length];
-                for (int i = 0; i < pp.length; i++) {
-                    java.lang.reflect.Parameter p = pp[i];
-                    if (params.containsKey(p.getName())) {
-                        r[i] = toType(p, params.get(p.getName()));
+                if (params != null) {
+                    for (int i = 0; i < pp.length; i++) {
+                        java.lang.reflect.Parameter p = pp[i];
+                        if (params.containsKey(p.getName())) {
+                            r[i] = toType(p, params.get(p.getName()));
+                        }
                     }
                 }
             }
