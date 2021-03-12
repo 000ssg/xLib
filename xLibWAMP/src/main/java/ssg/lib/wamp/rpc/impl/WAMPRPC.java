@@ -118,6 +118,10 @@ public class WAMPRPC implements WAMPActor {
         return getFeatures();
     }
 
+    public <T extends WAMPFeatureProvider> T getFeatureProvider(WAMPFeature feature) {
+        return feature != null && featureProviders.containsKey(feature) ? (T) featureProviders.get(feature) : null;
+    }
+
     public Map<String, WAMPCallStatistics> getNotFoundCalls() {
         return notFoundCalls;
     }

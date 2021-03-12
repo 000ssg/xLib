@@ -40,7 +40,12 @@ public interface HttpResource {
 
     String contentType();
 
-    long size();
+    /**
+     * Enable context-specific size...
+     * @param httpData
+     * @return 
+     */
+    long size(HttpData httpData);
 
     InputStream open(HttpData httpData, Replacement... replacements) throws IOException;
 

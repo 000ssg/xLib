@@ -41,21 +41,36 @@ import ssg.lib.http.base.HttpData;
 public class HttpResourceBytes implements HttpResource {
 
     long timestamp = System.currentTimeMillis();
+    //byte[] data;
+    VirtualData data;
+    String path;
+    String contentType;
+    String[] parameters;
+    String[] localizeable;
 
-    public HttpResourceBytes(byte[] data, String path, String contentType) {
+    public HttpResourceBytes(VirtualData data, String path, String contentType) {
         this.data = data;
         this.path = path;
         this.contentType = contentType;
     }
 
+    public HttpResourceBytes(byte[] data, String path, String contentType) {
+        //this.data = data;
+        this.data = new ActualData(data);
+        this.path = path;
+        this.contentType = contentType;
+    }
+
     public HttpResourceBytes(URL url, String path, String contentType) throws IOException {
-        this.data = cacheInputStream(url.openStream());
+        //this.data = cacheInputStream(url.openStream());
+        this.data = new ActualData(url.openStream());
         this.path = path;
         this.contentType = contentType;
     }
 
     public HttpResourceBytes(InputStream is, String path, String contentType) throws IOException {
-        this.data = cacheInputStream(is);
+        //this.data = cacheInputStream(is);
+        this.data = new ActualData(is);
         this.path = path;
         this.contentType = contentType;
     }
@@ -92,13 +107,9 @@ public class HttpResourceBytes implements HttpResource {
         } else {
             this.contentType += "; encoding=" + encoding;
         }
-        this.data = data.getBytes(encoding);
+        //this.data = data.getBytes(encoding);
+        this.data = new ActualData(data.getBytes(encoding));
     }
-    byte[] data;
-    String path;
-    String contentType;
-    String[] parameters;
-    String[] localizeable;
 
     @Override
     public HttpResource find(String path) {
@@ -116,8 +127,8 @@ public class HttpResourceBytes implements HttpResource {
     }
 
     @Override
-    public long size() {
-        return (data != null) ? data.length : 0;
+    public long size(HttpData httpData) {
+        return (data != null) ? data.get(this, httpData).length : 0;
     }
 
     @Override
@@ -128,10 +139,10 @@ public class HttpResourceBytes implements HttpResource {
     @Override
     public byte[] data(HttpData httpData, Replacement... replacements) throws IOException {
         if (data == null || replacements == null || replacements.length == 0 || replacements[0] == null) {
-            return data;
+            return data.get(this, httpData);
         } else {
             ByteBufferPipeReplacement pipe = new ByteBufferPipeReplacement(replacements);
-            pipe.write(ByteBuffer.wrap(data));
+            pipe.write(ByteBuffer.wrap(data.get(this, httpData)));
             pipe.close();
             byte[] buf = new byte[(int) pipe.getLength()];
             pipe.close();
@@ -179,5 +190,28 @@ public class HttpResourceBytes implements HttpResource {
     @Override
     public boolean requiresInitialization(HttpData httpData) {
         return false;
+    }
+
+    public static interface VirtualData {
+
+        byte[] get(HttpResourceBytes owner, HttpData httpData);
+    }
+
+    public class ActualData implements VirtualData {
+
+        byte[] data;
+
+        public ActualData(byte[] data) {
+            this.data = data;
+        }
+
+        public ActualData(InputStream is) throws IOException {
+            data = cacheInputStream(is);
+        }
+
+        @Override
+        public byte[] get(HttpResourceBytes owner, HttpData httpData) {
+            return data;
+        }
     }
 }

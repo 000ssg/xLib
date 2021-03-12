@@ -79,7 +79,7 @@ public class HttpResourceURL implements HttpResource {
     }
 
     @Override
-    public long size() {
+    public long size(HttpData httpData) {
         return (url != null) ? HttpStaticDataProcessor.UNKNOWN_SIZE : 0;
     }
 

@@ -312,7 +312,6 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
 //    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String agent, String realm, WAMP.Role... roles) throws IOException {
 //        return connect(uri, protocol, features, null, agent, realm, roles);
 //    }
-
     /**
      * Base WAMP client initialization: build predefined client and initializes
      * connection procedure.
@@ -350,20 +349,22 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         if (tcph.isRegistered()) {
             SocketAddress wsSA = new InetSocketAddress(InetAddress.getByName(uri.getHost()), port);
             SocketChannel provider = tcph.connect(wsSA, diWS);
-            diWS.addPendingWebSocketClientHandshake(provider, new DI_WS.WebSocketHandshakeListener() {
-                @Override
-                public void onWebSocketClientHandshake(Channel provider, WebSocket ws) throws IOException {
-                    WAMPClient client = clients.get(provider);
-                    URI uri = (URI) client.getProperties().get("uri");
-                    String[] protocols = ws.getAddOns().getProposedProtocols();
-                    String[] extensions = ws.getAddOns().getProposedExtensions();
-                    String version = (String) client.getProperties().get("version");
-                    int wsVersion = 0;
-                    String origin = null;
-                    ws.handshake(version, uri.getPath(), uri.getHost(), origin, protocols, extensions, wsVersion);
-                }
-            });
-            clients.put(provider, client);
+            synchronized (clients) {
+                diWS.addPendingWebSocketClientHandshake(provider, new DI_WS.WebSocketHandshakeListener() {
+                    @Override
+                    public void onWebSocketClientHandshake(Channel provider, WebSocket ws) throws IOException {
+                        WAMPClient client = clients.get(provider);
+                        URI uri = (URI) client.getProperties().get("uri");
+                        String[] protocols = ws.getAddOns().getProposedProtocols();
+                        String[] extensions = ws.getAddOns().getProposedExtensions();
+                        String version = (String) client.getProperties().get("version");
+                        int wsVersion = 0;
+                        String origin = null;
+                        ws.handshake(version, uri.getPath(), uri.getHost(), origin, protocols, extensions, wsVersion);
+                    }
+                });
+                clients.put(provider, client);
+            }
         } else {
             pendingClients.add(client);
         }

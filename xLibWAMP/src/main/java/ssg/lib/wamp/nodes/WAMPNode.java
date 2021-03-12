@@ -238,7 +238,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         try {
             final WAMPSession session = new WAMPSession(realm, roles) {
                 @Override
-                public void onSend(WAMPMessage msg) throws WAMPException {
+                public void doSend(WAMPMessage msg) throws WAMPException {
                     if (transport.isOpen()) {
                         transport.send(msg);
                     } else {

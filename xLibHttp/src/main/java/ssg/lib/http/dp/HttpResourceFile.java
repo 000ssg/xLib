@@ -70,7 +70,7 @@ public class HttpResourceFile implements HttpResource {
     }
 
     @Override
-    public long size() {
+    public long size(HttpData httpData) {
         return (file != null && file.isFile()) ? file.length() : 0;
     }
 

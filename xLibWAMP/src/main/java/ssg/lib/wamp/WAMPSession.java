@@ -82,7 +82,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
 
     public static final WAMPSession NO_SESSION = new WAMPSession() {
         @Override
-        public void onSend(WAMPMessage msg) throws WAMPException {
+        public void doSend(WAMPMessage msg) throws WAMPException {
             throw new UnsupportedOperationException("NO SESSION");
         }
     };
@@ -307,7 +307,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
         //System.out.println("WAMPSession["+this.getId()+"]:send:"+message.toString().replace("\n", "\n  "));
         Throwable error = null;
         try {
-            onSend(message);
+            doSend(message);
         } catch (WAMPException wex) {
             error = wex;
             throw wex;
@@ -399,7 +399,7 @@ public abstract class WAMPSession implements Serializable, Cloneable {
      * @param msg
      * @throws WAMPException
      */
-    public abstract void onSend(WAMPMessage msg) throws WAMPException;
+    public abstract void doSend(WAMPMessage msg) throws WAMPException;
 
     /**
      * Additional error handling, non by default.

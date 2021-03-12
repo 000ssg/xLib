@@ -263,7 +263,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     }
                 }
             }
-            long resSize = res.size();
+            long resSize = res.size(data);
             if (resSize == UNKNOWN_SIZE) {
                 final HttpResponse resp = ((HttpRequest) data).getResponse();
                 final HttpResource respRes = res;

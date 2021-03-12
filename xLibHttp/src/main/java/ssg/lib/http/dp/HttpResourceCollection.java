@@ -271,7 +271,7 @@ public class HttpResourceCollection implements HttpResource, MatchScanner<String
     }
 
     @Override
-    public long size() {
+    public long size(HttpData httpData) {
         return -1;
     }
 

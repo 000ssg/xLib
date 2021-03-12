@@ -183,7 +183,7 @@ public class WAMPClient extends WAMPNode {
         setAgent(agent);
         session = new WAMPSession(realm, roles) {
             @Override
-            public void onSend(WAMPMessage msg) throws WAMPException {
+            public void doSend(WAMPMessage msg) throws WAMPException {
                 if (WAMPClient.this.transport != null && WAMPClient.this.transport.isOpen()) {
                     WAMPClient.this.transport.send(msg);
                 } else {
