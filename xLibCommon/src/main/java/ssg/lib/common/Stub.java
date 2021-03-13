@@ -23,6 +23,8 @@
  */
 package ssg.lib.common;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -131,6 +133,15 @@ public interface Stub<A, F, P, T> {
 
     public static abstract class StubContext<A, F, P, T> implements Cloneable {
 
+        /**
+         * Name of property for base URL.
+         */
+        public static final String BASE_URL = "baseURL";
+        /**
+         * Name of property for namespace.
+         */
+        public static final String NAMESPACE = "namespace";
+
         public static enum PDIR {
             in,
             out,
@@ -138,41 +149,34 @@ public interface Stub<A, F, P, T> {
             ret
         }
 
-        String baseURL;
-        String namespace;
         boolean generateExtendedComments = false;
         Map<String, Object> properties;
+        long timestamp;
+
+        public StubContext(String namespace) {
+
+        }
 
         public StubContext(
                 String baseURL,
                 String namespace,
                 boolean generateExtendedComments
         ) {
-            this.baseURL = baseURL;
-            this.namespace = namespace;
+            setProperty(BASE_URL, baseURL);
+            setProperty(NAMESPACE, namespace);
             this.generateExtendedComments = generateExtendedComments;
         }
 
         public String baseURL() {
-            return baseURL;
+            return getProperty(BASE_URL);
         }
 
         public String namespace() {
-            return namespace;
+            return getProperty(NAMESPACE);
         }
 
         public boolean generateExtendedComments() {
             return generateExtendedComments;
-        }
-
-        public StubContext baseURL(String baseURL) {
-            this.baseURL = baseURL;
-            return this;
-        }
-
-        public StubContext namespace(String namespace) {
-            this.namespace = namespace;
-            return this;
         }
 
         public boolean isAllowed(F method) {
@@ -188,7 +192,7 @@ public interface Stub<A, F, P, T> {
             List<P> params = parameters(method);
             if (params != null) {
                 for (P p : params) {
-                    if (byte[].class.isAssignableFrom(type(p).getClass())) {
+                    if (type(p) instanceof String && "byte[]".equals(p) || byte[].class.isAssignableFrom(type(p).getClass())) {
                         r = true;
                         break;
                     }
@@ -203,7 +207,7 @@ public interface Stub<A, F, P, T> {
             if (params != null) {
                 int c = 0;
                 for (P p : params) {
-                    if (byte[].class.isAssignableFrom(type(p).getClass())) {
+                    if (type(p) instanceof String && "byte[]".equals(p) || byte[].class.isAssignableFrom(type(p).getClass())) {
                         if (r == null) {
                             r = new ArrayList<>();
                         }
@@ -247,19 +251,64 @@ public interface Stub<A, F, P, T> {
         ////////////////////////////////////////////////////////////////////////
         //////////////////////////////////////////////////////// A, F, P, T
         ////////////////////////////////////////////////////////////////////////
+        /**
+         * Returns name of any item.
+         *
+         * @param obj
+         * @return
+         */
         public abstract String nameOf(Object obj);
 
+        /**
+         * List of methods for rendering.
+         *
+         * @param api
+         * @return
+         */
         public abstract List<F> methods(A api);
 
+        /**
+         * List of method parameters, optionally including return value, if any.
+         *
+         * @param method
+         * @return
+         */
         public abstract List<P> parameters(F method);
 
+        /**
+         * Parameter direction: in,out,in_out, ret.
+         *
+         * @param parameter
+         * @return
+         */
         public abstract PDIR direction(P parameter);
 
+        /**
+         * Returns function return value or null if not a function.
+         *
+         * @param method
+         * @return
+         */
         public abstract T returnType(F method);
 
+        /**
+         * Returns type of parameter.
+         *
+         * @param parameter
+         * @return
+         */
         public abstract T type(P parameter);
 
         ///////////////
+        /**
+         * Returns true if given method has parameter with given type and/or
+         * direction.
+         *
+         * @param method
+         * @param type
+         * @param dir
+         * @return
+         */
         public boolean hasParameter(F method, T type, PDIR dir) {
             if (dir == null) {
                 if (type == null) {
@@ -484,4 +533,83 @@ public interface Stub<A, F, P, T> {
 
     }
 
+    /**
+     * Default java reflection stub context. Skips from methods all Object's
+     * ones but "toString()" and all non-public methods.
+     */
+    public static class StubReflectionContext extends StubContext<Object, Method, Parameter, Class> {
+
+        public StubReflectionContext(String namespace) {
+            super(namespace);
+        }
+
+        public StubReflectionContext(String baseURL, String namespace, boolean generateExtendedComments) {
+            super(baseURL, namespace, generateExtendedComments);
+        }
+
+        @Override
+        public String nameOf(Object obj) {
+            if (obj instanceof Method) {
+                return ((Method) obj).getName();
+            } else if (obj instanceof Parameter) {
+                return ((Parameter) obj).getName();
+            } else if (obj instanceof Class) {
+                return ((Class) obj).getName();
+            } else {
+                return "instance";
+            }
+        }
+
+        @Override
+        public List<Method> methods(Object api) {
+            if (api == null) {
+                return null;
+            }
+            List<Method> r = new ArrayList<>();
+            for (Method m : api.getClass().getMethods()) {
+                String mn = m.getName();
+                if ("getClass".equals(mn)
+                        || "equals".equals(mn)
+                        || "hashCode".equals(mn)
+                        || "notify".equals(mn)
+                        || "notifyAll".equals(mn)
+                        || "wait".equals(mn)) {
+                    continue;
+                }
+                r.add(m);
+            }
+            return r;
+        }
+
+        @Override
+        public List<Parameter> parameters(Method method) {
+            List<Parameter> r = new ArrayList<>();
+            Parameter[] ps = method.getParameters();
+            if (ps != null) {
+                for (Parameter p : ps) {
+                    r.add(p);
+                }
+            }
+            return r;
+        }
+
+        @Override
+        public PDIR direction(Parameter parameter) {
+            return parameter != null ? PDIR.in : null;
+        }
+
+        @Override
+        public Class returnType(Method method) {
+            Class cl = method != null ? method.getReturnType() : null;
+            if (void.class == cl) {
+                cl = null;
+            }
+            return cl;
+        }
+
+        @Override
+        public Class type(Parameter parameter) {
+            return parameter != null ? parameter.getType() : null;
+        }
+    }
 }

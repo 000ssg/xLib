@@ -37,8 +37,10 @@ import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
+ * Represents API based on WAMPDealer-side data structures for
+ * "procedure_reflecion" feature implementation.
  *
- * @author sesidoro
+ * @author 0000ssg
  */
 public class StubWAMPReflectionContext extends StubContext<WAMPRealm, Map, Map, String> {
 
@@ -46,7 +48,7 @@ public class StubWAMPReflectionContext extends StubContext<WAMPRealm, Map, Map, 
         super(baseURL, namespace, generateExtendedComments);
     }
 
-    RR rr(WAMPRealm api) {
+    static RR rr(WAMPRealm api) {
         if (api != null) {
             WAMPRPCDealer rpcd = api.getActor(WAMP.Role.dealer);
             WAMP_FP_Reflection wr = rpcd.getFeatureProvider(WAMPFeature.procedure_reflection);
@@ -56,11 +58,6 @@ public class StubWAMPReflectionContext extends StubContext<WAMPRealm, Map, Map, 
             }
         }
         return null;
-    }
-
-    public long timestamp(WAMPRealm api) {
-        RR rr = rr(api);
-        return rr != null ? rr.timestamp() : System.currentTimeMillis();
     }
 
     @Override
