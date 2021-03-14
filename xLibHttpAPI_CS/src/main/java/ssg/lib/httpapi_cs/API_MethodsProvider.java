@@ -77,14 +77,14 @@ public class API_MethodsProvider implements MethodsProvider {
             List<RESTMethod> ms = new ArrayList<RESTMethod>();
 
             for (String apiName : apiss.getAPINames().toArray(new String[apiss.getAPINames().size()])) {
+                apis = apiss.getAPIPublisher(apiName);
+
                 RESTProvider pr = new RESTProvider();
                 {
                     String s = apiName.replace(".", "/");
                     pr.setName(s);
-                    pr.setPaths(s.toLowerCase());
+                    pr.setPaths(adjustPath(apis,s.toLowerCase()));
                 }
-
-                apis = apiss.getAPIPublisher(apiName);
 
                 for (APIProcedure p : (Collection<APIProcedure>) (Object) apis.getAPI().find((item) -> {
                     return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
@@ -192,5 +192,16 @@ public class API_MethodsProvider implements MethodsProvider {
         }
 
         return wms;
+    }
+
+    /**
+     * Optional modify path, e.g. add prefix to separate namespaces.
+     *
+     * @param apis
+     * @param path
+     * @return
+     */
+    public String adjustPath(API_Publisher apis, String path) {
+        return path;
     }
 }

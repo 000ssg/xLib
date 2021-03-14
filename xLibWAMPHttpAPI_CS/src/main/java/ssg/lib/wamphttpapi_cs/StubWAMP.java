@@ -53,17 +53,6 @@ public class StubWAMP extends Stub.StubJavascript<WAMPRealm, Map, Map, String> {
 
     }
 
-//    @Override
-//    public String generateStubMethod(StubContext<WAMPRealm, Map, Map, String> context, Map method, String methodName) {
-//        if (methodName == null) {
-//            methodName = context.nameOf(method);
-//        }
-//        if (methodName.contains(".")) {
-//            methodName = methodName.replace(".", "_");
-//        }
-//        return super.generateStubMethod(context, method, methodName);
-//    }
-
     @Override
     public String generateStubMethodBody(StubContext<WAMPRealm, Map, Map, String> context, Map m) {
         StringBuilder sb = new StringBuilder();

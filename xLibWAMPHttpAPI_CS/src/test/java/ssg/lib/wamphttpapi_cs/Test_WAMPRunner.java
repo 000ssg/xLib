@@ -29,6 +29,10 @@ import ssg.lib.api.API_Publisher;
 import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.CommonTools;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.dp.HttpResourceBytes;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.nodes.WAMPNode;
 
 /**
@@ -50,7 +54,13 @@ public class Test_WAMPRunner {
 
     public static void main(String... args) throws Exception {
         int port = 30001;
+
+        // prevent output from WAMP session establish/close events
         WAMPNode.DUMP_ESTABLISH_CLOSE = false;
+
+        // build runner with default http application and embedded 
+        // (within app) WAMP and REST (for same subpath "wamp")
+        // register reflection-based API (DemoHW class) and register instance (context)
         WAMPRunner r = new WAMPRunner(new HttpApplication("A", "/app"))
                 .configureWAMPRouter("wamp")
                 .configureAPI("demo", "test", new API_Publisher()
@@ -58,18 +68,47 @@ public class Test_WAMPRunner {
                         .configureContext(new DemoHW())
                 )
                 .configureHttp(port)
-                .configureREST("rest");
+                .configureREST("wamp");
 
+        // add WAMP reflection support to enable automatically generated javascripts
+        r.wamp().configureFeature(WAMPFeature.procedure_reflection, new WAMP_FP_Reflection());
+
+        // add javascripts generation for WAMP for WAMP (authobahn.js "wamp")
+        // and REST ("js" and "jw", jquery)
+        String router_root = r.getApp() != null ? r.getApp().getRoot() + "/" : "/";
+        StubWAMPVirtualData apiJS = new StubWAMPVirtualData(r.getRouter(), router_root + "wamp", "js", "jw", "wamp")
+                .configure(new StubWAMPReflectionContext(null, null, true))
+                .configure("demo", "js", "jw", "wamp")
+                .configure("test", "js", "jw", "wamp")
+                ;
+        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
+        for (StubWAMPVirtualData.WR wr : apiJS.resources()) {
+            System.out.println("  adding " + wr.getPath());
+            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath(), "text/javascript; encoding=utf-8"));
+        }
+        if (r.getApp() != null) {
+            r.getApp().configureDataProcessor(0, apiJS_DP);
+        } else {
+            r.getService().configureDataProcessor(0, apiJS_DP);
+        }
+
+        // start service and wait til self-configured
         r.start();
         Thread.sleep(1000);
+
+        // use http/rest to execute WAMP methods and retrieve javascript texts.
         try {
             for (String s : new String[]{
-                "http://localhost:" + port + "/app/rest/test.DemoHW.getHello?who=a",
-                "http://localhost:" + port + "/app/rest/test.DemoHW.time"
-            }) {
+                "http://localhost:" + port + "/app/wamp/demo/test.DemoHW.getHello?who=a",
+                "http://localhost:" + port + "/app/wamp/demo/test.DemoHW.time",
+                "http://localhost:" + port + "/app/wamp/demo/script.wamp",
+                "http://localhost:" + port + "/app/wamp/demo/script.js",
+                "http://localhost:" + port + "/app/wamp/demo/script.jw",
+                "http://localhost:" + port + "/app/wamp/test/script.jw",}) {
                 long started = System.nanoTime();
                 URL url = new URL(s);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                Throwable error = null;
                 try {
                     conn.setDoInput(true);
                     conn.setDoOutput(false);
@@ -81,8 +120,17 @@ public class Test_WAMPRunner {
                     System.out.println(""
                             + "--   Request: " + s
                             + "\n  Response[" + (System.nanoTime() - started) / 1000000f + "ms, " + data.length + "]: " + new String(data));
+                } catch (Throwable th) {
+                    error = th;
+                    throw th;
                 } finally {
                     conn.disconnect();
+                    if (error != null) {
+                        System.out.println(""
+                                + "--   Request: " + s
+                                + "\n  ERROR: " + error
+                        );
+                    }
                 }
             }
         } catch (Throwable th) {

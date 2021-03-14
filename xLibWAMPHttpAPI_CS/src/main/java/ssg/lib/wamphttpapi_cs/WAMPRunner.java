@@ -258,10 +258,17 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     }
 
                     try {
+                        if (wampOverREST instanceof REST_WAMP_API_MethodsProvider) {
+                            ((REST_WAMP_API_MethodsProvider) wampOverREST).setRealmTL(group.realm);
+                        }
                         getREST().registerProviders(new MethodsProvider[]{wampOverREST}, api);
                         registeredRESTAPIs.add(apiName);
                     } catch (Throwable th) {
                         th.printStackTrace();
+                    } finally {
+                        if (wampOverREST instanceof REST_WAMP_API_MethodsProvider) {
+                            ((REST_WAMP_API_MethodsProvider) wampOverREST).setRealmTL(null);
+                        }
                     }
                 }
             }

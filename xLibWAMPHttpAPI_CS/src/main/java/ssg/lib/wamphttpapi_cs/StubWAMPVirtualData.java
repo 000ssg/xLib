@@ -27,6 +27,7 @@ import java.io.IOException;
 import ssg.lib.common.Stub;
 import ssg.lib.http.base.HttpData;
 import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.wamp.features.WAMP_FP_Reflection.RR;
 import ssg.lib.wamp.nodes.WAMPRouter;
 
 /**
@@ -54,10 +55,10 @@ public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
         return (StubWAMPVirtualData) super.configure(context);
     }
 
-    @Override
-    public StubWAMPVirtualData configure(String realm, String type, String path) {
-        return (StubWAMPVirtualData) super.configure(realm, type, path); //To change body of generated methods, choose Tools | Templates.
-    }
+//    @Override
+//    public StubWAMPVirtualData configure(String realm, String type, String path) {
+//        return (StubWAMPVirtualData) super.configure(realm, type, path); //To change body of generated methods, choose Tools | Templates.
+//    }
 
     @Override
     public StubWAMPVirtualData configure(String realm, String... types) {
@@ -87,7 +88,8 @@ public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
 
     @Override
     public long timestamp(String realm) {
-        return StubWAMPReflectionContext.rr(owner().find(realm)).timestamp();
+        RR rr = StubWAMPReflectionContext.rr(owner().find(realm));
+        return rr != null ? rr.timestamp() : 0;
     }
 
 }

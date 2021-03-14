@@ -29,19 +29,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.api.APICallable;
+import ssg.lib.api.API_Publisher;
 import ssg.lib.http.rest.RESTMethod;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 
 /**
- * 
+ *
  * @author 000ssg
  */
 public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
 
     public static boolean DEBUG = false;
     WAMPClient caller;
+    ThreadLocal<String> realm = new ThreadLocal<>();
 
     public REST_WAMP_API_MethodsProvider(WAMPClient caller) {
         this.caller = caller;
@@ -92,6 +94,23 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
         } else {
             return super.invokeAsync(method, name, m, service, parameters, callback);
         }
+    }
+
+    @Override
+    public String adjustPath(API_Publisher apis, String path) {
+        String p = super.adjustPath(apis, path);
+        String r = realm.get();
+        if (r != null && !r.isEmpty()) {
+            if (p.equals(apis.getAPI().name)) {
+                p = "";
+            }
+            p = r + (r.endsWith("/") || p.isEmpty() || p.startsWith("/") ? "" : "/") + p;
+        }
+        return p;
+    }
+
+    public void setRealmTL(String realm) {
+        this.realm.set(realm);
     }
 
 }

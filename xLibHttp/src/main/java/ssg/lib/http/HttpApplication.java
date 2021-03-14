@@ -56,6 +56,7 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         name = "Default";
         root = "/";
         matcher = new HttpMatcher(root);
+        matcher.setPathIsPrefix(true);
     }
 
     public HttpApplication(
@@ -67,6 +68,7 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         getProperties().put("name", name);
         getProperties().put("root", root);
         matcher = new HttpMatcher(root);
+        matcher.setPathIsPrefix(true);
     }
 
     public HttpMatcher getMatcher() {

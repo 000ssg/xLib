@@ -84,11 +84,11 @@ public class StubVirtualData<T> implements VirtualData {
         return this;
     }
 
-    public StubVirtualData configure(String realm, String type, String path) {
-        WR wr = new WR(path, realm, type);
-        resources.put(wr.getPath(), wr);
-        return this;
-    }
+//    public StubVirtualData configure(String realm, String type, String path) {
+//        WR wr = new WR(path, realm, type);
+//        resources.put(wr.getPath(), wr);
+//        return this;
+//    }
 
     public long timestamp(String realm) {
         return 0;
@@ -137,7 +137,7 @@ public class StubVirtualData<T> implements VirtualData {
     public StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         try {
             return context.clone()
-                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.path)
+                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.path + "/" + wr.realm)
                     .setProperty(Stub.StubContext.NAMESPACE, wr.realm + "_" + wr.type) //                    .setProperty("wampRealm", wr.realm)
                     ;
         } catch (Throwable th) {
@@ -163,7 +163,7 @@ public class StubVirtualData<T> implements VirtualData {
         public WR(String realm, String type) {
             this.realm = realm;
             this.type = type;
-            path = StubVirtualData.this.path + "/script." + type + "?" + realm;
+            path = StubVirtualData.this.path + "/" + realm + "/script." + type;
         }
 
         public WR(String realm, String type, String path) {

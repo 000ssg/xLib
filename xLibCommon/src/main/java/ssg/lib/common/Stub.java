@@ -192,6 +192,9 @@ public interface Stub<A, F, P, T> {
             List<P> params = parameters(method);
             if (params != null) {
                 for (P p : params) {
+                    if (p == null) {
+                        continue;
+                    }
                     if (type(p) instanceof String && "byte[]".equals(p) || byte[].class.isAssignableFrom(type(p).getClass())) {
                         r = true;
                         break;

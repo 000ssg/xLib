@@ -25,10 +25,16 @@ package ssg.lib.httpapi_cs;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
+import ssg.lib.api.API;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.CommonTools;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.dp.HttpResourceBytes;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.httpapi_cs.APIRunner.APIGroup;
 
 /**
  *
@@ -57,12 +63,31 @@ public class Test_APIRunner {
                         .configure(Reflective_API_Builder.buildAPI("test", null, DemoHW.class))
                         .configureContext(new DemoHW())
                 );
+        APIGroup ag=(APIGroup)((Map)r.getAPIGroups().get("demo")).values().iterator().next();
+        String router_root = r.getApp() != null ? r.getApp().getRoot() + "/" : "/";
+        StubVirtualData<API> apiJS = new StubVirtualData(ag.apis.getAPI("test"), router_root.substring(0, router_root.length()-1) , "js", "jw")
+                .configure(new StubAPIContext(null, null, true))
+                .configure("demo", "js", "jw")
+                //.configure("test", "js", "jw")
+                ;
+
+        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
+        for (StubVirtualData.WR wr : apiJS.resources()) {
+            System.out.println("  adding " + wr.getPath());
+            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath(), "text/javascript; encoding=utf-8"));
+        }
+        if (r.getApp() != null) {
+            r.getApp().configureDataProcessor(0, apiJS_DP);
+        } else {
+            r.getService().configureDataProcessor(0, apiJS_DP);
+        }
 
         r.start();
         try {
             for (String s : new String[]{
-                "http://localhost:" + port + "/app/rest/test.DemoHW.getHello?who=a",
-                "http://localhost:" + port + "/app/rest/test.DemoHW.time"
+                "http://localhost:" + port + "/app/rest/test/test.DemoHW.getHello?who=a",
+                "http://localhost:" + port + "/app/rest/test/test.DemoHW.time",
+                "http://localhost:" + port + "/app/demo/script.js",
             }) {
                 long started = System.nanoTime();
                 URL url = new URL(s);

@@ -134,16 +134,16 @@ public class HttpMatcherTest {
 
             //// extension match
             HttpMatcher m = new HttpMatcher(".txt");
-            assertEquals(0.5f, m.match(new HttpMatcher("/1.txt")), 0);
+            assertEquals(1f, m.match(new HttpMatcher("/1.txt")), 0);
 
             m = new HttpMatcher("/.txt");
-            assertEquals(0.5f, m.match(new HttpMatcher("/1.txt")), 0);
+            assertEquals(1f, m.match(new HttpMatcher("/1.txt")), 0);
 
             m = new HttpMatcher("/a/.txt");
-            assertEquals(0.5f, m.match(new HttpMatcher("/1.txt")), 0);
+            assertEquals(0f, m.match(new HttpMatcher("/1.txt")), 0);
 
             m = new HttpMatcher("/a/bb.txt");
-            assertEquals(0.5f, m.match(new HttpMatcher("/1.txt")), 0);
+            assertEquals(0f, m.match(new HttpMatcher("/1.txt")), 0);
         }
 
         // path-based matches: all true

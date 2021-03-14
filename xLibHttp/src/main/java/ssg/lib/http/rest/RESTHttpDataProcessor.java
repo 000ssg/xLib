@@ -44,6 +44,7 @@ import ssg.lib.common.JSON;
 import ssg.lib.common.Refl;
 import ssg.lib.common.Refl.ReflJSON;
 import ssg.lib.di.DI;
+import ssg.lib.http.HttpMatcher.HttpMatcherComposite;
 import ssg.lib.http.HttpSession;
 import ssg.lib.http.RAT;
 import ssg.lib.service.SERVICE_PROCESSING_STATE;
@@ -66,11 +67,13 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     public RESTHttpDataProcessor(String root) {
         super(root);
         this.root = root;
+        getMatcher().setPathIsPrefix(true);
     }
 
     public RESTHttpDataProcessor(String root, MethodsProvider[] methodsProviders, Object... providers) {
         super(root);
         this.root = root;
+        getMatcher().setPathIsPrefix(true);
         registerProviders(methodsProviders, providers);
     }
 
@@ -146,7 +149,8 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                     }
                     this.methods.put(rm, rms);
                     serviceProviders.put(m, provider);
-                    System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
+                    //System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
+                    System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
                     paths.add(rm);
                 }
             }
@@ -167,11 +171,29 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                 path = path.substring(0, 1).toLowerCase() + path.substring(1);
             }
         }
+
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
-        HttpMatcher rm = new HttpMatcher((root == null || root.equals("/") ? "" : root) + path);
-        return rm;
+
+        RESTProvider rp = m.getProvider();
+        if (rp != null && rp.getPaths() != null && rp.getPaths().length > 1) {
+            HttpMatcher[] rs = new HttpMatcher[rp.getPaths().length];
+            for (int i = 0; i < rs.length; i++) {
+                String pp = rp.getPaths()[i];
+                pp = (!pp.startsWith("/") ? "/" : "") + pp + (pp.endsWith("/") ? "" : "/") + path;
+                rs[i] = new HttpMatcher((root == null || root.equals("/") ? "" : root) + pp);
+            }
+            HttpMatcherComposite mc = new HttpMatcherComposite(rs);
+            return mc;
+        } else {
+            if (rp != null && rp.getPaths() != null && rp.getPaths().length == 1) {
+                String pp = rp.getPaths()[0];
+                path = (!pp.startsWith("/") ? "/" : "") + pp + (pp.endsWith("/") || path.startsWith("/") ? "" : "/") + path;
+            }
+            HttpMatcher rm = new HttpMatcher((root == null || root.equals("/") ? "" : root) + path);
+            return rm;
+        }
     }
 
     public Collection<HttpMatcher> getPaths() {

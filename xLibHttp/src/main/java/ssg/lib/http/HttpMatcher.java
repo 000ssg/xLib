@@ -49,7 +49,8 @@ public class HttpMatcher {
     String[] paths; // query text splitted by "/" up to parameter or "file name"
     WildcardMatcher[] wildcards;
     boolean lastIsFile = false;
-    boolean absolutePath;
+    boolean absolutePath = false;
+    boolean pathIsPrefix = false;
     String ext;
     String[][] qpm;
     String[] methods;
@@ -78,6 +79,14 @@ public class HttpMatcher {
         scheme = uri.getScheme();
         int port = uri.getPort();
         init();
+    }
+
+    public void setPathIsPrefix(boolean pathIsPrefix) {
+        this.pathIsPrefix = pathIsPrefix;
+    }
+
+    public boolean pathIsPrefix() {
+        return pathIsPrefix;
     }
 
     void noPath() {
@@ -161,7 +170,7 @@ public class HttpMatcher {
         sb.append(getClass().getSimpleName() + "{");
         sb.append("\n  path='" + path + "'");
         if (paths != null) {
-            sb.append("\n  paths=" + paths.length + ", has file: " + lastIsFile + ", is absolute: " + absolutePath);
+            sb.append("\n  paths=" + paths.length + ", has file: " + lastIsFile + ", is absolute: " + absolutePath + ", is prefix: " + pathIsPrefix);
             for (String p : paths) {
                 sb.append("\n    '" + p + "'");
             }
@@ -351,7 +360,7 @@ public class HttpMatcher {
 
         // check paths, ext, contentType, params (path+qpm)
         float[] weights = new float[]{
-            (paths != null && paths.length > 0 || "/".equals(path)) ? 1 : 0,
+            (paths != null && paths.length > 0 || "/".equals(path)) ? paths != null && paths.length == 1 && lastIsFile ? pathIsPrefix || path.equals(rm.path) ? 1 : 0 : 1 : 0,
             (ext != null) ? 1 : 0,
             (getContentType() != null) ? 1 : 0
         };
@@ -365,8 +374,12 @@ public class HttpMatcher {
         }
 
         float cur = weights[0] * matchPath(rm);
-        cur += weights[1] * matchExt(rm);
-        cur += weights[2] * matchContentType(rm);
+        if (weights[0] == 0 || cur > 0) {
+            cur += weights[1] * matchExt(rm);
+        }
+        if (weights[0] == 0 && weights[1] == 0 || cur > 0) {
+            cur += weights[2] * matchContentType(rm);
+        }
 
         return cur / max;
     }
@@ -409,7 +422,7 @@ public class HttpMatcher {
                 } else {
                     // check length match
                     int ppl = p.paths.length;
-                    float f0 = (paths.length + ppl ==  rm.paths.length) ? 1 : 0.5f;
+                    float f0 = (paths.length + ppl == rm.paths.length) ? 1 : 0.5f;
                     float f1 = 0;
                     for (int i = 0; i < Math.min(paths.length + ppl, rm.paths.length); i++) {
                         HttpMatcher pi = i < ppl ? p : this;
@@ -422,6 +435,12 @@ public class HttpMatcher {
                             WildcardMatcher m = pi.wildcards[off];
                             f1 += (m.match(rm.paths[i]) / paths.length);
                         } else {
+                            if (pathIsPrefix) {
+                                // if prefix all the rest path matches...
+                            } else {
+                                f0 = 0;
+                                f1 = 0;
+                            }
                             break;
                         }
                     }
@@ -524,6 +543,21 @@ public class HttpMatcher {
                 }
             }
             return this;
+        }
+
+        public float match(HttpMatcher parent, HttpMatcher rm) {
+            synchronized (this) {
+                for (HttpMatcher lm : matchers()) {
+                    lm.parent.set(parent);
+                }
+                try {
+                    return super.match(parent, rm);
+                } finally {
+                    for (HttpMatcher lm : matchers()) {
+                        lm.parent.set(null);
+                    }
+                }
+            }
         }
 
         @Override
