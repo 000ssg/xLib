@@ -1,7 +1,25 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * The MIT License
+ *
+ * Copyright 2021 sesidoro.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 package ssg.lib.wamphttpapi_cs;
 
@@ -236,24 +254,42 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     @Override
     public void onPublishedAPI(URI wsURI, APIGroup group, WAMPClient client, String apiName, API_Publisher api) throws IOException {
         if (client != null) {
+            String apiKey = null;
             if (apiName == null && api == null) {
                 //client.connect();
-            } else if (!registeredRESTAPIs.contains(apiName)) {
+            } else {
+                apiKey = group.realm + "/" + apiName;
+            }
+            if (!registeredRESTAPIs.contains(apiKey)) {
                 if (getREST() != null) {
                     if (wampOverREST == null) {
                         try {
                             wampOverREST = new REST_WAMP_API_MethodsProvider(wamp.connect(
                                     wsURI != null ? wsURI : wampRouterURI,
-                                    "rest_api_over_wamp_provider",
+                                    "RoW-"+client.getRealm()+"-"+client.getAgent(),
                                     new WAMPFeature[]{WAMPFeature.shared_registration},
                                     group.authid,
-                                    "rest_api_over_wamp",
+                                    "RoW-"+client.getRealm(),
                                     client.getRealm(),
                                     WAMP.Role.caller
                             ));
-
                         } catch (IOException ioex) {
                             ioex.printStackTrace();
+                        }
+                    } else {
+                        if (wampOverREST instanceof REST_WAMP_API_MethodsProvider) {
+                            WAMPClient rclient = ((REST_WAMP_API_MethodsProvider) wampOverREST).caller(group.realm);
+                            if (rclient == null) {
+                                ((REST_WAMP_API_MethodsProvider) wampOverREST).addCallers(wamp.connect(
+                                        wsURI != null ? wsURI : wampRouterURI,
+                                        "rest_api_over_wamp_provider",
+                                        new WAMPFeature[]{WAMPFeature.shared_registration},
+                                        group.authid,
+                                        "rest_api_over_wamp",
+                                        client.getRealm(),
+                                        WAMP.Role.caller
+                                ));
+                            }
                         }
                     }
 
@@ -262,7 +298,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                             ((REST_WAMP_API_MethodsProvider) wampOverREST).setRealmTL(group.realm);
                         }
                         getREST().registerProviders(new MethodsProvider[]{wampOverREST}, api);
-                        registeredRESTAPIs.add(apiName);
+                        registeredRESTAPIs.add(apiKey);
                     } catch (Throwable th) {
                         th.printStackTrace();
                     } finally {
@@ -419,13 +455,14 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     @Override
     public WAMPClient initClient(URI uri, APIGroup group, String title) {
         try {
-            return this.connect(
+            WAMPClient client = this.connect(
                     uri != null ? uri : wampRouterURI,
                     group.authid,
                     title + "_provider",
                     group.realm,
                     new WAMPFeature[]{WAMPFeature.shared_registration},
                     WAMP.Role.callee, WAMP.Role.publisher, WAMP.Role.subscriber);
+            return client;
         } catch (WAMPException wex) {
             wex.printStackTrace();
         }

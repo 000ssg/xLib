@@ -49,6 +49,15 @@ import ssg.lib.common.Refl.ReflImpl;
 public class ReflectiveMethodsProvider implements MethodsProvider {
 
     ReflImpl refl = new ReflImpl();
+    boolean addClassNameInPath = false;
+
+    public ReflectiveMethodsProvider() {
+    }
+
+    public ReflectiveMethodsProvider setClassNameInPath(boolean addClassNameInPath) {
+        this.addClassNameInPath = addClassNameInPath;
+        return this;
+    }
 
     Collection<Class> exclusions = new HashSet<Class>() {
         {
@@ -224,10 +233,12 @@ public class ReflectiveMethodsProvider implements MethodsProvider {
         {
             String s = clazz.getSimpleName();
             pr.setName(s);
-            if (Character.isUpperCase(s.charAt(0))) {
-                s = s.substring(0, 1).toLowerCase() + s.substring(1);
+            if (addClassNameInPath) {
+                if (Character.isUpperCase(s.charAt(0))) {
+                    s = s.substring(0, 1).toLowerCase() + s.substring(1);
+                }
+                pr.setPaths(s);
             }
-            pr.setPaths(s);
         }
 
         Map<String, Object[][]> bis = refl.getBeanInfo(clazz, true);

@@ -83,7 +83,7 @@ public class API_MethodsProvider implements MethodsProvider {
                 {
                     String s = apiName.replace(".", "/");
                     pr.setName(s);
-                    pr.setPaths(adjustPath(apis,s.toLowerCase()));
+                    pr.setPaths(adjustPath(pr, apis, s.toLowerCase()));
                 }
 
                 for (APIProcedure p : (Collection<APIProcedure>) (Object) apis.getAPI().find((item) -> {
@@ -201,7 +201,7 @@ public class API_MethodsProvider implements MethodsProvider {
      * @param path
      * @return
      */
-    public String adjustPath(API_Publisher apis, String path) {
+    public String adjustPath(RESTProvider pr, API_Publisher apis, String path) {
         return path;
     }
 }

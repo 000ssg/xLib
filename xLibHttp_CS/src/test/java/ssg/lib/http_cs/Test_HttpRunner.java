@@ -23,6 +23,8 @@
  */
 package ssg.lib.http_cs;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collection;
@@ -49,18 +51,48 @@ public class Test_HttpRunner {
         }
     }
 
+    public static class DemoHW1 extends DemoHW {
+
+        public byte[] getData() {
+            return "Data".getBytes();
+        }
+    }
+
+    public static class DemoHW2 {
+
+        public Long getTimestamp() {
+            return System.currentTimeMillis();
+        }
+
+        public String getHello(String who) {
+            return "Hello2, " + who + "!";
+        }
+
+        public int error() throws IOException {
+            throw new IOException("Demo error");
+        }
+    }
+
     public static void main(String... args) throws Exception {
         int port = 30001;
         HttpRunner r = new HttpRunner(new HttpApplication("aaa", "/app"))
                 .configureHttp(port)
                 .configureREST("rest");
-        Collection<HttpMatcher> lst = r.getREST().registerProviders(new MethodsProvider[]{new ReflectiveMethodsProvider()}, new DemoHW());
+        Collection<HttpMatcher> lst = r.getREST().registerProviders(
+                new MethodsProvider[]{
+                    new ReflectiveMethodsProvider().setClassNameInPath(true)
+                },
+                new DemoHW(),
+                new DemoHW1(),
+                new DemoHW2()
+        );
         //System.out.println(lst);
         r.start();
         try {
             for (String s : new String[]{
-                "http://localhost:" + port + "/app/rest/hello?who=a",
-                "http://localhost:" + port + "/app/rest/time"
+                "http://localhost:" + port + "/app/rest/demoHW/hello?who=a",
+                "http://localhost:" + port + "/app/rest/demoHW/time",
+                "http://localhost:" + port + "/app/rest/demoHW2/error"
             }) {
                 long started = System.nanoTime();
                 URL url = new URL(s);
@@ -71,6 +103,8 @@ public class Test_HttpRunner {
                     conn.connect();
                     byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
                             ? conn.getErrorStream()
+                            : conn.getResponseCode() > 300
+                            ? new ByteArrayInputStream((conn.getResponseCode() + " " + conn.getResponseMessage()).getBytes())
                             : conn.getInputStream()
                     );
                     System.out.println(""

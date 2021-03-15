@@ -23,6 +23,7 @@
  */
 package ssg.lib.httpapi_cs;
 
+import java.io.ByteArrayInputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
@@ -98,6 +99,8 @@ public class Test_APIRunner {
                     conn.connect();
                     byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
                             ? conn.getErrorStream()
+                            : conn.getResponseCode() > 300
+                            ? new ByteArrayInputStream((conn.getResponseCode() + " " + conn.getResponseMessage()).getBytes())
                             : conn.getInputStream()
                     );
                     System.out.println(""

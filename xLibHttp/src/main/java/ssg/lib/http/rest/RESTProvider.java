@@ -26,6 +26,8 @@ package ssg.lib.http.rest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  *
@@ -37,6 +39,7 @@ public class RESTProvider {
     private String[] paths;
     private String description;
     private RESTAccess access;
+    Map<String, Object> properties;
 
     private Collection<RESTMethod> methods = new ArrayList<RESTMethod>();
 
@@ -132,4 +135,21 @@ public class RESTProvider {
         this.access = access;
     }
 
+    public void setProperty(String name, Object v) {
+        if (name == null || properties == null && v == null) {
+            return;
+        }
+        if (properties == null) {
+            properties = new LinkedHashMap<>();
+        }
+        if (v != null) {
+            properties.put(name, v);
+        } else if (properties.containsKey(name)) {
+            properties.remove(name);
+        }
+    }
+
+    public <Z> Z getProperty(String name) {
+        return properties != null ? (Z) properties.get(name) : null;
+    }
 }

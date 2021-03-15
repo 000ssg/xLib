@@ -68,6 +68,8 @@ import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_PROGRESSIVE_CALL_PROGRESS_KE
  */
 public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
 
+    public static boolean DEBUG = false;
+
     public static final WAMPFeature[] supports = new WAMPFeature[]{
         WAMPFeature.shared_registration,
         WAMPFeature.sharded_registration,
@@ -179,15 +181,21 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
     }
 
     public void onStarted() {
-        System.out.println(getClass().getSimpleName() + ".onStarted");
+        if (DEBUG) {
+            System.out.println(getClass().getSimpleName() + ".onStarted");
+        }
     }
 
     public void onStopped() {
-        System.out.println(getClass().getSimpleName() + ".onStopped");
+        if (DEBUG) {
+            System.out.println(getClass().getSimpleName() + ".onStopped");
+        }
     }
 
     public void onError(Throwable th) {
-        System.out.println(getClass().getSimpleName() + ".onError: " + th);
+        if (DEBUG) {
+            System.out.println(getClass().getSimpleName() + ".onError: " + th);
+        }
     }
 
     public long getProcedureRegistrationId(String name) {
@@ -512,99 +520,99 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             synchronized (this.calls) {
                 wip.addAll(calls.values());
             }
-            if (wip != null) {
-                for (CalleeCall call : wip) {
-                    if (call == null) {
-                        continue;
+
+            for (CalleeCall call : wip) {
+                if (call == null) {
+                    continue;
+                }
+                if (call.future != null) {
+                    boolean forcedTimeout = false;
+                    if (call.hasTimeout() && call.isOvertime() && !call.future.isDone()) {
+                        // cancel task if timeout is exceeded and is configured
+                        if (call.session.supportsFeature(WAMPFeature.call_timeout)) {
+                            call.future.cancel(true);
+                            forcedTimeout = true;
+                        }
                     }
-                    if (call.future != null) {
-                        boolean forcedTimeout = false;
-                        if (call.hasTimeout() && call.isOvertime() && !call.future.isDone()) {
-                            // cancel task if timeout is exceeded and is configured
-                            if (call.session.supportsFeature(WAMPFeature.call_timeout)) {
-                                call.future.cancel(true);
-                                forcedTimeout = true;
-                            }
-                        }
-                        if (call.future.isCancelled()) {
-                            callsWIP.decrementAndGet();
-                            this.calls.remove(call.getId());
-                            if (call.getStatistics() != null) {
-                                call.getStatistics().onError();
-                                call.getStatistics().onDuration(call.durationNano());
-                            }
-                            call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, forcedTimeout ? "timeout.invocation.error" : "cancelled.invocation.error"));
-                        } else if (call.future.isDone()) {
-                            callsWIP.decrementAndGet();
-                            call.proc.wip.remove(call.getId());
-                            try {
-                                try {
-                                    Object result = call.future.get();
-                                    yield_(call.session, call.getId(), true, resultArgs(result), resultArgsKw(result));
-                                    if (call.getStatistics() != null) {
-                                        call.getStatistics().onDuration(call.durationNano());
-                                    }
-                                } catch (InterruptedException iex) {
-                                    if (call.getStatistics() != null) {
-                                        call.getStatistics().onError();
-                                        call.getStatistics().onDuration(call.durationNano());
-                                    }
-                                    call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "interrupted.invocation.error"));
-                                } catch (WAMPException wex) {
-                                    if (call.getStatistics() != null) {
-                                        call.getStatistics().onError();
-                                        call.getStatistics().onDuration(call.durationNano());
-                                    }
-                                    call.session.send(WAMPMessage.error(
-                                            WAMPMessageType.T_INVOCATION,
-                                            call.getId(),
-                                            WAMPTools.EMPTY_DICT,
-                                            getClass().getName() + ".invocation.error",
-                                            WAMPTools.EMPTY_LIST,
-                                            WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(wex))
-                                    ));
-                                } catch (ExecutionException eex) {
-                                    if (call.getStatistics() != null) {
-                                        call.getStatistics().onError();
-                                        call.getStatistics().onDuration(call.durationNano());
-                                    }
-                                    call.session.send(WAMPMessage.error(
-                                            WAMPMessageType.T_INVOCATION,
-                                            call.getId(),
-                                            WAMPTools.EMPTY_DICT,
-                                            getClass().getName() + ".invocation.error",
-                                            WAMPTools.EMPTY_LIST,
-                                            WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(eex))
-                                    ));
-                                }
-                            } catch (Throwable th) {
-                                th.printStackTrace();
-                                int a = 0;
-                            } finally {
-                                this.calls.remove(call.getId());
-                            }
-                        } else {
-                            // WIP...
-                            int a = 0;
-                        }
-                    } else if (call.hasDelayed()) {
-                        if (getMaxConcurrentTasks() <= 0 || callsWIP.get() < getMaxConcurrentTasks()) {
-                            call.runDelayed();
-                        } else {
-                            int a = 0;
-                        }
-                    } else {
+                    if (call.future.isCancelled()) {
                         callsWIP.decrementAndGet();
                         this.calls.remove(call.getId());
-                        call.proc.wip.remove(call.getId());
                         if (call.getStatistics() != null) {
                             call.getStatistics().onError();
                             call.getStatistics().onDuration(call.durationNano());
                         }
-                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "no_executor.invocation.error"));
+                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, forcedTimeout ? "timeout.invocation.error" : "cancelled.invocation.error"));
+                    } else if (call.future.isDone()) {
+                        callsWIP.decrementAndGet();
+                        call.proc.wip.remove(call.getId());
+                        try {
+                            try {
+                                Object result = call.future.get();
+                                yield_(call.session, call.getId(), true, resultArgs(result), resultArgsKw(result));
+                                if (call.getStatistics() != null) {
+                                    call.getStatistics().onDuration(call.durationNano());
+                                }
+                            } catch (InterruptedException iex) {
+                                if (call.getStatistics() != null) {
+                                    call.getStatistics().onError();
+                                    call.getStatistics().onDuration(call.durationNano());
+                                }
+                                call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "interrupted.invocation.error"));
+                            } catch (WAMPException wex) {
+                                if (call.getStatistics() != null) {
+                                    call.getStatistics().onError();
+                                    call.getStatistics().onDuration(call.durationNano());
+                                }
+                                call.session.send(WAMPMessage.error(
+                                        WAMPMessageType.T_INVOCATION,
+                                        call.getId(),
+                                        WAMPTools.EMPTY_DICT,
+                                        getClass().getName() + ".invocation.error",
+                                        WAMPTools.EMPTY_LIST,
+                                        WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(wex))
+                                ));
+                            } catch (ExecutionException eex) {
+                                if (call.getStatistics() != null) {
+                                    call.getStatistics().onError();
+                                    call.getStatistics().onDuration(call.durationNano());
+                                }
+                                call.session.send(WAMPMessage.error(
+                                        WAMPMessageType.T_INVOCATION,
+                                        call.getId(),
+                                        WAMPTools.EMPTY_DICT,
+                                        getClass().getName() + ".invocation.error",
+                                        WAMPTools.EMPTY_LIST,
+                                        WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(eex))
+                                ));
+                            }
+                        } catch (Throwable th) {
+                            th.printStackTrace();
+                            int a = 0;
+                        } finally {
+                            this.calls.remove(call.getId());
+                        }
+                    } else {
+                        // WIP...
+                        int a = 0;
                     }
+                } else if (call.hasDelayed()) {
+                    if (getMaxConcurrentTasks() <= 0 || callsWIP.get() < getMaxConcurrentTasks()) {
+                        call.runDelayed();
+                    } else {
+                        int a = 0;
+                    }
+                } else {
+                    callsWIP.decrementAndGet();
+                    this.calls.remove(call.getId());
+                    call.proc.wip.remove(call.getId());
+                    if (call.getStatistics() != null) {
+                        call.getStatistics().onError();
+                        call.getStatistics().onDuration(call.durationNano());
+                    }
+                    call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "no_executor.invocation.error"));
                 }
             }
+
         }
     }
 

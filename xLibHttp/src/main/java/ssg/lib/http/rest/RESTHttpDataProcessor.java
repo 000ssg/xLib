@@ -216,18 +216,18 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
             RESTMethod m = prepareMethodAndParams(req, params);
 
             if (m == null) {
-                if (params.containsKey("js")) {
-                    generateJS(req, "" + params.get("js"));
-                } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
-                    generateJS(req, req.getMatcher().getQueryPathParameter("js"));
-                } else {
+//                if (params.containsKey("js")) {
+//                    generateJS(req, "" + params.get("js"));
+//                } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
+//                    generateJS(req, req.getMatcher().getQueryPathParameter("js"));
+//                } else {
                     HttpResponse resp = req.getResponse();
                     resp.setResponseCode(500, "Server Error");
                     resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
                     resp.onHeaderLoaded();
                     resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
                     resp.onLoaded();
-                }
+//                }
                 return;
                 //throw new IOException("No REST method found for " + qrm.toString());
             } else {
@@ -253,18 +253,18 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         RESTMethod m = prepareMethodAndParams(req, params);
 
         if (m == null) {
-            if (params.containsKey("js")) {
-                generateJS(req, "" + params.get("js"));
-            } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
-                generateJS(req, req.getMatcher().getQueryPathParameter("js"));
-            } else {
+//            if (params.containsKey("js")) {
+//                generateJS(req, "" + params.get("js"));
+//            } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
+//                generateJS(req, req.getMatcher().getQueryPathParameter("js"));
+//            } else {
                 HttpResponse resp = req.getResponse();
                 resp.setResponseCode(500, "Server Error");
                 resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
                 resp.onHeaderLoaded();
                 resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
                 resp.onLoaded();
-            }
+//            }
             return;
             //throw new IOException("No REST method found for " + qrm.toString());
         } else {
@@ -272,31 +272,31 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         }
     }
 
-    public void generateJS(HttpRequest data, String type) throws IOException {
-        final HttpRequest req = (HttpRequest) data;
-        HttpSession ctx = req.getHttpSession();
-        RAT userRAT = (ctx != null) ? ctx.getRAT() : null;
-        HttpResponse resp = req.getResponse();
-        resp.setResponseCode(200, "OK");
-        String namespace = root;
-        if (namespace != null && namespace.contains("/")) {
-            namespace = namespace.substring(namespace.lastIndexOf("/") + 1);
-        }
-        //Map<String, String[]> params = data.getMatcher().getParameters(data.getMatcher(), false);
-        String apiJS = getRESTHelper().generateAPI(
-                userRAT,
-                (type != null) ? type : "js",
-                getBaseURL(data),
-                methods.values(),
-                namespace, //root.replace("/", "_"),
-                null);
-        byte[] apiBIN = apiJS.getBytes("UTF-8");
-        resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + apiBIN.length);
-        resp.setHeader(HttpData.HH_CONTENT_TYPE, "text/javascript; encoding: utf-8");
-        resp.onHeaderLoaded();
-        resp.add(Collections.singletonList(ByteBuffer.wrap(apiBIN)));
-        resp.onLoaded();
-    }
+//    public void generateJS(HttpRequest data, String type) throws IOException {
+//        final HttpRequest req = (HttpRequest) data;
+//        HttpSession ctx = req.getHttpSession();
+//        RAT userRAT = (ctx != null) ? ctx.getRAT() : null;
+//        HttpResponse resp = req.getResponse();
+//        resp.setResponseCode(200, "OK");
+//        String namespace = root;
+//        if (namespace != null && namespace.contains("/")) {
+//            namespace = namespace.substring(namespace.lastIndexOf("/") + 1);
+//        }
+//        //Map<String, String[]> params = data.getMatcher().getParameters(data.getMatcher(), false);
+//        String apiJS = getRESTHelper().generateAPI(
+//                userRAT,
+//                (type != null) ? type : "js",
+//                getBaseURL(data),
+//                methods.values(),
+//                namespace, //root.replace("/", "_"),
+//                null);
+//        byte[] apiBIN = apiJS.getBytes("UTF-8");
+//        resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + apiBIN.length);
+//        resp.setHeader(HttpData.HH_CONTENT_TYPE, "text/javascript; encoding: utf-8");
+//        resp.onHeaderLoaded();
+//        resp.add(Collections.singletonList(ByteBuffer.wrap(apiBIN)));
+//        resp.onLoaded();
+//    }
 
     public RESTMethod prepareMethodAndParams(HttpRequest req, Map params) throws IOException {
         HttpMatcher qrm = req.getMatcher();

@@ -55,11 +55,6 @@ public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
         return (StubWAMPVirtualData) super.configure(context);
     }
 
-//    @Override
-//    public StubWAMPVirtualData configure(String realm, String type, String path) {
-//        return (StubWAMPVirtualData) super.configure(realm, type, path); //To change body of generated methods, choose Tools | Templates.
-//    }
-
     @Override
     public StubWAMPVirtualData configure(String realm, String... types) {
         return (StubWAMPVirtualData) super.configure(realm, types); //To change body of generated methods, choose Tools | Templates.

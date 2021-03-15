@@ -26,11 +26,13 @@ package ssg.lib.wamphttpapi_cs;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.http.rest.RESTMethod;
+import ssg.lib.http.rest.RESTProvider;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
@@ -42,13 +44,25 @@ import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
 
     public static boolean DEBUG = false;
-    WAMPClient caller;
+    Map<String, WAMPClient> callers = new LinkedHashMap<>();
     ThreadLocal<String> realm = new ThreadLocal<>();
 
-    public REST_WAMP_API_MethodsProvider(WAMPClient caller) {
-        this.caller = caller;
+    public REST_WAMP_API_MethodsProvider(WAMPClient... callers) {
+        addCallers(callers);
+    }
+    
+    public void addCallers(WAMPClient... callers) {
+        if (callers != null) {
+            for (WAMPClient caller : callers) {
+                this.callers.put(caller.getRealm(), caller);
+            }
+        }
     }
 
+    WAMPClient caller(String realm) {
+        return callers.get(realm);
+    }
+    
     @Override
     public Runnable invokeAsync(
             final RESTMethod method,
@@ -57,6 +71,7 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
             final Object service,
             final Map<String, Object> parameters,
             final RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
+        WAMPClient caller=caller(method.getProvider().getProperty("realm"));
         if (caller != null && caller.isConnected()) {
             if (DEBUG) {
                 System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "]: " + name + "(" + parameters + ")");
@@ -97,11 +112,12 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
     }
 
     @Override
-    public String adjustPath(API_Publisher apis, String path) {
-        String p = super.adjustPath(apis, path);
+    public String adjustPath(RESTProvider pr, API_Publisher apis, String path) {
+        String p = super.adjustPath(pr, apis, path);
         String r = realm.get();
+        pr.setProperty("realm", r);
         if (r != null && !r.isEmpty()) {
-            if (p.equals(apis.getAPI().name)) {
+            if (p.equalsIgnoreCase(apis.getAPI().name)) {
                 p = "";
             }
             p = r + (r.endsWith("/") || p.isEmpty() || p.startsWith("/") ? "" : "/") + p;
