@@ -233,7 +233,9 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
                         } catch (WAMPException wex) {
                             onStop(parameters);
                         }
+                        Thread.sleep(2);
                     }
+                } catch (InterruptedException iex) {
                 } finally {
                     executor = null;
                     Thread.currentThread().setName(old);

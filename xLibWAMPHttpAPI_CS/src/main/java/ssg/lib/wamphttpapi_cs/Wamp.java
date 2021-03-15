@@ -37,6 +37,8 @@ import ssg.lib.websocket.WebSocket;
 public class Wamp {
 
     public boolean TRACE_MESSAGES = false;
+    public int CLIENT_CYCLES_DELAY = 300;
+    public byte CLIENT_CYCLE_DELAY = 2;
 
     // WAMP sockets transport support
     WAMPRouter_WSProtocol routerCS;
@@ -66,13 +68,18 @@ public class Wamp {
                                 synchronized (cclients) {
                                     clients = cclients.toArray(new WAMPClient[cclients.size()]);
                                 }
-                                for (WAMPClient client : clients) {
-                                    client.runCycle();
+                                long timeout = System.currentTimeMillis() + CLIENT_CYCLES_DELAY;
+                                while (System.currentTimeMillis() < timeout) {
+                                    for (WAMPClient client : clients) {
+                                        client.runCycle();
+                                    }
+                                    Thread.sleep(CLIENT_CYCLE_DELAY > 0 ? CLIENT_CYCLE_DELAY : 2);
                                 }
                             } catch (WAMPException wex) {
                                 //
                             }
                         }
+                    } catch (InterruptedException iex) {
                     } finally {
                         executor = null;
                         Thread.currentThread().setName(old);
@@ -91,6 +98,9 @@ public class Wamp {
 //            }
 //        }
         wsGroup.onStop(cs);
+        if (executor != null) {
+            executor.cancel(true);
+        }
     }
 
     public <Z extends Wamp> Z configure(WAMPRealmFactory realmFactory) {
@@ -216,28 +226,6 @@ public class Wamp {
         return wsGroup;
     }
 
-//    /**
-//     * HttpDataProcessor search by path and/or type (e.g. RESTHttpDataProcessor)
-//     *
-//     * @param <T>
-//     * @param path
-//     * @param type
-//     * @return
-//     */
-//    public <T extends HttpDataProcessor> T getHttpDataProcessor(String path, Class type) {
-//        T r = null;
-//        Repository<HttpDataProcessor> rep = httpService.getDataProcessors(null, null);
-//        if (rep != null) {
-//            for (HttpDataProcessor hdp : rep.items()) {
-//                if ((path == null || path.equals(hdp.getMatcher().getPath()))
-//                        && (type == null || type.isAssignableFrom(hdp.getClass()))) {
-//                    r = (T) hdp;
-//                    break;
-//                }
-//            }
-//        }
-//        return r;
-//    }
     public WAMPRouter getRouter() {
         return routerCS != null ? routerCS.getRouter() : null;
     }
@@ -263,29 +251,13 @@ public class Wamp {
         }
     }
 
-//    public String getStat() {
-//        StringBuilder sb = new StringBuilder();
-//        if (clientCS.getStatistics() != null) {
-//            sb.append(clientCS.getStatistics().dumpStatistics(false));
-//        }
-//        return sb.toString();
-//    }
-//
-//
-//    public String routerStat() {
-//        return (routerCS != null) ? routerCS.getRouter().toString() : "";
-//    }
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{"
                 + "TRACE_MESSAGES=" + TRACE_MESSAGES
                 + ", routerCS=" + (routerCS != null)
                 + ", clientCS=" + (clientCS != null)
-                //                + ", clients=" + clients.size()
-                //                + "\n  cs=" + cs.toString().replace("\n", "\n    ")
                 + "\n  wsGroup=" + wsGroup.toString().replace("\n", "\n    ")
-                //                + "\n  router=" + routerStat().replace("\n", "\n    ")
-                //                + "\n  clients=" + getStat().replace("\n", "\n    ")
                 + '}';
     }
 

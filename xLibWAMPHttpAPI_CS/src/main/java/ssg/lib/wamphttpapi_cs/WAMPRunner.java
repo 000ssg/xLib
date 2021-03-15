@@ -469,7 +469,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         return null;
     }
 
-    public URI gewtRouterURI() {
+    public URI getRouterURI() {
         return wampRouterURI;
     }
 
