@@ -50,7 +50,7 @@ public class API_Publisher {
     APIMatcher restrictions;
     Map<String, Map<Object, APICallable>> callables = Collections.synchronizedMap(new HashMap<>());
     Collection<String> missing = new HashSet<>();
-    Object defaultContext = NO_CONTEXT;
+    Object[] defaultContext = new Object[]{NO_CONTEXT};
 
     public <T extends API_Publisher> T configure(API api) {
         this.api = api;
@@ -62,9 +62,18 @@ public class API_Publisher {
         return (T) this;
     }
 
-    public <T extends API_Publisher> T configureContext(Object defaultContext) {
-        this.defaultContext = (defaultContext != null) ? defaultContext : NO_CONTEXT;
+    public <T extends API_Publisher> T configureContext(Object... defaultContext) {
+        this.defaultContext = (defaultContext != null) ? defaultContext : new Object[]{NO_CONTEXT};
         return (T) this;
+    }
+
+    public <T extends API_Publisher> T configureContext(Collection<Object> defaultContext) {
+        this.defaultContext = (defaultContext != null && !defaultContext.isEmpty()) ? defaultContext.toArray() : new Object[]{NO_CONTEXT};
+        return (T) this;
+    }
+
+    public <T> T getDefaultContext(Collection<APIProcedure> procs, Map<Object, APICallable> callables) {
+        return (T) api.matchContext(procs, callables, defaultContext);
     }
 
     public <T extends API> T getAPI() {
@@ -104,7 +113,7 @@ public class API_Publisher {
             }
 
             if (context == null) {
-                context = defaultContext;
+                context = getDefaultContext(procs, map);
             }
             caller = (map != null) ? map.get(context) : null;
             if (caller == null) {
@@ -333,7 +342,10 @@ public class API_Publisher {
 
         public Collection<String> getNames(final String apiName) {
             API api = getAPI(apiName);
+            return getNames(api,apiName);
+        }
 
+        public Collection<String> getNames(API api, final String apiName) {
             Collection<APIProcedure> alls = api.find((item) -> {
                 switch (APIMatcher.matchFQN(item, apiName)) {
                     case exact:

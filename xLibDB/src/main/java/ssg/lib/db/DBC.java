@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2020 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,38 +21,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.api;
+package ssg.lib.db;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import ssg.lib.api.dbms.DB_API;
+import java.sql.SQLException;
 
 /**
- * API is consistent hierarchical (optionally) set of functions and data types
- * providing method execution.
  *
  * @author 000ssg
  */
-public abstract class API extends APIGroup {
+public abstract class DBC implements DB_Connectable {
 
-    private static final long serialVersionUID = 1L;
+    String url;
+    String user;
 
-    public API(String apiName) {
-        super(APIItemCategory.model, apiName);
+    DBStatistics stat = new DBStatistics();
+
+    public DBC(String url, String user) throws SQLException {
+        this.url = url;
+        this.user = user;
     }
 
-    public Object matchContext(Collection<APIProcedure> procs, Map<Object, APICallable> callables, Object... candidates) {
-        return candidates != null ? candidates[0] : null;
-    }
-
-    public abstract <T extends APICallable> T createCallable(APIProcedure proc, Object context);
-
-    public static class APIResult extends LinkedHashMap<String, Object> {
-
-        public APIResult add(String name, Object value, DB_API.APIResult dbResult) {
-            put(name, value);
-            return dbResult;
+    public DBC(String url, String user,
+            DBStatistics stat
+    ) throws SQLException {
+        this.url = url;
+        this.user = user;
+        if (stat != null) {
+            this.stat = stat;
         }
+    }
+
+    public abstract int availableConnections();
+
+    public abstract int connectionsCount();
+
+    public abstract void close();
+
+    public String getStat() {
+        return (stat != null) ? stat.dumpStatistics(false) : "";
     }
 }

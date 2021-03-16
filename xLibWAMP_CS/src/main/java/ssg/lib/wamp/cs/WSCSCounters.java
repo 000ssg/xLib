@@ -37,7 +37,7 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
-import ssg.lib.wamp.util.stat.Statistics;
+import ssg.lib.stat.Statistics;
 
 /**
  *

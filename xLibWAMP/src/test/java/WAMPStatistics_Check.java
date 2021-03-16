@@ -26,7 +26,7 @@ import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
 import ssg.lib.wamp.stat.WAMPStatistics;
-import ssg.lib.wamp.util.stat.Statistics;
+import ssg.lib.stat.Statistics;
 
 /**
  *

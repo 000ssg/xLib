@@ -23,7 +23,7 @@
  */
 package ssg.lib.wamp.stat;
 
-import ssg.lib.wamp.util.stat.TimingStatistics;
+import ssg.lib.stat.TimingStatistics;
 
 /**
  *

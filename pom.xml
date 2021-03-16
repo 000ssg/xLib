@@ -15,10 +15,12 @@
     <packaging>pom</packaging>
     <modules>
         <module>xLibAPI</module>
+        <module>xLibStat</module>
         <module>xLibWAMP</module>
         <module>xLibOAuth2</module>
         <module>xLibSSLTestData</module>
         <module>xLibCommon</module>
+        <module>xLibDB</module>
         <module>xLibSSL</module>
         <module>xLibDI</module>
         <module>xLibService</module>
@@ -28,7 +30,6 @@
         <module>xLibHttpAPI_CS</module>
         <module>xLibWS_CS</module>
         <module>xLibWAMP_CS</module>
-        <module>xLibWAMP_CS_API</module>
         <module>xLibWAMPHttpAPI_CS</module>
     </modules>
     <properties>

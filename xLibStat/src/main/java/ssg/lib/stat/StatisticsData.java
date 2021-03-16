@@ -21,38 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.api;
+package ssg.lib.stat;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import ssg.lib.api.dbms.DB_API;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
- * API is consistent hierarchical (optionally) set of functions and data types
- * providing method execution.
- *
- * @author 000ssg
+ * Represents statistics counters block.
  */
-public abstract class API extends APIGroup {
+public interface StatisticsData {
 
-    private static final long serialVersionUID = 1L;
-
-    public API(String apiName) {
-        super(APIItemCategory.model, apiName);
-    }
-
-    public Object matchContext(Collection<APIProcedure> procs, Map<Object, APICallable> callables, Object... candidates) {
-        return candidates != null ? candidates[0] : null;
-    }
-
-    public abstract <T extends APICallable> T createCallable(APIProcedure proc, Object context);
-
-    public static class APIResult extends LinkedHashMap<String, Object> {
-
-        public APIResult add(String name, Object value, DB_API.APIResult dbResult) {
-            put(name, value);
-            return dbResult;
-        }
-    }
+    AtomicLongArray counters();
+    
 }

@@ -23,10 +23,10 @@
  */
 package ssg.lib.wamp.stat;
 
-import ssg.lib.wamp.util.stat.Statistics;
-import ssg.lib.wamp.util.stat.StatisticsBase;
-import ssg.lib.wamp.util.stat.StatisticsBase.StatisticsListener;
-import ssg.lib.wamp.util.stat.StatisticsGroup;
+import ssg.lib.stat.Statistics;
+import ssg.lib.stat.StatisticsBase;
+import ssg.lib.stat.StatisticsBase.StatisticsListener;
+import ssg.lib.stat.StatisticsGroup;
 
 /**
  *

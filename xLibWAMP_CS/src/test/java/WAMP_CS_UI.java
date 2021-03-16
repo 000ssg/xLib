@@ -55,7 +55,7 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.cs.WSCSCounters;
-import ssg.lib.wamp.util.stat.Statistics;
+import ssg.lib.stat.Statistics;
 
 /**
  *

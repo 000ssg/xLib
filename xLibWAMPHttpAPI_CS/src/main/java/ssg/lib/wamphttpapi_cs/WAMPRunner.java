@@ -120,6 +120,11 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     }
 
     @Override
+    public WAMPRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid, Long options) {
+        return (WAMPRunner) super.configureAPI(realm, name, api, uri, authid, options);
+    }
+
+    @Override
     public WAMPRunner configureHttp(Integer httpPort) {
         return (WAMPRunner) super.configureHttp(httpPort);
     }
@@ -266,10 +271,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         try {
                             wampOverREST = new REST_WAMP_API_MethodsProvider(wamp.connect(
                                     wsURI != null ? wsURI : wampRouterURI,
-                                    "RoW-"+client.getRealm()+"-"+client.getAgent(),
+                                    "RoW-" + client.getRealm() + "-" + client.getAgent(),
                                     new WAMPFeature[]{WAMPFeature.shared_registration},
                                     group.authid,
-                                    "RoW-"+client.getRealm(),
+                                    "RoW-" + client.getRealm(),
                                     client.getRealm(),
                                     WAMP.Role.caller
                             ));
@@ -282,10 +287,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                             if (rclient == null) {
                                 ((REST_WAMP_API_MethodsProvider) wampOverREST).addCallers(wamp.connect(
                                         wsURI != null ? wsURI : wampRouterURI,
-                                        "rest_api_over_wamp_provider",
+                                        "RoW-" + client.getRealm() + "-" + client.getAgent(),
                                         new WAMPFeature[]{WAMPFeature.shared_registration},
                                         group.authid,
-                                        "rest_api_over_wamp",
+                                        "RoW-" + client.getRealm(),
                                         client.getRealm(),
                                         WAMP.Role.caller
                                 ));
@@ -316,6 +321,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     @Override
     public void onPublishingAPI(URI wsURI, APIGroup group, WAMPClient client, String apiName, API_Publisher api, String procedure) {
         boolean supportsReflection = wamp != null ? wamp.supportsFeature(WAMPFeature.procedure_reflection) : false;
+        boolean prefixedAPI = (group.options & APIGroup.O_COMPACT) != 0;
         if (client != null)
                     try {
             boolean est = 0 == client.waitEstablished(2000L);
@@ -348,6 +354,29 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         RB err = RB.error(entry.getKey());
                         root.element(err);
                     }
+                    // add all procedures meta for prefixed api here, since no per-procedure registrations
+                    if (prefixedAPI) {
+                        for (String iprocedure : group.apis.getNames(apiName)) {
+                            final APICallable dbc = api.getCallable(iprocedure, null);
+                            APIProcedure[] procs = dbc.getAPIProcedures();
+
+                            List<RB> rps = Arrays.stream(procs).map(proc -> {
+                                RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.type.fqn()) : RB.procedure(proc.fqn());
+                                if (proc.params != null) {
+                                    for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
+                                        rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                                    }
+                                }
+                                if (proc.errors != null) {
+                                    for (APIError err : proc.errors) {
+                                        rb.element(RB.error(err.fqn()));
+                                    }
+                                }
+                                return rb;
+                            }).collect(Collectors.toList());
+                            root.procedure(rps);
+                        }
+                    }
 
                     if (!client.publish(WAMPTools.EMPTY_DICT, WAMP_FP_Reflection.WR_RPC_DEFINE, WAMPTools.EMPTY_LIST, root.data())) {
                         // TODO: error or notification that reflection is not supported due to missing "publisher" role?
@@ -355,84 +384,95 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         boolean can = client.canPublish();
                         int a = 0;
                     }
+
+                    // publish API as single prefixed procedure. In this case procedure name is passed as parameter and marshalled on callee.
+                    if (prefixedAPI) {
+                        addWAMPExecutor(client, group, api, apiName, null, WAMPTools.createDict("invoke", "roundrobin","match","prefix"));
+                    }
                 }
             } else { // procedure level publishing
-                final APICallable dbc = api.getCallable(procedure, null);
-                APIProcedure[] procs = dbc.getAPIProcedures();
-                try {
-                    Map opts = null;
-                    if (supportsReflection) {
-                        opts = RB.root()
-                                .value("invoke", "roundrobin")
-                                .value("reflection", RB.root()
-                                        .procedure(Arrays.stream(procs).map(proc -> {
-                                            RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.type.fqn()) : RB.procedure(proc.fqn());
-                                            if (proc.params != null) {
-                                                for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
-                                                    rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                if (!prefixedAPI) {
+                    final APICallable dbc = api.getCallable(procedure, null);
+                    APIProcedure[] procs = dbc.getAPIProcedures();
+                    try {
+                        Map opts = null;
+                        if (supportsReflection) {
+                            opts = RB.root()
+                                    .value("invoke", "roundrobin")
+                                    .value("reflection", RB.root()
+                                            .procedure(Arrays.stream(procs).map(proc -> {
+                                                RB rb = (proc instanceof APIFunction) ? RB.function(proc.fqn()).returns(((APIFunction) proc).response.type.fqn()) : RB.procedure(proc.fqn());
+                                                if (proc.params != null) {
+                                                    for (Entry<String, APIParameter> pe : proc.params.entrySet()) {
+                                                        rb.parameter(-1, pe.getKey(), pe.getValue().type.fqn(), !pe.getValue().mandatory);
+                                                    }
                                                 }
-                                            }
-                                            if (proc.errors != null) {
-                                                for (APIError err : proc.errors) {
-                                                    rb.element(RB.error(err.fqn()));
+                                                if (proc.errors != null) {
+                                                    for (APIError err : proc.errors) {
+                                                        rb.element(RB.error(err.fqn()));
+                                                    }
                                                 }
-                                            }
-                                            return rb;
-                                        }).collect(Collectors.toList()))
-                                        .data("proc", procs[0].fqn())
-                                ).data();
-                    } else {
-                        opts = new HashMap() {
-                            {
-                                put("invoke", "roundrobin");
-                            }
-                        };
-                    }
-
-                    client.addExecutor(
-                            opts,
-                            (procedure != null ? procedure : !apiName.endsWith(".") ? apiName + "." : apiName), new CalleeProcedure.Callee() {
-                        @Override
-                        public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
-                            if (apiStat != null) {
-                                apiStat.onTryInvoke();
-                            }
-                            return executor.submit(new Callable() {
-                                @Override
-                                public Object call() throws Exception {
-                                    String old = Thread.currentThread().getName();
-                                    try {
-                                        Thread.currentThread().setName("exec_" + group.realm + "_" + name);
-                                        if (apiStat != null) {
-                                            apiStat.onInvoke();
-                                        }
-                                        return api.getCallable(name, null).call(argsKw);
-                                    } catch (Throwable th) {
-                                        if (apiStat != null) {
-                                            apiStat.onError();
-                                        }
-                                        if (th instanceof WAMPException) {
-                                            throw (WAMPException) th;
-                                        }
-                                        throw new WAMPException(th);
-                                    } finally {
-                                        if (apiStat != null) {
-                                            apiStat.onDone();
-                                        }
-                                        Thread.currentThread().setName(old);
-                                    }
+                                                return rb;
+                                            }).collect(Collectors.toList()))
+                                            .data("proc", procs[0].fqn())
+                                    ).data();
+                        } else {
+                            opts = new HashMap() {
+                                {
+                                    put("invoke", "roundrobin");
                                 }
-                            });
+                            };
                         }
-                    });
-                } catch (WAMPException wex) {
-                    wex.printStackTrace();
+
+                        addWAMPExecutor(client, group, api, apiName, procedure, opts);
+                    } catch (WAMPException wex) {
+                        wex.printStackTrace();
+                    }
                 }
             }
         } catch (Throwable th) {
             System.out.println("Skipped callable for '" + procedure + "': " + th);
             th.printStackTrace();
         }
+    }
+
+    public void addWAMPExecutor(WAMPClient client, APIGroup group, API_Publisher api, String apiName, String procedure, Map<String, Object> opts) throws WAMPException {
+        client.addExecutor(
+                opts,
+                (procedure != null ? procedure : !apiName.endsWith(".") ? apiName + "." : apiName), new CalleeProcedure.Callee() {
+            @Override
+            public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                if (apiStat != null) {
+                    apiStat.onTryInvoke();
+                }
+                return executor.submit(new Callable() {
+                    @Override
+                    public Object call() throws Exception {
+                        String old = Thread.currentThread().getName();
+                        try {
+                            Thread.currentThread().setName("exec_" + group.realm + "_" + name);
+                            if (apiStat != null) {
+                                apiStat.onInvoke();
+                            }
+                            return api.getCallable(name, null).call(argsKw);
+                        } catch (Throwable th) {
+                            if (apiStat != null) {
+                                apiStat.onError();
+                            }
+                            if (th instanceof WAMPException) {
+                                throw (WAMPException) th;
+                            }
+                            throw new WAMPException(th);
+                        } finally {
+                            if (apiStat != null) {
+                                apiStat.onDone();
+                            }
+                            Thread.currentThread().setName(old);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     @Override

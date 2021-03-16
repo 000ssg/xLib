@@ -604,12 +604,41 @@ public class Reflective_API_Builder {
                 if ((proc.options & APIProcedure.PO_STATIC) != 0) {
                     return (T) (Object) new ReflCallable(proc, null);
                 } else {
-                    if (context != null) {
-                        Class type = (proc instanceof ReflAPIProcedure) ? ((ReflAPIProcedure) proc).type : ((ReflFunction) proc).type;
-                        if (type != null && type.isAssignableFrom(context.getClass())) {
-                            return (T) (Object) new ReflCallable(proc, context);
-                        }
+//                    if (context != null) {
+//                        Class type = (proc instanceof ReflAPIProcedure) ? ((ReflAPIProcedure) proc).type : ((ReflFunction) proc).type;
+//                        if (type != null && type.isAssignableFrom(context.getClass())) {
+//                            return (T) (Object) new ReflCallable(proc, context);
+//                        }
+//                    }
+                    if (matchContext(proc, context)) {
+                        return (T) (Object) new ReflCallable(proc, context);
                     }
+                }
+            }
+            return null;
+        }
+
+        public boolean matchContext(APIProcedure proc, Object context) {
+            if (proc instanceof ReflAPIProcedure || proc instanceof ReflFunction) {
+                if (context != null) {
+                    Class type = (proc instanceof ReflAPIProcedure) ? ((ReflAPIProcedure) proc).type : ((ReflFunction) proc).type;
+                    if (type != null && type.isAssignableFrom(context.getClass())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public Object matchContext(Collection<APIProcedure> procs, Map<Object, APICallable> callables, Object... candidates) {
+            if (candidates != null && candidates.length == 1) {
+                return super.matchContext(procs, callables, candidates);
+            }
+            APIProcedure proc = (procs != null) ? procs.iterator().next() : callables != null && !callables.isEmpty() ? callables.values().iterator().next().getAPIProcedures()[0] : null;
+            for (Object o : candidates) {
+                if (matchContext(proc, o)) {
+                    return o;
                 }
             }
             return null;

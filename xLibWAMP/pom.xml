@@ -36,5 +36,10 @@
             <version>5.6.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>xLibStat</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

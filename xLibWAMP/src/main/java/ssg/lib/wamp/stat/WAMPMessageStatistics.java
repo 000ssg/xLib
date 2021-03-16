@@ -24,7 +24,7 @@
 package ssg.lib.wamp.stat;
 
 import ssg.lib.wamp.messages.WAMPMessage;
-import ssg.lib.wamp.util.stat.Statistics;
+import ssg.lib.stat.Statistics;
 
 /**
  *

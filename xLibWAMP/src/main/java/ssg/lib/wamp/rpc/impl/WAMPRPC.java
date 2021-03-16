@@ -33,7 +33,7 @@ import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.util.WAMPTools;
-import ssg.lib.wamp.util.stat.SimpleStatisticsData;
+import ssg.lib.stat.SimpleStatisticsData;
 import ssg.lib.wamp.stat.WAMPCallStatistics;
 import ssg.lib.wamp.stat.WAMPCallStatisticsImpl;
 

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.wamphttpapi_cs;
+package ssg.lib.httpapi_cs;
 
 import ssg.lib.stat.Statistics;
 import ssg.lib.stat.StatisticsGroup;

@@ -21,38 +21,65 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.api;
+package ssg.lib.stat;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.io.Serializable;
 import java.util.Map;
-import ssg.lib.api.dbms.DB_API;
 
 /**
- * API is consistent hierarchical (optionally) set of functions and data types
- * providing method execution.
  *
  * @author 000ssg
  */
-public abstract class API extends APIGroup {
+public interface Statistics extends Serializable, Cloneable {
 
-    private static final long serialVersionUID = 1L;
+    String getGroupName();
 
-    public API(String apiName) {
-        super(APIItemCategory.model, apiName);
-    }
+    int getGroupOffset();
 
-    public Object matchContext(Collection<APIProcedure> procs, Map<Object, APICallable> callables, Object... candidates) {
-        return candidates != null ? candidates[0] : null;
-    }
+    void setGroupOffset(int offset);
 
-    public abstract <T extends APICallable> T createCallable(APIProcedure proc, Object context);
+    int getGroupSize();
 
-    public static class APIResult extends LinkedHashMap<String, Object> {
+    void setParent(Statistics parent);
 
-        public APIResult add(String name, Object value, DB_API.APIResult dbResult) {
-            put(name, value);
-            return dbResult;
-        }
-    }
+    <T extends Statistics> T getParent();
+
+    Statistics getTop();
+
+    <T extends Statistics> T createChild(Statistics top, String name);
+
+    void init(StatisticsData data);
+
+    void setData(StatisticsData data);
+
+    long get(int idx);
+
+    long[] getGroupData();
+
+    String[] getGroupNames();
+
+    Map<String, Long> getGroupMap();
+
+    String name(int idx);
+
+    boolean validIndex(int idx);
+
+    boolean validDumpIndex(int idx);
+
+    String dumpStatistics(boolean compact);
+
+    String dumpInlineInfo();
+
+    String dumpStatistics(int idx, boolean compact);
+
+    /**
+     * Update last modified
+     */
+    void touch();
+    
+    /**
+     * Return last modified
+     * @return 
+     */
+    long lastModified();
 }

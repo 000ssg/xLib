@@ -44,11 +44,14 @@ public class APIRunner<T> extends HttpRunner {
      *
      */
     public class APIGroup {
+        public static final long O_NONE = 0x0000;
+        public static final long O_COMPACT = 0x0001;
 
         public URI uri;
         public String authid;
         public String agent;
         public String realm;
+        public long options=O_NONE;
         public API_Publisher.API_Publishers apis = new API_Publisher.API_Publishers();
         public Map<URI, T> clients = new LinkedHashMap<>();
 
@@ -120,6 +123,21 @@ public class APIRunner<T> extends HttpRunner {
      * @return
      */
     public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid) {
+        return this.configureAPI(realm, name, api, uri, authid, null);
+    }
+
+    /**
+     * Add API to realm (WAMP client functionality and/or REST)
+     * 
+     * @param realm
+     * @param name
+     * @param api
+     * @param uri
+     * @param authid
+     * @param options
+     * @return 
+     */
+    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid, Long options) {
         Map<String, APIGroup> groups = apis.get(realm);
         if (groups == null) {
             groups = new LinkedHashMap<>();
@@ -132,6 +150,7 @@ public class APIRunner<T> extends HttpRunner {
             group.authid = authid;
             group.realm = realm;
             groups.put(authid != null ? authid : "", group);
+            if(options!=null)group.options=options;
         }
         group.apis.add(name != null ? name : api.getAPI().name, api);
         configUpdated(CFG_API_NAME, null, name != null ? name : api.getAPI().name);

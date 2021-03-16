@@ -24,8 +24,8 @@
 package ssg.lib.wamp.stat;
 
 import java.util.concurrent.TimeUnit;
-import ssg.lib.wamp.util.stat.StatisticsGroup;
-import ssg.lib.wamp.util.stat.TimingStatisticsImpl;
+import ssg.lib.stat.StatisticsGroup;
+import ssg.lib.stat.TimingStatisticsImpl;
 
 /**
  *

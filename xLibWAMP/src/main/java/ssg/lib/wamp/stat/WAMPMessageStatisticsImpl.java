@@ -26,8 +26,8 @@ package ssg.lib.wamp.stat;
 import java.util.Arrays;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
-import ssg.lib.wamp.util.stat.StatisticsBase;
-import ssg.lib.wamp.util.stat.StatisticsGroup;
+import ssg.lib.stat.StatisticsBase;
+import ssg.lib.stat.StatisticsGroup;
 
 /**
  *
