@@ -92,7 +92,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                 lastUpdated = System.currentTimeMillis();
             }
         }
-        
+
         public long timestamp() {
             return lastUpdated;
         }
@@ -246,8 +246,19 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
                                 procsData = WAMPTools.createSynchronizedList();
                                 rr.procs.put(name, procsData);
                             }
-                            changed = true;
-                            procsData.add(definition);
+                            // check if not duplicate definition
+                            String ds = definition.toString();
+                            boolean duplicate = false;
+                            for (Object o : procsData) {
+                                if (ds.equals("" + o)) {
+                                    duplicate = true;
+                                    break;
+                                }
+                            }
+                            if (!duplicate) {
+                                changed = true;
+                                procsData.add(definition);
+                            }
                         }
                         break;
                     case error:synchronized (rr.errors) {
