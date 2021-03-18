@@ -45,6 +45,7 @@ import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.WAMPFeatureProvider;
+import ssg.lib.wamp.WAMPSessionImpl;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.flows.WAMPSessionFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -193,7 +194,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         if (!listeners.isEmpty()) {
             for (WAMPNodeListener l : listeners.get()) {
                 try {
-                    l.onCreatedRealm(r);
+                    l.onCreatedRealm(this, r);
                 } catch (Throwable th) {
                 }
             }
@@ -236,7 +237,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
      */
     public WAMPSession createSession(WAMPTransport transport, WAMPRealm realm, Role... roles) throws WAMPException {
         try {
-            final WAMPSession session = new WAMPSession(realm, roles) {
+            final WAMPSession session = new WAMPSessionImpl(realm, roles) {
                 @Override
                 public void doSend(WAMPMessage msg) throws WAMPException {
                     if (transport.isOpen()) {
@@ -351,6 +352,10 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
                 }
             }
         }
+    }
+
+    @Override
+    public void toSend(WAMPSession session, WAMPMessage message) {
     }
 
     /**
@@ -477,7 +482,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
      */
     public static interface WAMPNodeListener {
 
-        void onCreatedRealm(WAMPRealm realm);
+        void onCreatedRealm(WAMPNode node, WAMPRealm realm);
 
         void onEstablishedSession(WAMPSession session);
 
@@ -529,7 +534,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         }
 
         @Override
-        public void onCreatedRealm(WAMPRealm realm) {
+        public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
             PrintStream out = getWriter(null, realm);
             if (out != null) {
                 out.println("[" + System.currentTimeMillis() + "]" + prefix + "CREATED_REALM[" + realm.getName() + "]: " + ((compact)

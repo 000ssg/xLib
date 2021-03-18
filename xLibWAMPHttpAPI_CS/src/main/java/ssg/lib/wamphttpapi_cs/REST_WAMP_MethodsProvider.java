@@ -32,6 +32,9 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import ssg.lib.http.HttpSession;
+import ssg.lib.http.HttpUser;
+import ssg.lib.http.base.HttpRequest;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.RESTMethod;
 import ssg.lib.http.rest.RESTParameter;
@@ -40,10 +43,16 @@ import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPRealm;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
+import ssg.lib.wamp.features.WAMP_FP_VirtualSession;
 import ssg.lib.wamp.nodes.WAMPClient;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
+import ssg.lib.wamp.util.WAMPTools;
 
 /**
  *
@@ -52,6 +61,7 @@ import ssg.lib.wamp.rpc.impl.dealer.WAMPRPCDealer;
 public class REST_WAMP_MethodsProvider implements MethodsProvider {
 
     public static boolean DEBUG = false;
+    public static final String REQUEST_PARAM_NAME = "$$$";
     Map<String, WCI> callers = new LinkedHashMap<>();
     APIStatistics baseStat;
 
@@ -153,8 +163,57 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
                                         apiStat.onInvoke();
                                     }
 
+                                    HttpRequest req = null;
+                                    for (String key : parameters.keySet()) {
+                                        Object v = parameters.get(key);
+                                        if (v instanceof HttpRequest) {
+                                            req = (HttpRequest) v;
+                                            break;
+                                        }
+                                    }
+                                    if (parameters.containsKey(REQUEST_PARAM_NAME)) {
+                                        parameters.remove(REQUEST_PARAM_NAME);
+                                    }
+
+                                    Map<String, Object> options = WAMPTools.createMap();
+
+                                    if (req != null) {
+                                        HttpSession sess = req.getHttpSession();
+                                        HttpUser user = sess.getUser();
+                                        if (user != null) {
+                                            Map<String, Long> realmIds = (Map) sess.getProperties().get(REQUEST_PARAM_NAME);
+                                            if (realmIds == null) {
+                                                realmIds = new HashMap<>();
+                                                sess.getProperties().put(REQUEST_PARAM_NAME, realmIds);
+                                            }
+                                            Long id = realmIds.get(caller.getRealm());
+                                            if (id == null) {
+                                                id = caller.call(WAMP_FP_VirtualSession.VS_REGISTER, WAMPTools.EMPTY_LIST, WAMPTools.createDict(map -> {
+                                                    map.put(K_AUTH_METHOD, user.getProperties().get("authType"));
+                                                    map.put(K_AUTH_ID, user.getId());
+                                                    List<String> rls = user.getRoles();
+                                                    String rl = "";
+                                                    if (rls != null && !rls.isEmpty()) {
+                                                        rl = rls.get(0);
+                                                    }
+                                                    if (rl == null) {
+                                                        rl = "guest";
+                                                    }
+                                                    map.put(K_AUTH_ROLE, rl);
+                                                }));
+                                                if (id == null || id <= 0) {
+                                                    id = 0L;
+                                                }
+                                                realmIds.put(caller.getRealm(), id);
+                                            }
+                                            if (id > 0) {
+                                                options.put(RPC_CALLER_ID_KEY, id);
+                                            }
+                                        }
+                                    }
+
                                     final long started = System.nanoTime();
-                                    caller.addWAMPRPCListener(new WAMPRPCListener.WAMPRPCListenerBase(new HashMap(), operationName, Collections.emptyList(), parameters) {
+                                    caller.addWAMPRPCListener(new WAMPRPCListener.WAMPRPCListenerBase(options, operationName, Collections.emptyList(), parameters) {
                                         @Override
                                         public void onCancel(long callId, String reason) {
                                             if (apiStat != null) {
@@ -210,6 +269,7 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
                         mth.setName(operationName);
                         mth.setPath("");
 
+                        boolean hasRequest = false;
                         int pri = 0;
                         List<Map<String, Object>> params = (List) map.get("parameters");
                         if (params != null) {
@@ -218,11 +278,23 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
                                     RESTParameter wsp = new RESTParameter();
                                     wsp.setName((String) prm.get("name"));
                                     wsp.setType(type2class(prm.get("type")));
+                                    if (!hasRequest && HttpRequest.class.isAssignableFrom(wsp.getType())) {
+                                        hasRequest = true;
+                                    }
                                     wsp.setOptional(prm.containsKey("optional") && Boolean.TRUE.equals(prm.get("optional")));
                                     mth.getParams().add(wsp);
                                     pri++;
                                 }
                             }
+                        }
+                        if (!hasRequest) {
+                            // need to add HttpRequest to enable http-authenticated identity...
+                            RESTParameter wsp = new RESTParameter();
+                            wsp.setName(REQUEST_PARAM_NAME);
+                            wsp.setType(HttpRequest.class);
+                            wsp.setOptional(true);
+                            mth.getParams().add(wsp);
+                            pri++;
                         }
 
                         if (map.containsKey("returns")) {

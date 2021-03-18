@@ -41,6 +41,7 @@ import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.WAMPSessionImpl;
 import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportWrapper;
@@ -166,6 +167,15 @@ public class WAMPClient extends WAMPNode {
     @Override
     public WAMPClient configure(WAMPFeature feature, WAMPFeatureProvider provider) {
         super.configure(feature, provider);
+        if (session != null && WAMPSessionState.open == session.getState()) {
+            if (defaultFeatures != null) {
+                for (WAMPFeature f : defaultFeatures) {
+                    if (f != null) {
+                        session.getLocal().features().add(f);
+                    }
+                }
+            }
+        }
         return this;
     }
 
@@ -181,7 +191,7 @@ public class WAMPClient extends WAMPNode {
         }
         this.transport = (transport != null) ? transport : new WAMPTransportWrapper(transport);
         setAgent(agent);
-        session = new WAMPSession(realm, roles) {
+        session = new WAMPSessionImpl(realm, roles) {
             @Override
             public void doSend(WAMPMessage msg) throws WAMPException {
                 if (WAMPClient.this.transport != null && WAMPClient.this.transport.isOpen()) {

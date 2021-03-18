@@ -65,6 +65,7 @@ import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.nodes.WAMPClient;
+import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
@@ -164,7 +165,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         if (CFG_REST_PATH.equals(key) || CFG_WAMP_PORT.equals(key) || CFG_WAMP_PATH.equals(key)) {
             if (wampAsREST == null && wamp != null && getREST() != null) {
                 wampAsREST = new REST_WAMP_MethodsProvider(
-                        getAPIStatistics(null)!=null ? getAPIStatistics(null).createChild(null, "wamp-rest") : null
+                        getAPIStatistics(null) != null ? getAPIStatistics(null).createChild(null, "wamp-rest") : null
                 ) {
                     @Override
                     public WAMPClient caller(String realm) {
@@ -183,7 +184,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 };
                 wamp().getRouter().addWAMPNodeListener(new WAMPNodeListener() {
                     @Override
-                    public void onCreatedRealm(WAMPRealm realm) {
+                    public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
                     }
 
                     @Override

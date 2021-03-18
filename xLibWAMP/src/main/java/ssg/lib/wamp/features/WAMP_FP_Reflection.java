@@ -40,6 +40,7 @@ import ssg.lib.wamp.events.impl.WAMPSubscription;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
+import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.rpc.impl.dealer.DealerLocalProcedure;
 import ssg.lib.wamp.rpc.impl.dealer.DealerProcedure;
@@ -469,7 +470,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
                     .procedure(RB.function(WR_RPC_TOPIC_DESCR)
-                            .parameter(0, null, "string[]", false)
+                            .parameter(0, "names", "string[]", false)
                             .returns("dict[]"))
                     .data();
         }
@@ -503,7 +504,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
                     .procedure(RB.function(WR_RPC_PROCEDURE_DESCR)
-                            .parameter(0, null, "string[]", false)
+                            .parameter(0, "names", "string[]", false)
                             .returns("dict[]"))
                     .data();
         }
@@ -537,7 +538,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
                     .procedure(RB.function(WR_RPC_ERROR_DESCR)
-                            .parameter(0, null, "string[]", false)
+                            .parameter(0, "names", "string[]", false)
                             .returns("dict[]"))
                     .data();
         }
@@ -571,7 +572,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         public Map<String, Object> getReflectionMeta() {
             return RB.root()
                     .procedure(RB.function(WR_RPC_TYPE_DESCR)
-                            .parameter(0, null, "string[]", false)
+                            .parameter(0, "names", "string[]", false)
                             .returns("dict[]"))
                     .data();
         }
@@ -586,7 +587,7 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
     /////////////////////////////////////////////////////////// WAMPNodeListener
     ////////////////////////////////////////////////////////////////////////////
     @Override
-    public void onCreatedRealm(WAMPRealm realm) {
+    public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
     }
 
     @Override

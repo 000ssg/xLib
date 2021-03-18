@@ -297,21 +297,6 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         }
     }
 
-//    /**
-//     * Base WAMP client initialization: build predefined client and initializes
-//     * connection procedure.
-//     *
-//     * @param uri
-//     * @param protocol
-//     * @param agent
-//     * @param realm
-//     * @param roles
-//     * @return
-//     * @throws IOException
-//     */
-//    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String agent, String realm, WAMP.Role... roles) throws IOException {
-//        return connect(uri, protocol, features, null, agent, realm, roles);
-//    }
     /**
      * Base WAMP client initialization: build predefined client and initializes
      * connection procedure.

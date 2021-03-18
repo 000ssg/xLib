@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPConstantsBase;
 import static ssg.lib.wamp.WAMPConstantsBase.INFO_CloseNormal;
@@ -46,6 +47,7 @@ import ssg.lib.wamp.events.WAMPSubscriber;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMP_DT;
+import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
 import ssg.lib.wamp.rpc.impl.caller.CallerCall.SimpleCallListener;
@@ -186,6 +188,10 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                             if (ws != null && ws.getAuth() != null && authroles.contains(ws.getAuth().getRole())) {
                                 count++;
                             }
+                            Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                            if (auths != null) {
+                                count += auths.size();
+                            }
                         }
                     }
                 }
@@ -224,11 +230,23 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                     if (authroles == null || authroles.isEmpty()) {
                         for (WAMPSession ws : rs) {
                             ids.add(ws.getId());
+                            Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                            if (auths != null) synchronized (auths) {
+                                ids.addAll(auths.keySet());
+                            }
                         }
                     } else {
                         for (WAMPSession ws : rs) {
                             if (ws != null && ws.getAuth() != null && authroles.contains(ws.getAuth().getRole())) {
                                 ids.add(ws.getId());
+                            }
+                            Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                            if (auths != null) synchronized (auths) {
+                                for (Entry<Long, WAMPAuth> e : auths.entrySet()) {
+                                    if (e.getValue() != null && authroles.contains(e.getValue().getRole())) {
+                                        ids.add(e.getKey());
+                                    }
+                                }
                             }
                         }
                     }
@@ -264,25 +282,23 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
                     Long sessId = msg.getDataLength() > 3 ? (Long) msg.getList(3).get(0) : null;
-                    WAMPSession sess = null;
+                    WAMPAuth auth = null;
                     for (WAMPSession ws : rs) {
                         if (ws.getId() == sessId) {
-                            sess = ws;
+                            auth = ws.getAuth();
                             break;
                         }
                     }
-                    if (sess != null) {
+                    if (auth != null) {
                         Map<String, Object> dict = WAMPTools.createDict("session", sessId);
-                        if (sess.getAuth() != null) {
-                            dict.put(K_AUTH_ID, sess.getAuth().getAuthid());
-                            dict.put(K_AUTH_ROLE, sess.getAuth().getRole());
-                            dict.put(K_AUTH_METHOD, sess.getAuth().getMethod());
-                            dict.put(K_AUTH_PROVIDER, sess.getAuth().getDetails().get(K_AUTH_PROVIDER));
-                            if (sess.getAuth().getDetails().containsKey("transport")) {
-                                dict.put("transport", sess.getAuth().getDetails().get("transport"));
-                            }
-                            session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, WAMPTools.EMPTY_LIST, dict));
+                        dict.put(K_AUTH_ID, auth.getAuthid());
+                        dict.put(K_AUTH_ROLE, auth.getRole());
+                        dict.put(K_AUTH_METHOD, auth.getMethod());
+                        dict.put(K_AUTH_PROVIDER, auth.getDetails().get(K_AUTH_PROVIDER));
+                        if (auth.getDetails().containsKey("transport")) {
+                            dict.put("transport", auth.getDetails().get("transport"));
                         }
+                        session.send(WAMPMessage.result(msg.getId(0), WAMPTools.EMPTY_DICT, WAMPTools.EMPTY_LIST, dict));
                     } else {
                         session.send(WAMPMessage.error(msg.getType().getId(), msg.getId(0), WAMPTools.EMPTY_DICT, SM_ERROR_NO_SESSION));
                     }
@@ -322,6 +338,8 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
                 if (rs != null) {
+                    int count = 1;
+
                     Long sessId = msg.getDataLength() > 3 ? (Long) msg.getList(3).get(0) : null;
                     WAMPSession sess = null;
                     if (sessId != session.getId()) {
@@ -330,10 +348,18 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                                 sess = ws;
                                 break;
                             }
+                            Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                            if (auths != null && auths.containsKey(sessId)) {
+                                ws.killVirtualAuths(sessId);
+                                count = 1;
+                                break;
+                            }
                         }
                     }
 
-                    int count = kill(session, msg, sess);
+                    if (sess != null) {
+                        count = kill(session, msg, sess);
+                    }
                     if (count == -1) {
                         // parameter(s) error
                     } else if (count == 1) {
@@ -377,6 +403,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                int count = 0;
                 List<WAMPSession> sesss = new ArrayList<>();
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
@@ -386,9 +413,21 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                         if (ws != null && ws.getAuth() != null && authid.equals(ws.getAuth().getAuthid())) {
                             sesss.add(ws);
                         }
+                        Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                        if (auths != null) {
+                            for (Entry<Long, WAMPAuth> e : auths.entrySet().toArray(new Entry[auths.size()])) {
+                                if (authid.equals(e.getValue().getAuthid())) {
+                                    ws.killVirtualAuths(e.getKey());
+                                    count++;
+                                }
+                            }
+                        }
                     }
                 }
-                int count = kill(session, msg, sesss.toArray(new WAMPSession[sesss.size()]));
+                int scount = kill(session, msg, sesss.toArray(new WAMPSession[sesss.size()]));
+                if (scount > 0) {
+                    count += scount;
+                }
                 if (count == -1) {
                     // parameter(s) error
                 } else {
@@ -429,6 +468,7 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
+                int count = 0;
                 List<WAMPSession> sesss = new ArrayList<>();
                 WAMPRealm r = session.getRealm();
                 Collection<WAMPSession> rs = sessions.get(r);
@@ -438,9 +478,21 @@ wamp.session.kill_all: Kill all currently connected sessions in the caller's rea
                         if (ws != null && ws.getAuth() != null && authroles.contains(ws.getAuth().getRole())) {
                             sesss.add(ws);
                         }
+                        Map<Long, WAMPAuth> auths = ws.getVirtualAuths();
+                        if (auths != null) {
+                            for (Entry<Long, WAMPAuth> e : auths.entrySet().toArray(new Entry[auths.size()])) {
+                                if (authroles.contains(e.getValue().getRole())) {
+                                    ws.killVirtualAuths(e.getKey());
+                                    count++;
+                                }
+                            }
+                        }
                     }
                 }
-                int count = kill(session, msg, sesss.toArray(new WAMPSession[sesss.size()]));
+                int scount = kill(session, msg, sesss.toArray(new WAMPSession[sesss.size()]));
+                if (scount > 0) {
+                    count += scount;
+                }
                 if (count == -1) {
                     // parameter(s) error
                 } else {
@@ -585,6 +637,22 @@ transport|dict - Optional, implementation defined information about the WAMP tra
                                     session.getAuth().getRole()
                             ),
                             null);
+                    Map<Long, WAMPAuth> auths = session.getVirtualAuths();
+                    if (auths != null) {
+                        for (Entry<Long, WAMPAuth> e : auths.entrySet().toArray(new Entry[auths.size()])) {
+                            broker.doEvent(null,
+                                    0,
+                                    SM_EVENT_ON_LEAVE,
+                                    session.getId(),
+                                    WAMPTools.EMPTY_DICT,
+                                    WAMPTools.createList(
+                                            e.getKey(),
+                                            e.getValue().getAuthid(),
+                                            e.getValue().getRole()
+                                    ),
+                                    null);
+                        }
+                    }
                 }
             }
         } catch (WAMPException wex) {
@@ -596,7 +664,7 @@ transport|dict - Optional, implementation defined information about the WAMP tra
     ////////////////////////////////////////////////////////// unhandled events
     ////////////////////////////////////////////////////////////////////////////
     @Override
-    public void onCreatedRealm(WAMPRealm realm) {
+    public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
     }
 
     @Override

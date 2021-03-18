@@ -40,6 +40,7 @@ import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealm;
+import ssg.lib.wamp.features.WAMP_FP_VirtualSession;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.rpc.WAMPDealer;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_DISCLOSE_CALLER;
@@ -286,7 +287,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 call.request = request;
                 call.args = args;
                 call.argsKw = argsKw;
-                call.cancelable = session.supportsFeature(WAMPFeature.call_canceling);// && call.session.supportsFeature(WAMPFeature.call_canceling);
+                call.cancelable = session.supportsFeature(WAMPFeature.call_canceling);
 
                 // set procedure name if registration is pattern/prefix based
                 if (proc != null && !proc.getName().equals(procedure)) {
@@ -301,10 +302,20 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 // caller identification feature support
                 if (options.containsKey(RPC_CALLER_ID_DISCLOSE_ME) && (Boolean) options.get(RPC_CALLER_ID_DISCLOSE_ME) && session.supportsFeature(WAMPFeature.caller_identification)) {
                     // on caller request
-                    call.details.put(RPC_CALLER_ID_KEY, session.getId());
+                    call.details.put(
+                            RPC_CALLER_ID_KEY,
+                            session.supportsFeature(WAMP_FP_VirtualSession.virtual_session) && options.containsKey(RPC_CALLER_ID_KEY)
+                            ? options.get(RPC_CALLER_ID_KEY)
+                            : session.getId()
+                    );
                 } else if (proc.getOptions().containsKey(RPC_CALLER_ID_DISCLOSE_CALLER) && (Boolean) options.get(RPC_CALLER_ID_DISCLOSE_CALLER) && session.supportsFeature(WAMPFeature.caller_identification)) {
                     // on callee request
-                    call.details.put(RPC_CALLER_ID_KEY, session.getId());
+                    call.details.put(
+                            RPC_CALLER_ID_KEY,
+                            session.supportsFeature(WAMP_FP_VirtualSession.virtual_session) && options.containsKey(RPC_CALLER_ID_KEY)
+                            ? options.get(RPC_CALLER_ID_KEY)
+                            : session.getId()
+                    );
                 }
 
                 // propagate timeout info

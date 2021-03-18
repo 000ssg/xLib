@@ -1,4 +1,5 @@
 
+import ssg.lib.wamp.util.WAMPTransportList;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;

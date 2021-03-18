@@ -261,13 +261,18 @@ public class CS implements Runnable {
                     } else {
                         Set<SelectionKey> skeys = null;
                         Iterator<SelectionKey> keys = null;
-                        synchronized (selector) {
-                            if (selector != null) {
-                                skeys = selector.selectedKeys();
-                                keys = skeys.iterator();
-                            } else {
-                                break;
+                        try {
+                            synchronized (selector) {
+                                if (selector != null) {
+                                    skeys = selector.selectedKeys();
+                                    keys = skeys.iterator();
+                                } else {
+                                    break;
+                                }
                             }
+                        } catch (NullPointerException npex) {
+                            // ignore since selector may be nulled asynchronously on stop
+                            break;
                         }
                         while (keys.hasNext()) {
                             SelectionKey key = keys.next();

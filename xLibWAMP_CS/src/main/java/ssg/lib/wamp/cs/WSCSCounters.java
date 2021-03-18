@@ -38,6 +38,7 @@ import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.stat.Statistics;
+import ssg.lib.wamp.nodes.WAMPNode;
 
 /**
  *
@@ -57,7 +58,7 @@ public class WSCSCounters {
 
     WAMPNodeListener routerListener = new WAMPNodeListener() {
         @Override
-        public void onCreatedRealm(WAMPRealm realm) {
+        public void onCreatedRealm(WAMPNode node_, WAMPRealm realm) {
             routerRStats.put(realm.getName(), realm);
             try {
                 CTree node = new CTree(routerTree, realm.getName(), realm.getStatistics());
@@ -110,7 +111,7 @@ public class WSCSCounters {
 
     WAMPNodeListener clientsListener = new WAMPNodeListener() {
         @Override
-        public void onCreatedRealm(WAMPRealm realm) {
+        public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
         }
 
         @Override

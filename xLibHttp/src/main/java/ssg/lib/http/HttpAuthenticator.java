@@ -429,6 +429,7 @@ public interface HttpAuthenticator<P> {
                     if (r != null) {
                         r.getProperties().put(HttpUser.P_AUTH_TYPE, HttpUser.AUTH_TYPE.basic);
                     }
+                    return r;
                 } catch (IOException ioex) {
                     ioex.printStackTrace();
                 }

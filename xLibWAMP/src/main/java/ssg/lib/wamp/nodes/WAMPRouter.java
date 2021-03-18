@@ -33,6 +33,7 @@ import ssg.lib.wamp.WAMPConstantsBase;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.WAMPSessionImpl;
 import ssg.lib.wamp.WAMPSessionState;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
@@ -41,6 +42,7 @@ import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.WAMPDealer;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
+import ssg.lib.wamp.util.WAMPNodeSessionManagement;
 
 /**
  * WAMP Router base registers shared realms and keeps track of WAMP sessions
@@ -50,7 +52,7 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
  *
  * @author 000ssg
  */
-public class WAMPRouter extends WAMPNode {
+public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
 
     AtomicLong nextSessionId = new AtomicLong(1);
 
@@ -67,7 +69,7 @@ public class WAMPRouter extends WAMPNode {
     }
 
     public void onNewTransport(WAMPTransport transport) {
-        sessions.put(transport, WAMPSession.NO_SESSION);
+        sessions.put(transport, WAMPSessionImpl.NO_SESSION);
         if (!listeners.isEmpty()) {
             for (WAMPNodeListener l : listeners.get()) {
                 if (l instanceof WAMPRouterNodeListener) {
@@ -198,9 +200,14 @@ public class WAMPRouter extends WAMPNode {
         return sessions.size();
     }
 
+    @Override
+    public long nextSessionId() {
+        return this.nextSessionId.getAndIncrement();
+    }
+
     public void runCycle(final WAMPTransport transport) throws WAMPException {
         WAMPSession session = sessions.get(transport);
-        if (session == WAMPSession.NO_SESSION) {
+        if (session == WAMPSessionImpl.NO_SESSION) {
             session = null;
         }
 
@@ -224,7 +231,7 @@ public class WAMPRouter extends WAMPNode {
                     WAMPRealm realm = createRealm(transport, realmS, getNodeFeatures(), roles);
                     session = createSession(transport, realm, roles);
                     session.getLocal().setAgent(getAgent());
-                    session.setId(nextSessionId.getAndIncrement());
+                    session.setId(nextSessionId());
                     if (session.getStatistics() != null) {
 //                        session.setStatistics(realm.getStatistics().createChild(null, ""
 //                                + "session"

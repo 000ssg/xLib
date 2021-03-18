@@ -135,6 +135,48 @@ public class RAT implements Serializable, Cloneable {
         this.tags = tags;
     }
 
+    public RAT roles(String... roles) {
+        if (roles != null) {
+            if (this.roles == null) {
+                this.roles = new ArrayList<>();
+            }
+            for (String s : roles) {
+                if (s != null && !this.roles.contains(s)) {
+                    this.roles.add(s);
+                }
+            }
+        }
+        return this;
+    }
+
+    public RAT actions(String... actions) {
+        if (actions != null) {
+            if (this.actions == null) {
+                this.actions = new ArrayList<>();
+            }
+            for (String s : actions) {
+                if (s != null && !this.actions.contains(s)) {
+                    this.actions.add(s);
+                }
+            }
+        }
+        return this;
+    }
+
+    public RAT tags(String... tags) {
+        if (tags != null) {
+            if (this.tags == null) {
+                this.tags = new ArrayList<>();
+            }
+            for (String s : tags) {
+                if (s != null && !this.tags.contains(s)) {
+                    this.tags.add(s);
+                }
+            }
+        }
+        return this;
+    }
+
     @Override
     public RAT clone() throws CloneNotSupportedException {
         RAT copy = (RAT) super.clone();

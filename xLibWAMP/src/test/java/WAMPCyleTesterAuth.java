@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import ssg.lib.wamp.util.WAMPTransportList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
