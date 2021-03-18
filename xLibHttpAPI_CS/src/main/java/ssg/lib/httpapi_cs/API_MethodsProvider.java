@@ -32,6 +32,15 @@ import ssg.lib.http.rest.RESTProvider;
  */
 public class API_MethodsProvider implements MethodsProvider {
 
+    APIStatistics baseStat;
+
+    public API_MethodsProvider() {
+    }
+
+    public API_MethodsProvider(APIStatistics stat) {
+        baseStat = stat;
+    }
+
     @Override
     public boolean isOperable() {
         return true;
@@ -101,6 +110,13 @@ public class API_MethodsProvider implements MethodsProvider {
                         RESTMethod mth = new RESTMethod() {
                             RESTMethod self = this;
                             boolean inAsynch = false; // avoid short circuit...
+                            APIStatistics apiStat = baseStat != null ? baseStat.createChild(baseStat, "REST:"+operationName) : null;
+
+                            {
+                                if (apiStat != null) {
+                                    setProperty("apiStat", apiStat);
+                                }
+                            }
 
                             /**
                              * Pass async invocation via method provider to
@@ -113,14 +129,26 @@ public class API_MethodsProvider implements MethodsProvider {
                                     return new Runnable() {
                                         @Override
                                         public void run() {
+                                            if (apiStat != null) {
+                                                apiStat.onTryInvoke();
+                                            }
                                             long started = System.nanoTime();
                                             Object result = null;
                                             Throwable error = null;
                                             try {
+                                                if (apiStat != null) {
+                                                    apiStat.onInvoke();
+                                                }
                                                 result = m.call(parameters);
                                             } catch (Throwable th) {
                                                 error = th;
+                                                if (apiStat != null) {
+                                                    apiStat.onError();
+                                                }
                                             } finally {
+                                                if (apiStat != null) {
+                                                    apiStat.onDone();
+                                                }
                                                 if (callback != null) {
                                                     callback.onResult(self, service, parameters, result, System.nanoTime() - started, error, error != null ? error.toString() : null);
                                                 }
@@ -147,11 +175,24 @@ public class API_MethodsProvider implements MethodsProvider {
                              */
                             @Override
                             public <T> T invoke(Object service, Object[] parameters) throws IllegalAccessException, InvocationTargetException, IOException {
+                                if (apiStat != null) {
+                                    apiStat.onTryInvoke();
+                                }
                                 try {
                                     Map<String, Object> ps = m.toParametersMap(parameters);
+                                    if (apiStat != null) {
+                                        apiStat.onInvoke();
+                                    }
                                     return (T) m.call(ps);
                                 } catch (APIException sex) {
+                                    if (apiStat != null) {
+                                        apiStat.onError();
+                                    }
                                     throw new InvocationTargetException(sex);
+                                } finally {
+                                    if (apiStat != null) {
+                                        apiStat.onDone();
+                                    }
                                 }
                             }
                         };

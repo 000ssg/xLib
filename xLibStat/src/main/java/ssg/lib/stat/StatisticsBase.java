@@ -25,6 +25,7 @@ package ssg.lib.stat;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -39,6 +40,7 @@ public abstract class StatisticsBase implements Statistics {
     private int offset;
     private long lastModified;
     private StatisticsListener touchListener;
+    private AtomicInteger childCount = new AtomicInteger();
 
     public StatisticsBase() {
     }
@@ -93,16 +95,31 @@ public abstract class StatisticsBase implements Statistics {
     }
 
     @Override
+    public String path(String separator) {
+        return getParent() != null ? getParent().path(separator) + separator + name : name;
+    }
+
+    @Override
     public <T extends Statistics> T createChild(Statistics top, String name) {
         try {
             StatisticsBase copy = (StatisticsBase) clone();
             copy.name = name;
             copy.parent = this;
             copy.touchListener = null;
+            copy.childCount = new AtomicInteger();
             copy = fixChildOnCreation(copy);
             if (top == null || this == top) {
                 copy.setGroupOffset(0);
                 copy.init(new SimpleStatisticsData(copy.getGroupSize()));
+            }
+            StatisticsBase st = this;
+            while (st != null) {
+                st.childCount.getAndIncrement();
+                if (st.getParent() instanceof StatisticsBase) {
+                    st = (StatisticsBase) st.getParent();
+                } else {
+                    st = null;
+                }
             }
             return (T) copy;
         } catch (CloneNotSupportedException cnsex) {
@@ -169,6 +186,7 @@ public abstract class StatisticsBase implements Statistics {
             sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         }
         sb.append('{');
+        sb.append("[c=" + childCount.get() + "] ");
         int initialLen = sb.length();
         sb.append(dumpInlineInfo());
         boolean hasInitialInfo = initialLen < sb.length();
@@ -223,8 +241,8 @@ public abstract class StatisticsBase implements Statistics {
 
     @Override
     public String dumpStatistics(int idx, boolean compact) {
-        long v=getData().counters().get(idx);
-        return name(idx)+"="+v;
+        long v = getData().counters().get(idx);
+        return name(idx) + "=" + v;
     }
 
     /**

@@ -23,9 +23,12 @@
  */
 package ssg.lib.common.net;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.InterfaceAddress;
@@ -35,6 +38,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
@@ -42,6 +46,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import ssg.lib.common.CommonTools;
 
 /**
  *
@@ -472,4 +479,97 @@ public class NetTools {
         return a;
     }
 
+    public static String httpGetText(URL url, Map<String, Object> headers, byte[] data) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int res = httpGet(url, headers, data, new HttpResult.HttpResultDebug() {
+            @Override
+            public void dump(HttpURLConnection conn, long startedNano, int responseCode, byte[] data) {
+                String enc = conn.getContentEncoding();
+                if (enc == null) {
+                    enc = "ISO8859-1";
+                }
+                try {
+                    sb.append(new String(data, enc));
+                } catch (UnsupportedEncodingException ueex) {
+                }
+            }
+        });
+        return sb.toString();
+    }
+
+    public static int httpGet(URL url, Map<String, Object> headers, byte[] data, HttpResult result) throws IOException {
+        long started = System.nanoTime();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        try {
+            if (headers != null) {
+                for (Entry<String, Object> e : headers.entrySet()) {
+                    if (e.getValue() != null) {
+                        conn.setRequestProperty(e.getKey(), e.getValue().toString());
+                    }
+                }
+            }
+            conn.setDoInput(true);
+            conn.setDoOutput(data != null);
+            conn.connect();
+            if (data != null) {
+                conn.getOutputStream().write(data);
+                conn.getOutputStream().close();
+            }
+            if (conn.getResponseCode() >= 400) {
+                result.onError(conn, started);
+            } else {
+                result.onResult(conn, started);
+            }
+        } finally {
+            conn.disconnect();
+        }
+        return conn != null ? conn.getResponseCode() : -1;
+    }
+
+    public static interface HttpResult {
+
+        void onResult(HttpURLConnection conn, long startedNano) throws IOException;
+
+        void onError(HttpURLConnection conn, long startedNano) throws IOException;
+
+        public static class HttpResultDebug implements HttpResult {
+
+            boolean quiet = false;
+
+            public HttpResultDebug() {
+            }
+
+            public HttpResultDebug(boolean quiet) {
+                this.quiet = quiet;
+            }
+
+            public void dump(HttpURLConnection conn, long startedNano, int responseCode, byte[] data) {
+                if (!quiet) {
+                    System.out.println(""
+                            + "--   Request: " + conn.getURL()
+                            + "\n  Response[" + (System.nanoTime() - startedNano) / 1000000f + "ms, " + data.length + "]: " + new String(data).replace("\n", "\n  "));
+                }
+            }
+
+            public void result(HttpURLConnection conn, long startedNano) throws IOException {
+                byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
+                        ? conn.getErrorStream()
+                        : conn.getResponseCode() >= 400
+                        ? new ByteArrayInputStream((conn.getResponseCode() + " " + conn.getResponseMessage()).getBytes())
+                        : conn.getInputStream()
+                );
+                dump(conn, startedNano, conn.getResponseCode(), data);
+            }
+
+            @Override
+            public void onResult(HttpURLConnection conn, long startedNano) throws IOException {
+                this.result(conn, startedNano);
+            }
+
+            @Override
+            public void onError(HttpURLConnection conn, long startedNano) throws IOException {
+                this.result(conn, startedNano);
+            }
+        }
+    }
 }

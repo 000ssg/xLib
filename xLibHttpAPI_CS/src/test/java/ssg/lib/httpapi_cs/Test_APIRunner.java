@@ -57,7 +57,7 @@ public class Test_APIRunner {
     public static void main(String... args) throws Exception {
         int port = 30001;
 
-        APIRunner r = new APIRunner(new HttpApplication("A", "/app"))
+        APIRunner r = new APIRunner(new HttpApplication("A", "/app"), new APIStatistics().createChild(null, "test-apirunner"))
                 .configureHttp(port)
                 .configureREST("rest")
                 .configureAPI("demo", "test", new API_Publisher()
@@ -114,6 +114,15 @@ public class Test_APIRunner {
             th.printStackTrace();
         } finally {
             r.stop();
+        }
+        
+        System.out.println("API stat: "+r.getAPIStatistics(null).dumpStatistics(false).replace("\n", "\n  "));
+        for(Object gs:r.getAPIGroups().values()){
+            for(Object gi:((Map)gs).values()){
+                APIGroup g=(APIGroup)gi;
+                if(g!=null && g.apiStat!=null)
+                System.out.println("  group stat: "+g.apiStat.dumpStatistics(false).replace("\n", "\n    "));
+            }
         }
         System.exit(0);
     }

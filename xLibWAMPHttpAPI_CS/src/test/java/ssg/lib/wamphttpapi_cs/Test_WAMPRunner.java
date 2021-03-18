@@ -32,6 +32,7 @@ import ssg.lib.common.CommonTools;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.dp.HttpResourceBytes;
 import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.nodes.WAMPNode;
@@ -62,7 +63,7 @@ public class Test_WAMPRunner {
         // build runner with default http application and embedded 
         // (within app) WAMP and REST (for same subpath "wamp")
         // register reflection-based API (DemoHW class) and register instance (context)
-        WAMPRunner r = new WAMPRunner(new HttpApplication("A", "/app"))
+        WAMPRunner r = new WAMPRunner(new HttpApplication("A", "/app"), new APIStatistics())
                 .configureWAMPRouter("wamp")
                 .configureAPI("demo", "test", new API_Publisher()
                         .configure(Reflective_API_Builder.buildAPI("test", null, DemoHW.class))

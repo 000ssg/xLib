@@ -32,6 +32,7 @@ public class APIRunner<T> extends HttpRunner {
     // API support
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     Collection<String> registeredRESTAPIs = new HashSet<>();
+    APIStatistics apiStat;
 
     /**
      * API group enables defining multiple APIs for same context, that is realm,
@@ -44,6 +45,7 @@ public class APIRunner<T> extends HttpRunner {
      *
      */
     public class APIGroup {
+
         public static final long O_NONE = 0x0000;
         public static final long O_COMPACT = 0x0001;
 
@@ -51,9 +53,10 @@ public class APIRunner<T> extends HttpRunner {
         public String authid;
         public String agent;
         public String realm;
-        public long options=O_NONE;
+        public long options = O_NONE;
         public API_Publisher.API_Publishers apis = new API_Publisher.API_Publishers();
         public Map<URI, T> clients = new LinkedHashMap<>();
+        public APIStatistics apiStat;
 
         public void connect(URI uri) throws IOException {
             // publish APIs to DEMO WAMP namespace..., implicitly as REST bridge to WAMP.
@@ -75,6 +78,16 @@ public class APIRunner<T> extends HttpRunner {
 
     public APIRunner(HttpApplication app) {
         super(app);
+    }
+
+    public APIRunner(HttpApplication app, APIStatistics stat) {
+        super(app);
+        this.apiStat = stat;
+    }
+
+    public APIRunner configureAPIStatistics(APIStatistics stat) {
+        this.apiStat = stat;
+        return this;
     }
 
     @Override
@@ -128,14 +141,14 @@ public class APIRunner<T> extends HttpRunner {
 
     /**
      * Add API to realm (WAMP client functionality and/or REST)
-     * 
+     *
      * @param realm
      * @param name
      * @param api
      * @param uri
      * @param authid
      * @param options
-     * @return 
+     * @return
      */
     public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid, Long options) {
         Map<String, APIGroup> groups = apis.get(realm);
@@ -150,7 +163,9 @@ public class APIRunner<T> extends HttpRunner {
             group.authid = authid;
             group.realm = realm;
             groups.put(authid != null ? authid : "", group);
-            if(options!=null)group.options=options;
+            if (options != null) {
+                group.options = options;
+            }
         }
         group.apis.add(name != null ? name : api.getAPI().name, api);
         configUpdated(CFG_API_NAME, null, name != null ? name : api.getAPI().name);
@@ -276,11 +291,18 @@ public class APIRunner<T> extends HttpRunner {
      */
     public void onPublishedAPI(URI uri, APIGroup group, T client, String apiName, API_Publisher api) throws IOException {
         if (client == null && getREST() != null) {
-            getREST().registerProviders(new MethodsProvider[]{new API_MethodsProvider()}, api);
+            getREST().registerProviders(new MethodsProvider[]{new API_MethodsProvider(getAPIStatistics(group))}, api);
         }
     }
 
     public Map<String, Map<String, APIGroup>> getAPIGroups() {
         return apis;
+    }
+
+    public APIStatistics getAPIStatistics(APIGroup group) {
+        if (apiStat != null && group != null && group.apiStat == null) {
+            group.apiStat = apiStat.createChild(null, group.realm + "/" + (group.authid != null ? group.authid : "<no-auth>"));
+        }
+        return group != null ? group.apiStat : apiStat;
     }
 }

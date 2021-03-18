@@ -53,12 +53,19 @@ import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpConnectionUpgrade;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.httpapi_cs.APIRunner;
+import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPRealmFactory;
+import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
+import ssg.lib.wamp.flows.WAMPMessagesFlow;
+import ssg.lib.wamp.messages.WAMPMessage;
+import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.nodes.WAMPClient;
+import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure;
@@ -87,8 +94,9 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     HttpConnectionUpgrade ws_wamp_connection_upgrade;
 
     // WAMP/REST support
+    REST_WAMP_MethodsProvider wampAsREST;
+    // WAMP/REST/API support
     API_MethodsProvider wampOverREST;
-    APIStatistics apiStat = new APIStatistics();
     Collection<String> registeredRESTAPIs = new HashSet<>();
 
     public WAMPRunner() {
@@ -98,9 +106,19 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         super(app);
     }
 
+    public WAMPRunner(HttpApplication app, APIStatistics stat) {
+        super(app, stat);
+    }
+
     public WAMPRunner configure(WAMPRealmFactory realmFactory) {
         initWamp();
         wamp.configure(realmFactory);
+        return this;
+    }
+
+    @Override
+    public WAMPRunner configureAPIStatistics(APIStatistics stat) {
+        super.configureAPIStatistics(stat);
         return this;
     }
 
@@ -143,6 +161,67 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             } catch (URISyntaxException usex) {
             }
         }
+        if (CFG_REST_PATH.equals(key) || CFG_WAMP_PORT.equals(key) || CFG_WAMP_PATH.equals(key)) {
+            if (wampAsREST == null && wamp != null && getREST() != null) {
+                wampAsREST = new REST_WAMP_MethodsProvider(
+                        getAPIStatistics(null)!=null ? getAPIStatistics(null).createChild(null, "wamp-rest") : null
+                ) {
+                    @Override
+                    public WAMPClient caller(String realm) {
+                        WAMPClient r = super.caller(realm);
+                        if (r == null) try {
+                            r = connect(WAMPRunner.this.getRouterURI(), "authid", "wamp-rest-agent", realm, new WAMPFeature[]{}, WAMP.Role.caller);
+                            if (r != null) {
+                                r.waitEstablished(1000L);
+                                addCallers(r);
+                            }
+                        } catch (WAMPException wex) {
+                            wex.printStackTrace();
+                        }
+                        return r;
+                    }
+                };
+                wamp().getRouter().addWAMPNodeListener(new WAMPNodeListener() {
+                    @Override
+                    public void onCreatedRealm(WAMPRealm realm) {
+                    }
+
+                    @Override
+                    public void onEstablishedSession(WAMPSession session) {
+                    }
+
+                    @Override
+                    public void onClosedSession(WAMPSession session) {
+                    }
+
+                    @Override
+                    public void onHandled(WAMPSession session, WAMPMessage msg, WAMPMessagesFlow mf) {
+                        if (msg.getType().getId() == WAMPMessageType.T_PUBLISH) {
+                            if (WAMP_FP_Reflection.WR_RPC_DEFINE.equals(msg.getUri(2))
+                                    || WAMP_FP_Reflection.WR_EVENT_ON_UNDEFINE.equals(msg.getUri(2))) {
+                                update_REST_WAMP(session.getRealm());
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailed(WAMPSession session, WAMPMessage msg, WAMPMessagesFlow mf) {
+                    }
+
+                    @Override
+                    public void onFatal(WAMPSession session, WAMPMessage msg) {
+                    }
+
+                    @Override
+                    public void onSent(WAMPSession session, WAMPMessage msg, Throwable error) {
+                    }
+                });
+            }
+        }
+    }
+
+    public void update_REST_WAMP(WAMPRealm realm) {
+        getREST().registerProviders(new MethodsProvider[]{wampAsREST}, realm);
     }
 
     /**
@@ -266,10 +345,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 apiKey = group.realm + "/" + apiName;
             }
             if (!registeredRESTAPIs.contains(apiKey)) {
-                if (getREST() != null) {
+                if (getREST() != null && this.wampAsREST == null) {
                     if (wampOverREST == null) {
                         try {
-                            wampOverREST = new REST_WAMP_API_MethodsProvider(wamp.connect(
+                            wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null), wamp.connect(
                                     wsURI != null ? wsURI : wampRouterURI,
                                     "RoW-" + client.getRealm() + "-" + client.getAgent(),
                                     new WAMPFeature[]{WAMPFeature.shared_registration},
@@ -387,7 +466,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
 
                     // publish API as single prefixed procedure. In this case procedure name is passed as parameter and marshalled on callee.
                     if (prefixedAPI) {
-                        addWAMPExecutor(client, group, api, apiName, null, WAMPTools.createDict("invoke", "roundrobin","match","prefix"));
+                        addWAMPExecutor(client, group, api, apiName, null, WAMPTools.createDict("invoke", "roundrobin", "match", "prefix"));
                     }
                 }
             } else { // procedure level publishing
@@ -436,10 +515,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         }
     }
 
-    public void addWAMPExecutor(WAMPClient client, APIGroup group, API_Publisher api, String apiName, String procedure, Map<String, Object> opts) throws WAMPException {
+    public void addWAMPExecutor(WAMPClient client, final APIGroup group, API_Publisher api, String apiName, String procedure, Map<String, Object> opts) throws WAMPException {
         client.addExecutor(
                 opts,
                 (procedure != null ? procedure : !apiName.endsWith(".") ? apiName + "." : apiName), new CalleeProcedure.Callee() {
+            APIStatistics apiStat = getAPIStatistics(null) != null ? getAPIStatistics(group).createChild(null, "REST:" + (procedure != null ? procedure : apiName)) : null;
+
             @Override
             public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
                 if (apiStat != null) {

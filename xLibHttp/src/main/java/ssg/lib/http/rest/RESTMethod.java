@@ -53,6 +53,7 @@ public class RESTMethod {
     private RESTAccess access;
     private RESTMethodAsyncCallback defaultCallback;
     private RUN_MODE runMode = RUN_MODE.asynchronous;
+    private Map<String, Object> properties;
 
     public static Iterable<MethodsProvider> getMethodProviders() {
         return Collections.unmodifiableCollection(methodProviders);
@@ -507,5 +508,23 @@ public class RESTMethod {
      */
     public void setRunMode(RUN_MODE runMode) {
         this.runMode = runMode;
+    }
+
+    public void setProperty(String name, Object v) {
+        if (name == null || properties == null && v == null) {
+            return;
+        }
+        if (properties == null) {
+            properties = new LinkedHashMap<>();
+        }
+        if (v != null) {
+            properties.put(name, v);
+        } else if (properties.containsKey(name)) {
+            properties.remove(name);
+        }
+    }
+
+    public <Z> Z getProperty(String name) {
+        return properties != null ? (Z) properties.get(name) : null;
     }
 }

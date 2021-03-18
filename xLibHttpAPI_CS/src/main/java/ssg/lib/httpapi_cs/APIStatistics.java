@@ -23,6 +23,8 @@
  */
 package ssg.lib.httpapi_cs;
 
+import java.util.ArrayList;
+import java.util.List;
 import ssg.lib.stat.Statistics;
 import ssg.lib.stat.StatisticsGroup;
 
@@ -74,6 +76,28 @@ public class APIStatistics extends StatisticsGroup {
         sb.append(get(idx));
 
         return sb.toString();
+    }
+
+    public String dumpStatisticsHierarchy(boolean compact) {
+        StringBuilder sb = new StringBuilder();
+        List<Statistics> hs = hierarchy();
+        StringBuilder off = new StringBuilder();
+        for (Statistics h : hs) {
+            sb.append(off);
+            sb.append(h.dumpStatistics(compact).replace("\n", "\n" + off));
+            off.append("  ");
+        }
+        return sb.toString();
+    }
+
+    <Z extends Statistics> List<Z> hierarchy() {
+        List<Z> r = new ArrayList<>();
+        Statistics c = this;
+        while (c != null) {
+            r.add(0, (Z) c);
+            c = c.getParent();
+        }
+        return r;
     }
 
     public void onTryInvoke() {

@@ -259,8 +259,16 @@ public class CS implements Runnable {
                             break;
                         }
                     } else {
-                        Set<SelectionKey> skeys = selector.selectedKeys();
-                        Iterator<SelectionKey> keys = skeys.iterator();
+                        Set<SelectionKey> skeys = null;
+                        Iterator<SelectionKey> keys = null;
+                        synchronized (selector) {
+                            if (selector != null) {
+                                skeys = selector.selectedKeys();
+                                keys = skeys.iterator();
+                            } else {
+                                break;
+                            }
+                        }
                         while (keys.hasNext()) {
                             SelectionKey key = keys.next();
                             try {

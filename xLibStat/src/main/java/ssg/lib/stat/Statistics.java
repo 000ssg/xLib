@@ -45,6 +45,8 @@ public interface Statistics extends Serializable, Cloneable {
     <T extends Statistics> T getParent();
 
     Statistics getTop();
+    
+    String path(String separator);
 
     <T extends Statistics> T createChild(Statistics top, String name);
 

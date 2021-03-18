@@ -33,6 +33,7 @@ import ssg.lib.api.APICallable;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.http.rest.RESTMethod;
 import ssg.lib.http.rest.RESTProvider;
+import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
@@ -47,10 +48,14 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
     Map<String, WAMPClient> callers = new LinkedHashMap<>();
     ThreadLocal<String> realm = new ThreadLocal<>();
 
-    public REST_WAMP_API_MethodsProvider(WAMPClient... callers) {
+//    public REST_WAMP_API_MethodsProvider(WAMPClient... callers) {
+//        addCallers(callers);
+//    }
+    public REST_WAMP_API_MethodsProvider(APIStatistics stat, WAMPClient... callers) {
+        super(stat);
         addCallers(callers);
     }
-    
+
     public void addCallers(WAMPClient... callers) {
         if (callers != null) {
             for (WAMPClient caller : callers) {
@@ -62,7 +67,7 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
     WAMPClient caller(String realm) {
         return callers.get(realm);
     }
-    
+
     @Override
     public Runnable invokeAsync(
             final RESTMethod method,
@@ -71,16 +76,25 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
             final Object service,
             final Map<String, Object> parameters,
             final RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
-        WAMPClient caller=caller(method.getProvider().getProperty("realm"));
+        WAMPClient caller = caller(method.getProvider().getProperty("realm"));
         if (caller != null && caller.isConnected()) {
             if (DEBUG) {
                 System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "]: " + name + "(" + parameters + ")");
+            }
+
+            APIStatistics apiStat = method.getProperty("apiStat");
+            if (apiStat != null) {
+                apiStat.onTryInvoke();
+                apiStat.onInvoke();
             }
 
             final long started = System.nanoTime();
             caller.addWAMPRPCListener(new WAMPRPCListener.WAMPRPCListenerBase(new HashMap(), name, Collections.emptyList(), parameters) {
                 @Override
                 public void onCancel(long callId, String reason) {
+                    if (apiStat != null) {
+                        apiStat.onDone();
+                    }
                     if (DEBUG) {
                         System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - CANCEL [" + (System.nanoTime() - started) / 1000000f + "ms]: " + name + "(" + parameters + ")");
                     }
@@ -89,6 +103,9 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
 
                 @Override
                 public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                    if (apiStat != null) {
+                        apiStat.onDone();
+                    }
                     if (DEBUG) {
                         System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - RESULT [" + (System.nanoTime() - started) / 1000000f + "ms]: " + name + "(" + parameters + ")");
                     }
@@ -98,6 +115,9 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
 
                 @Override
                 public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                    if (apiStat != null) {
+                        apiStat.onError();
+                    }
                     if (DEBUG) {
                         System.out.println("" + getClass().getName() + ".invokeAsync: WAMP[" + caller.getAgent() + "] - ERROR  [" + (System.nanoTime() - started) / 1000000f + "ms]: " + name + "(" + parameters + ")");
                     }

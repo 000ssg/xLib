@@ -116,6 +116,9 @@ public class StatisticsGroup extends StatisticsBase {
 
     @Override
     public boolean validDumpIndex(int idx) {
+        if (groups == null || groups.length == 0) {
+            return super.validDumpIndex(idx);
+        }
         int gIdx = getGroupIndex(idx);
         return groups[gIdx].validDumpIndex(idx);
     }
@@ -127,11 +130,13 @@ public class StatisticsGroup extends StatisticsBase {
         }
 
         r = 0;
-        for (int i = 1; i < offsets.length; i++) {
-            if (idx < offsets[i]) {
-                break;
+        if (offsets != null) {
+            for (int i = 1; i < offsets.length; i++) {
+                if (idx < offsets[i]) {
+                    break;
+                }
+                r = i;
             }
-            r = i;
         }
         return r;
     }
@@ -139,17 +144,19 @@ public class StatisticsGroup extends StatisticsBase {
     @Override
     public String dumpSeparator(int lastIdx, int idx, boolean compact, boolean first) {
         String s = "";
-        int gIdx = getGroupIndex(idx);
-        if (lastIdx == -1 || gIdx != getGroupIndex(lastIdx)) {
-            s = ((compact)
-                    ? " #"
-                    : "\n  #");
-            if (groups[gIdx].getGroupName() != null) {
-                s += groups[gIdx].getGroupName() + "/";
+        if (groups != null && groups.length > 0) {
+            int gIdx = getGroupIndex(idx);
+            if (lastIdx == -1 || gIdx != getGroupIndex(lastIdx)) {
+                s = ((compact)
+                        ? " #"
+                        : "\n  #");
+                if (groups[gIdx].getGroupName() != null) {
+                    s += groups[gIdx].getGroupName() + "/";
+                }
+                s += (groups[gIdx].getClass().isAnonymousClass()) ? groups[gIdx].getClass().getName() : groups[gIdx].getClass().getSimpleName();
+                s += " ";
+                first = true;
             }
-            s += (groups[gIdx].getClass().isAnonymousClass()) ? groups[gIdx].getClass().getName() : groups[gIdx].getClass().getSimpleName();
-            s += " ";
-            first = true;
         }
         return s + super.dumpSeparator(lastIdx, idx, compact, first);
     }
