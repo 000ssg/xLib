@@ -20,6 +20,7 @@ import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealmFactory;
+import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.cs.WSCSCounters;
@@ -27,12 +28,13 @@ import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.stat.WAMPStatistics;
+import ssg.lib.wamp.util.LS;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.websocket.WebSocket;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Wamp {
 
@@ -51,6 +53,7 @@ public class Wamp {
     // extra wamp features
     Map<WAMPFeature, WAMPFeatureProvider> features = new LinkedHashMap<>();
     WAMPRealmFactory realmFactory;
+    LS<WAMPTransportMessageListener> tmListeners = new LS<>(new WAMPTransportMessageListener[0]);
 
     public void onStarted(CS cs) {
         wsGroup.onStarted(cs);
@@ -110,6 +113,14 @@ public class Wamp {
         }
         if (routerCS != null) {
             routerCS.configure(realmFactory);
+        }
+        return (Z) this;
+    }
+
+    public <Z extends Wamp> Z configure(WAMPTransportMessageListener l) {
+        tmListeners.add(l);
+        if (routerCS != null) {
+            routerCS.configure(l);
         }
         return (Z) this;
     }
@@ -193,6 +204,11 @@ public class Wamp {
                     routerCS.configure(entry.getKey(), entry.getValue());
                 }
             }
+            if (!tmListeners.isEmpty()) {
+                for (WAMPTransportMessageListener l : tmListeners.get()) {
+                    routerCS.configure(l);
+                }
+            }
             wsGroup.addWebSocketProtocolHandler(routerCS);
         }
         return (Z) this;
@@ -207,6 +223,21 @@ public class Wamp {
                 }
                 if (clientCS != null) {
                     clientCS.configure(feature, featureProvider);
+                }
+            }
+        }
+        return (Z) this;
+    }
+
+    public <Z extends Wamp> Z configureFeature(WAMPFeature feature) {
+        if (feature != null) {
+            features.put(feature, null);
+            if (feature != null) {
+                if (routerCS != null) {
+                    routerCS.configure(feature);
+                }
+                if (clientCS != null) {
+                    clientCS.configure(feature);
                 }
             }
         }

@@ -41,13 +41,17 @@ import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.auth.WAMPAuth;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_PROVIDER;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.events.WAMPBroker;
 import static ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI.SM_EVENT_ON_JOIN;
 import ssg.lib.wamp.util.WAMPNodeSessionManagement;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMP_FP_VirtualSession implements WAMPFeatureProvider, WAMPNodeListener {
 
@@ -128,17 +132,23 @@ public class WAMP_FP_VirtualSession implements WAMPFeatureProvider, WAMPNodeList
                 WAMPBroker broker = session.getRealm().getActor(WAMP.Role.broker);
                 if (broker != null) {
                     synchronized (session) {
+                        Map<String, Object> argsKw = WAMPTools.createDict(map -> {
+                            map.put("session", sessId);
+                            map.put(K_AUTH_ID, auth.getAuthid());
+                            map.put(K_AUTH_ROLE, auth.getRole());
+                            map.put(K_AUTH_METHOD, auth.getMethod());
+                            map.put(K_AUTH_PROVIDER, auth.getDetails().get(K_AUTH_PROVIDER));
+                            if (auth.getDetails().containsKey("transport")) {
+                                map.put("transport", auth.getDetails().get("transport"));
+                            }
+                        });
                         broker.doEvent(null,
                                 0,
                                 SM_EVENT_ON_JOIN,
                                 session.getId(),
                                 WAMPTools.EMPTY_DICT,
-                                WAMPTools.createList(
-                                        sessId,
-                                        auth.getAuthid(),
-                                        auth.getRole()
-                                ),
-                                null);
+                                WAMPTools.EMPTY_LIST,
+                                argsKw);
                     }
                 }
                 return true;

@@ -46,6 +46,7 @@ import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPSessionImpl;
+import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.flows.WAMPSessionFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -71,6 +72,7 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
 
     final int nodeId = NEXT_NODE_ID.getAndIncrement();
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
+    LS<WAMPTransportMessageListener> tmListeners = new LS<>(new WAMPTransportMessageListener[0]);
     WAMPFeature[] defaultFeatures;
     private String agent;
     private WAMPStatistics statistics;
@@ -448,6 +450,14 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
         listeners.remove(ls);
     }
 
+    public void addWAMPTransportMessageListener(WAMPTransportMessageListener... ls){
+        tmListeners.add(ls);
+    }
+    
+    public void removeWAMPTransportMessageListener(WAMPTransportMessageListener... ls){
+        tmListeners.remove(ls);
+    }
+    
     /**
      * @return the statistics
      */

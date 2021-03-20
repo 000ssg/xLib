@@ -28,7 +28,7 @@ import ssg.lib.common.Stub.StubContext;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class StubRESTHttpContext extends StubContext<List<RESTMethod>, RESTMethod, RESTParameter, Class> {
 

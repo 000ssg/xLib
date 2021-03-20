@@ -40,6 +40,7 @@ import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
+import ssg.lib.wamp.util.LS;
 
 /**
  *
@@ -48,7 +49,7 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
 public class WAMPTransportJSON<P> implements WAMPTransport {
 
     private static final AtomicInteger NEXT_ID = new AtomicInteger(1);
-    private static Refl refl=new ReflImpl();
+    private static Refl refl = new ReflImpl();
 
     public final int id = NEXT_ID.getAndIncrement();
     JSON.Encoder encoder = new JSON.Encoder(refl);
@@ -58,6 +59,7 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
     P provider;
     TransportData transport;
     private WAMPMessageStatistics statistics;
+    LS<WAMPTransportMessageListener> listeners = new LS<>(new WAMPTransportMessageListener[0]);
     WAMPMessage last;
 
     public WAMPTransportJSON() {
@@ -144,6 +146,9 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
                         statistics.setInputQueueSize(transport.getInputQueueSize());
                         statistics.setOutputQueueSize(transport.getOutputQueueSize());
                     }
+                    for (WAMPTransportMessageListener l : listeners.get()) {
+                        l.onMessageSent(this, message);
+                    }
                 }
             }
         }
@@ -188,6 +193,9 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
                             statistics.setInputQueueSize(transport.getInputQueueSize());
                             statistics.setOutputQueueSize(transport.getOutputQueueSize());
                         }
+                        for (WAMPTransportMessageListener l : listeners.get()) {
+                            l.onMessageReceived(this, r);
+                        }
                         return r;
                     }
                 } catch (IOException ioex) {
@@ -215,6 +223,9 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
             );
         }
         this.last = last;
+        for (WAMPTransportMessageListener l : listeners.get()) {
+            l.onMessageUnreceived(this, last);
+        }
     }
 
     @Override
@@ -225,6 +236,16 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
     @Override
     public boolean isOpen() {
         return transport != null && transport.isOpen();
+    }
+
+    @Override
+    public void addWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+        listeners.add(ls);
+    }
+
+    @Override
+    public void removeWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+        listeners.remove(ls);
     }
 
     public static class TransportData {

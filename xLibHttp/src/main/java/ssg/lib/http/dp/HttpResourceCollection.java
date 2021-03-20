@@ -247,7 +247,8 @@ public class HttpResourceCollection implements HttpResource, MatchScanner<String
 
     public void initResourceParameters(HttpResource res) throws IOException {
         if (parameterBounds != null || localizableBounds != null) {
-            String ct = res.contentType();
+            // TODO: no HttpData for resource
+            String ct = res.contentType(null);
             if (ct.contains("text") || ct.contains("html") || ct.contains("script") || ct.contains("css")) {
                 String[][] cc = HttpDataProcessor.initTextParameters(
                         new String[][]{parameterBounds, localizableBounds},
@@ -266,7 +267,7 @@ public class HttpResourceCollection implements HttpResource, MatchScanner<String
     }
 
     @Override
-    public String contentType() {
+    public String contentType(HttpData httpData) {
         return null;
     }
 

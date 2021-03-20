@@ -53,7 +53,7 @@ import ssg.lib.common.Refl.ReflImpl;
  * "configURL=..." properties. NOTE: in system properties these arguments are
  * ignored.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Config {
 

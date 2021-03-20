@@ -39,7 +39,7 @@ import ssg.lib.httpapi_cs.APIRunner.APIGroup;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Test_APIRunner {
 
@@ -66,22 +66,25 @@ public class Test_APIRunner {
                 );
         APIGroup ag=(APIGroup)((Map)r.getAPIGroups().get("demo")).values().iterator().next();
         String router_root = r.getApp() != null ? r.getApp().getRoot() + "/" : "/";
-        StubVirtualData<API> apiJS = new StubVirtualData(ag.apis.getAPI("test"), router_root.substring(0, router_root.length()-1) , "js", "jw")
+        r.configureStub(new StubVirtualData(ag.apis.getAPI("test"), router_root.substring(0, router_root.length()-1) , "js", "jw")
                 .configure(new StubAPIContext(null, null, true))
-                .configure("demo", "js", "jw")
-                //.configure("test", "js", "jw")
-                ;
-
-        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
-        for (StubVirtualData.WR wr : apiJS.resources()) {
-            System.out.println("  adding " + wr.getPath());
-            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath(), "text/javascript; encoding=utf-8"));
-        }
-        if (r.getApp() != null) {
-            r.getApp().configureDataProcessor(0, apiJS_DP);
-        } else {
-            r.getService().configureDataProcessor(0, apiJS_DP);
-        }
+                .configure("demo", "js", "jw"));
+//        StubVirtualData<API> apiJS = new StubVirtualData(ag.apis.getAPI("test"), router_root.substring(0, router_root.length()-1) , "js", "jw")
+//                .configure(new StubAPIContext(null, null, true))
+//                .configure("demo", "js", "jw")
+//                //.configure("test", "js", "jw")
+//                ;
+//
+//        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
+//        for (StubVirtualData.WR wr : apiJS.resources()) {
+//            System.out.println("  adding " + wr.getPath());
+//            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath(), "text/javascript; encoding=utf-8"));
+//        }
+//        if (r.getApp() != null) {
+//            r.getApp().configureDataProcessor(0, apiJS_DP);
+//        } else {
+//            r.getService().configureDataProcessor(0, apiJS_DP);
+//        }
 
         r.start();
         try {
@@ -105,7 +108,7 @@ public class Test_APIRunner {
                     );
                     System.out.println(""
                             + "--   Request: " + s
-                            + "\n  Response[" + (System.nanoTime() - started) / 1000000f + "ms, " + data.length + "]: " + new String(data));
+                            + "\n  Response[" + (System.nanoTime() - started) / 1000000f + "ms, " + data.length + "]:\n" + new String(data));
                 } finally {
                     conn.disconnect();
                 }

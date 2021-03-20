@@ -38,7 +38,7 @@ public interface HttpResource {
 
     String path();
 
-    String contentType();
+    String contentType(HttpData httpData);
 
     /**
      * Enable context-specific size...

@@ -37,7 +37,7 @@ public interface WAMPTransport {
     void send(WAMPMessage message) throws WAMPException;
 
     WAMPMessage receive() throws WAMPException;
-    
+
     void unreceive(WAMPMessage last) throws WAMPException;
 
     boolean isOpen();
@@ -46,7 +46,20 @@ public interface WAMPTransport {
 
     void setStatistics(WAMPMessageStatistics statistics);
 
+    void addWAMPTransportMessageListener(WAMPTransportMessageListener... ls);
+
+    void removeWAMPTransportMessageListener(WAMPTransportMessageListener... ls);
+
     WAMPMessageStatistics getStatistics();
+
+    public static interface WAMPTransportMessageListener {
+
+        void onMessageReceived(WAMPTransport wt, WAMPMessage msg);
+
+        void onMessageUnreceived(WAMPTransport wt, WAMPMessage msg);
+
+        void onMessageSent(WAMPTransport wt, WAMPMessage msg);
+    }
 
     public static class WAMPTransportWrapper implements WAMPTransport {
 
@@ -108,6 +121,16 @@ public interface WAMPTransport {
          */
         public WAMPTransport getBase() {
             return base;
+        }
+
+        @Override
+        public void addWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+            base.addWAMPTransportMessageListener(ls);
+        }
+
+        @Override
+        public void removeWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+            base.removeWAMPTransportMessageListener(ls);
         }
 
     }

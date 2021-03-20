@@ -70,6 +70,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     private int maxInputQueueSize = 100;
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
     //
+    WAMPFeature[] defaultFeatures = new WAMPFeature[0];
     Map<WAMPFeature, WAMPFeatureProvider> wampFeatureProviders = WAMPTools.createMap(true);
     WAMPRealmFactory realmFactory;
 
@@ -93,6 +94,11 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
 
     public WAMPClient_WSProtocol configure(WAMPRealmFactory realmFactory) {
         this.realmFactory = realmFactory;
+        return this;
+    }
+
+    public WAMPClient_WSProtocol configure(WAMPFeature feature) {
+        defaultFeatures = WAMPFeature.mergeCopy(defaultFeatures, feature);
         return this;
     }
 
@@ -314,7 +320,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
         WAMPClient client = new WAMPClient(authid)
                 .configure(realmFactory)
                 .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null))
-                .configure(null, features, agent, realm, roles);
+                .configure(null, WAMPFeature.mergeCopy(defaultFeatures, features), agent, realm, roles);
         for (Entry<WAMPFeature, WAMPFeatureProvider> entry : getFeatureProviders().entrySet()) {
             client.configure(entry.getKey(), entry.getValue());
         }

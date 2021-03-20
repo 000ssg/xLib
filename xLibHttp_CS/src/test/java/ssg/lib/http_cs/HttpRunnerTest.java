@@ -34,7 +34,7 @@ import ssg.lib.http.HttpApplication;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class HttpRunnerTest {
 

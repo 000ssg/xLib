@@ -39,7 +39,7 @@ import ssg.lib.wamp.nodes.WAMPNode;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Test_WAMPRunner {
 
@@ -77,22 +77,28 @@ public class Test_WAMPRunner {
 
         // add javascripts generation for WAMP for WAMP (authobahn.js "wamp")
         // and REST ("js" and "jw", jquery)
-        String router_root = r.getApp() != null ? r.getApp().getRoot() + "/" : "/";
-        StubWAMPVirtualData apiJS = new StubWAMPVirtualData(r.getRouter(), router_root + "wamp", "js", "jw", "wamp")
-                .configure(new StubWAMPReflectionContext(null, null, true))
-                .configure("demo", "js", "jw", "wamp")
-                .configure("test", "js", "jw", "wamp")
-                ;
-        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
-        for (StubWAMPVirtualData.WR wr : apiJS.resources()) {
-            System.out.println("  adding " + wr.getPath());
-            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath(), "text/javascript; encoding=utf-8"));
-        }
-        if (r.getApp() != null) {
-            r.getApp().configureDataProcessor(0, apiJS_DP);
-        } else {
-            r.getService().configureDataProcessor(0, apiJS_DP);
-        }
+        r.configureStub(
+                new StubWAMPVirtualData(r.getRouter(), (r.getApp() != null ? r.getApp().getRoot() + "/" : "/") + "wamp", "js", "jw", "wamp")
+                        .configure(new StubWAMPReflectionContext(null, null, true))
+                        .configure("demo", "js", "jw", "wamp")
+                        .configure("test", "js", "jw", "wamp")
+        );
+//        String router_root = r.getApp() != null ? r.getApp().getRoot() + "/" : "/";
+//        StubWAMPVirtualData apiJS = new StubWAMPVirtualData(r.getRouter(), router_root + "wamp", "js", "jw", "wamp")
+//                .configure(new StubWAMPReflectionContext(null, null, true))
+//                .configure("demo", "js", "jw", "wamp")
+//                .configure("test", "js", "jw", "wamp")
+//                ;
+//        HttpStaticDataProcessor apiJS_DP = new HttpStaticDataProcessor();
+//        for (StubWAMPVirtualData.WR wr : apiJS.resources()) {
+//            System.out.println("  adding " + wr.getPath());
+//            apiJS_DP.add(new HttpResourceBytes(apiJS, wr.getPath()));//, "text/javascript; encoding=utf-8"));
+//        }
+//        if (r.getApp() != null) {
+//            r.getApp().configureDataProcessor(0, apiJS_DP);
+//        } else {
+//            r.getService().configureDataProcessor(0, apiJS_DP);
+//        }
 
         // start service and wait til self-configured
         r.start();

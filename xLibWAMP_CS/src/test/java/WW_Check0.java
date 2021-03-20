@@ -42,6 +42,7 @@ import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.cs.WAMPTransportJSON;
 import ssg.lib.wamp.events.WAMPEventListener;
@@ -330,7 +331,7 @@ public class WW_Check0 {
                                     WAMPTools.createDict("invoke", "roundrobin"), "AAA",
                                     new Callee() {
                                 @Override
-                                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                                public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                                     return executor.submit(new Callable() {
                                         @Override
                                         public Object call() throws Exception {

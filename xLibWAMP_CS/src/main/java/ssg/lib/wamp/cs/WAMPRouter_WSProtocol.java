@@ -39,6 +39,7 @@ import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.WAMPTransport;
+import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -101,8 +102,20 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
         return this;
     }
 
+    public WAMPRouter_WSProtocol configure(WAMPFeature feature) {
+        if (feature != null) {
+            wampRouter.configure(feature);
+        }
+        return this;
+    }
+
     public WAMPRouter_WSProtocol configure(WAMPRealmFactory realmFactory) {
         wampRouter.configure(realmFactory);
+        return this;
+    }
+
+    public WAMPRouter_WSProtocol configure(WAMPTransportMessageListener l) {
+        wampRouter.addWAMPTransportMessageListener(l);
         return this;
     }
 

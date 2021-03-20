@@ -46,6 +46,7 @@ public class WAMPTransportList<P> implements WAMPTransport {
     TransportData transport;
     private WAMPMessageStatistics statistics;
     WAMPMessage last;
+    LS<WAMPTransportMessageListener> listeners = new LS<>(new WAMPTransportMessageListener[0]);
     public boolean ENABLE_TRACE_MESSAGES = GLOBAL_ENABLE_TRACE_MESSAGES;
     public String TRACE_MESSAGES = null;
 
@@ -92,6 +93,9 @@ public class WAMPTransportList<P> implements WAMPTransport {
             if (ENABLE_TRACE_MESSAGES && message != null && TRACE_MESSAGES != null) {
                 System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-OU: " + ("" + message.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
             }
+            for (WAMPTransportMessageListener l : listeners.get()) {
+                l.onMessageSent(this, message);
+            }
         } catch (WAMPException wex) {
             throw wex;
         } catch (IOException ioex) {
@@ -116,6 +120,9 @@ public class WAMPTransportList<P> implements WAMPTransport {
             if (ENABLE_TRACE_MESSAGES && r != null && TRACE_MESSAGES != null) {
                 System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-IN: " + ("" + r.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
             }
+            for (WAMPTransportMessageListener l : listeners.get()) {
+                l.onMessageReceived(this, r);
+            }
             return r;
         } catch (IOException ioex) {
             ioex.printStackTrace();
@@ -135,6 +142,9 @@ public class WAMPTransportList<P> implements WAMPTransport {
             );
         }
         this.last = last;
+        for (WAMPTransportMessageListener l : listeners.get()) {
+            l.onMessageUnreceived(this, last);
+        }
     }
 
     @Override
@@ -144,6 +154,16 @@ public class WAMPTransportList<P> implements WAMPTransport {
     @Override
     public boolean isOpen() {
         return transport != null && transport.isOpen();
+    }
+
+    @Override
+    public void addWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+        listeners.add(ls);
+    }
+
+    @Override
+    public void removeWAMPTransportMessageListener(WAMPTransportMessageListener... ls) {
+        listeners.remove(ls);
     }
 
     public static class TransportData {

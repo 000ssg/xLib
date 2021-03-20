@@ -39,7 +39,7 @@ import ssg.lib.common.Stub.StubContext;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class StubAPIContext extends StubContext<API, APIProcedure, APIParameter, APIDataType> {
 

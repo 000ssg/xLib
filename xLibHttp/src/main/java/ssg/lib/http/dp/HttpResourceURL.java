@@ -74,7 +74,7 @@ public class HttpResourceURL implements HttpResource {
     }
 
     @Override
-    public String contentType() {
+    public String contentType(HttpData httpData) {
         return contentType;
     }
 

@@ -36,7 +36,7 @@ import ssg.lib.http.rest.ReflectiveMethodsProvider;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Test_HttpRunner {
 

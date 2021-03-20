@@ -25,7 +25,7 @@ import ssg.lib.common.Refl;
 /**
  * JWT generator/verifier
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class JWT {
 

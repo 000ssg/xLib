@@ -39,7 +39,7 @@ import ssg.lib.http.dp.jwt.JWT.Token;
  *
  * NOTE: by default returns token for logged in user.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class JWTHttpDataProcessor extends HttpDataProcessor {
 

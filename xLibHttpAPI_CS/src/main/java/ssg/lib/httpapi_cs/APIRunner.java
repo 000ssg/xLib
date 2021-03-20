@@ -16,14 +16,17 @@ import java.util.Map.Entry;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.dp.HttpResourceBytes;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
 import ssg.lib.http.rest.MethodsProvider;
+import ssg.lib.http.rest.StubVirtualData;
 import ssg.lib.http_cs.HttpRunner;
 
 /**
  * API runner defines WAMP/REST publishing and WAMP routing functionality to
  * enable simple mechanism of API exposure.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class APIRunner<T> extends HttpRunner {
 
@@ -33,6 +36,8 @@ public class APIRunner<T> extends HttpRunner {
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
+    StubVirtualData<?> stub;
+    HttpStaticDataProcessor stubDP;
 
     /**
      * API group enables defining multiple APIs for same context, that is realm,
@@ -172,6 +177,24 @@ public class APIRunner<T> extends HttpRunner {
         return this;
     }
 
+    public APIRunner configureStub(StubVirtualData<?> stub) {
+        if (this.stub == null && stub != null) {
+            initHttp();
+            this.stub = stub;
+            String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
+            stubDP = new HttpStaticDataProcessor();
+            for (StubVirtualData.WR wr : stub.resources()) {
+                stubDP.add(new HttpResourceBytes(stub, wr.getPath())); //, "text/javascript; encoding=utf-8"));
+            }
+            if (getApp() != null) {
+                getApp().configureDataProcessor(0, stubDP);
+            } else {
+                getService().configureDataProcessor(0, stubDP);
+            }
+        }
+        return this;
+    }
+
     @Override
     public void onStarted() throws IOException {
         super.onStarted();
@@ -304,5 +327,9 @@ public class APIRunner<T> extends HttpRunner {
             group.apiStat = apiStat.createChild(null, group.realm + "/" + (group.authid != null ? group.authid : "<no-auth>"));
         }
         return group != null ? group.apiStat : apiStat;
+    }
+
+    public StubVirtualData<?> getStub() {
+        return stub;
     }
 }

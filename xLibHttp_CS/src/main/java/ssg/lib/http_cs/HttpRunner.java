@@ -41,7 +41,7 @@ import ssg.lib.service.Repository;
  * Common base for deployable runnable. Provides non-reentrable start/stop to
  * allow CS embedding.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class HttpRunner extends CS {
 

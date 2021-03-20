@@ -28,7 +28,7 @@ package ssg.lib.wamp.util;
  *
  *
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface WAMPNodeSessionManagement {
 

@@ -44,35 +44,30 @@ public class HttpResourceBytes implements HttpResource {
     //byte[] data;
     VirtualData data;
     String path;
-    String contentType;
     String[] parameters;
     String[] localizeable;
 
-    public HttpResourceBytes(VirtualData data, String path, String contentType) {
+    public HttpResourceBytes(VirtualData data, String path) {
         this.data = data;
         this.path = path;
-        this.contentType = contentType;
     }
 
     public HttpResourceBytes(byte[] data, String path, String contentType) {
         //this.data = data;
-        this.data = new ActualData(data);
+        this.data = new ActualData(data, contentType);
         this.path = path;
-        this.contentType = contentType;
     }
 
     public HttpResourceBytes(URL url, String path, String contentType) throws IOException {
         //this.data = cacheInputStream(url.openStream());
-        this.data = new ActualData(url.openStream());
+        this.data = new ActualData(url.openStream(), contentType);
         this.path = path;
-        this.contentType = contentType;
     }
 
     public HttpResourceBytes(InputStream is, String path, String contentType) throws IOException {
         //this.data = cacheInputStream(is);
-        this.data = new ActualData(is);
+        this.data = new ActualData(is, contentType);
         this.path = path;
-        this.contentType = contentType;
     }
 
     byte[] cacheInputStream(InputStream is) throws IOException {
@@ -92,7 +87,6 @@ public class HttpResourceBytes implements HttpResource {
         if (contentType == null) {
             contentType = "text/plain; encoding=utf-8";
         }
-        this.contentType = contentType;
         int idx = contentType.toLowerCase().indexOf("encoding");
         String encoding = "UTF-8";
         if (idx != -1) {
@@ -105,10 +99,10 @@ public class HttpResourceBytes implements HttpResource {
                 }
             }
         } else {
-            this.contentType += "; encoding=" + encoding;
+            contentType += "; encoding=" + encoding;
         }
-        //this.data = data.getBytes(encoding);
-        this.data = new ActualData(data.getBytes(encoding));
+
+        this.data = new ActualData(data.getBytes(encoding), contentType);
     }
 
     @Override
@@ -122,8 +116,8 @@ public class HttpResourceBytes implements HttpResource {
     }
 
     @Override
-    public String contentType() {
-        return contentType;
+    public String contentType(HttpData httpData) {
+        return data.getContentType(this, httpData);
     }
 
     @Override
@@ -192,26 +186,45 @@ public class HttpResourceBytes implements HttpResource {
         return false;
     }
 
+    /**
+     * Binary data delegator. Used to evaluate/select data based on given
+     * context.
+     */
     public static interface VirtualData {
+
+        default String getContentType(HttpResourceBytes owner, HttpData httpData) {
+            return "text/javascript; encoding=utf-8";
+        }
 
         byte[] get(HttpResourceBytes owner, HttpData httpData);
     }
 
+    /**
+     * Static data provider.
+     */
     public class ActualData implements VirtualData {
 
+        String contentType;
         byte[] data;
 
-        public ActualData(byte[] data) {
+        public ActualData(byte[] data, String contentType) {
             this.data = data;
+            this.contentType = contentType;
         }
 
-        public ActualData(InputStream is) throws IOException {
+        public ActualData(InputStream is, String contentType) throws IOException {
             data = cacheInputStream(is);
+            this.contentType = contentType;
         }
 
         @Override
         public byte[] get(HttpResourceBytes owner, HttpData httpData) {
             return data;
+        }
+
+        @Override
+        public String getContentType(HttpResourceBytes owner, HttpData httpData) {
+            return contentType != null ? contentType : VirtualData.super.getContentType(owner, httpData);
         }
     }
 }

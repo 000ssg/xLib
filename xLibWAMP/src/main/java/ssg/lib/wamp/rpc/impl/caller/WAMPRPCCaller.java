@@ -54,7 +54,8 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
     public static final WAMPFeature[] supports = new WAMPFeature[]{
         WAMPFeature.call_canceling,
         WAMPFeature.progressive_call_results,
-        WAMPFeature.call_timeout
+        WAMPFeature.call_timeout,
+        WAMPFeature.caller_identification
     };
 
     Map<Long, CallerCall> calls = WAMPTools.createSynchronizedMap();

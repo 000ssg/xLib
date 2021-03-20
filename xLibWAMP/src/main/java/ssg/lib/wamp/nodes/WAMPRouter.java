@@ -81,10 +81,12 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                 }
             }
         }
+        transport.addWAMPTransportMessageListener(tmListeners.get());
     }
 
     public void onClosedTransport(WAMPTransport transport) {
         WAMPSession session = sessions.remove(transport);
+        transport.removeWAMPTransportMessageListener(tmListeners.get());
         if (!listeners.isEmpty()) {
             for (WAMPNodeListener l : listeners.get()) {
                 if (l instanceof WAMPRouterNodeListener) {
@@ -375,6 +377,15 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
         void onNewTransport(WAMPTransport transport);
 
         void onClosedTransport(WAMPTransport transport);
+    }
+
+    /**
+     * Add transport add/remove events to standard node listener
+     */
+    public static interface WAMPRouterMessageListener extends WAMPNodeListener {
+
+        void onMessageReceived(WAMPTransport transport, WAMPMessage msg);
+        void onMessageSent(WAMPTransport transport, WAMPMessage msg);
     }
 
     /**

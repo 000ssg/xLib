@@ -35,7 +35,7 @@ import ssg.lib.http.dp.HttpResourceBytes.VirtualData;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class StubVirtualData<T> implements VirtualData {
 

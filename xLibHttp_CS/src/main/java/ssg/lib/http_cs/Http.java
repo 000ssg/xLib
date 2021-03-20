@@ -37,7 +37,7 @@ import ssg.lib.service.DF_Service;
  * constructor it may require to build intermediaries. The only no-build variant
  * is httpService+di.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Http {
 

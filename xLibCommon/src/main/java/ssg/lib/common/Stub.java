@@ -42,7 +42,7 @@ import ssg.lib.common.Stub.StubContext.PDIR;
  * [P]arameters - [T]ype elements. It also provides general parametrization,
  * generic evaluation of type, name, parameter direction.
  *
- * @author sesidoro
+ * @author 000ssg
  * @param <A> API - methods/types holder
  * @param <F> F function/procedure representation
  * @param <P> P parameter

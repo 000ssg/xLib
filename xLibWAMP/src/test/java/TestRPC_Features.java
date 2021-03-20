@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALL_INVOKE_KEY;
@@ -163,7 +164,7 @@ public class TestRPC_Features {
 
         callees[0].addExecutor(WAMPTools.createDict(RPC_CALL_INVOKE_KEY, InvocationPolicy.roundrobin), "A", new Callee() {
             @Override
-            public Future invoke(final CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+            public Future invoke(final CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                 return executor.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
@@ -183,7 +184,7 @@ public class TestRPC_Features {
 
         Callee sharedProc = new Callee() {
             @Override
-            public Future invoke(final CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+            public Future invoke(final CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                 return executor.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
@@ -206,7 +207,7 @@ public class TestRPC_Features {
 
         Callee shardedProc = new Callee() {
             @Override
-            public Future invoke(final CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+            public Future invoke(final CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                 return executor.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {

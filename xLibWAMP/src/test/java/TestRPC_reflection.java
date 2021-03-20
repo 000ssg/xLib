@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.nodes.WAMPClient;
@@ -103,7 +104,7 @@ public class TestRPC_reflection {
 
         Callee proc = new Callee() {
             @Override
-            public Future invoke(CalleeCall call, ExecutorService executor, String name, List args, Map argsKw) throws WAMPException {
+            public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, String name, List args, Map argsKw) throws WAMPException {
                 return executor.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {

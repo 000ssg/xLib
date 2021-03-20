@@ -37,6 +37,7 @@ import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
@@ -184,7 +185,7 @@ public class WAMP_TestRPC implements Runnable {
                     name,
                     new Callee() {
                 @Override
-                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                     return executor.submit(callable.getCallable(name, args, argsKw));
                 }
             });

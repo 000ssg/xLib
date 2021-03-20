@@ -38,6 +38,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+import ssg.lib.api.APIAccess;
 import ssg.lib.api.APIAttr;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.APIDataType;
@@ -52,6 +53,7 @@ import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpConnectionUpgrade;
 import ssg.lib.http.rest.MethodsProvider;
+import ssg.lib.http.rest.StubVirtualData;
 import ssg.lib.httpapi_cs.APIRunner;
 import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
@@ -60,6 +62,8 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -79,7 +83,7 @@ import ssg.lib.wamp.util.WAMPTools;
  * API runner defines WAMP/REST publishing and WAMP routing functionality to
  * enable simple mechanism of API exposure.
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class WAMPRunner extends APIRunner<WAMPClient> {
 
@@ -117,6 +121,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         return this;
     }
 
+    public WAMPRunner configure(WAMPTransportMessageListener l) {
+        initWamp();
+        wamp.configure(l);
+        return this;
+    }
+    
     @Override
     public WAMPRunner configureAPIStatistics(APIStatistics stat) {
         super.configureAPIStatistics(stat);
@@ -154,6 +164,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     }
 
     @Override
+    public WAMPRunner configureStub(StubVirtualData<?> stub) {
+        super.configureStub(stub);
+        return this;
+    }
+
+    @Override
     public void configUpdated(String key, Object oldValue, Object newValue) {
         super.configUpdated(key, oldValue, newValue);
         if (CFG_HTTP_PORT.equals(key)) {
@@ -171,7 +187,9 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     public WAMPClient caller(String realm) {
                         WAMPClient r = super.caller(realm);
                         if (r == null) try {
-                            r = connect(WAMPRunner.this.getRouterURI(), "authid", "wamp-rest-agent", realm, new WAMPFeature[]{}, WAMP.Role.caller);
+                            r = connect(WAMPRunner.this.getRouterURI(), "authid", "wamp-rest-agent", realm, new WAMPFeature[]{
+                                WAMPFeature.caller_identification
+                            }, WAMP.Role.caller);
                             if (r != null) {
                                 r.waitEstablished(1000L);
                                 addCallers(r);
@@ -352,7 +370,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                             wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null), wamp.connect(
                                     wsURI != null ? wsURI : wampRouterURI,
                                     "RoW-" + client.getRealm() + "-" + client.getAgent(),
-                                    new WAMPFeature[]{WAMPFeature.shared_registration},
+                                    new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
                                     group.authid,
                                     "RoW-" + client.getRealm(),
                                     client.getRealm(),
@@ -523,7 +541,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             APIStatistics apiStat = getAPIStatistics(null) != null ? getAPIStatistics(group).createChild(null, "REST:" + (procedure != null ? procedure : apiName)) : null;
 
             @Override
-            public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+            public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                 if (apiStat != null) {
                     apiStat.onTryInvoke();
                 }
@@ -535,6 +553,20 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                             Thread.currentThread().setName("exec_" + group.realm + "_" + name);
                             if (apiStat != null) {
                                 apiStat.onInvoke();
+                            }
+                            if (auth != null) {
+                                APIProcedure proc = api.getCallable(name, null).getAPIProcedure(argsKw);
+                                if (proc.access != null) {
+                                    long l = proc.access.get(auth.getAuthid()) | proc.access.get(auth.getRole());
+                                    if ((APIAccess.A_EXECUTE & l) == 0) {
+                                        throw new WAMPException("Access denied (not authorized): " + proc);
+                                    }
+                                }
+                            }else{
+                                APIProcedure proc = api.getCallable(name, null).getAPIProcedure(argsKw);
+                                if (proc.access != null) {
+                                        throw new WAMPException("Access denied (not authenticated): " + proc);
+                                }
                             }
                             return api.getCallable(name, null).call(argsKw);
                         } catch (Throwable th) {
@@ -582,7 +614,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     group.authid,
                     title + "_provider",
                     group.realm,
-                    new WAMPFeature[]{WAMPFeature.shared_registration},
+                    new WAMPFeature[]{WAMPFeature.shared_registration}, //, WAMPFeature.caller_identification},
                     WAMP.Role.callee, WAMP.Role.publisher, WAMP.Role.subscriber);
             return client;
         } catch (WAMPException wex) {

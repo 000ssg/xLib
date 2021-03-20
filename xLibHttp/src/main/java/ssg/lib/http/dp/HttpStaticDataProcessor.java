@@ -268,7 +268,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                 final HttpResponse resp = ((HttpRequest) data).getResponse();
                 final HttpResource respRes = res;
                 final Replacement[] replace = replacements;
-                resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType());
+                resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType(data));
                 resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
                 if (!isPreventCacheing(data)) {
                     resp.setHeader(HttpData.HH_CACHE_CONTROL, HttpData.HCC_PUBLIC + ", max-age=" + expires / 1000 + ", must-revalidate");
@@ -280,7 +280,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     resp.setHeader(HttpData.HH_EXPIRES, HttpData.toHeaderDatetime(timestamp + expires));
                 }
                 // disable compression of image files...
-                if (res.contentType().toLowerCase().contains("image")) {
+                if (res.contentType(data).toLowerCase().contains("image")) {
                     String s = resp.getHead().getHeader1(HttpData.HH_CONTENT_ENCODING);
                     if (s != null && HttpData.HTE_GZIP.equalsIgnoreCase(s)) {
                         resp.getHead().setHeader(HttpData.HH_CONTENT_ENCODING, null);
@@ -333,7 +333,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             } else {
                 byte[] buf = res.data(data, replacements);
                 HttpResponse resp = ((HttpRequest) data).getResponse();
-                resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType());
+                resp.setHeader(HttpData.HH_CONTENT_TYPE, res.contentType(data));
                 resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + buf.length);
                 if (!isPreventCacheing(data)) {
                     resp.setHeader(HttpData.HH_CACHE_CONTROL, HttpData.HCC_PUBLIC + ", max-age=" + expires / 1000 + ", must-revalidate");

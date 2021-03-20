@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import ssg.lib.wamp.WAMP;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.rpc.WAMPCallee;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.rpc.impl.Procedure;
@@ -54,6 +55,6 @@ public class CalleeProcedure extends Procedure {
             wc.yield_(call.session, call.getId(), false, args, argsKw);
         }
 
-        Future<T> invoke(CalleeCall call, ExecutorService executor, String name, List args, Map<String, Object> argsKw) throws WAMPException;
+        Future<T> invoke(CalleeCall call, ExecutorService executor, WAMPAuth auth, String name,  List args, Map<String, Object> argsKw) throws WAMPException;
     }
 }

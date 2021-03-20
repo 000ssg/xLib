@@ -382,11 +382,12 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
         if (WAMPMessagesFlow.WAMPFlowStatus.handled == r) {
             CalleeCall call = new CalleeCall(proc, details);
 
+            WAMPAuth auth = null;
             { // ensure caller authentication info is initialized/available if required or provided
                 boolean needAuth = proc.getOptions().containsKey(RPC_CALLER_ID_DISCLOSE_CALLER) && (Boolean) proc.getOptions().get(RPC_CALLER_ID_DISCLOSE_CALLER);
                 Long callerId = details.containsKey(RPC_CALLER_ID_KEY) ? ((Number) details.get(RPC_CALLER_ID_KEY)).longValue() : null;
 
-                WAMPAuth auth = (callerId != null) ? session.remoteAuth(msg) : null;
+                auth = (callerId != null) ? session.remoteAuth(msg) : null;
                 if (needAuth && callerId != null && auth == null || callerId != null && auth == null) {
                     auth = session.remoteAuth(callerId);
                 }
@@ -397,10 +398,11 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
             // if can - run immediately, otherwise prepare for delayed call
             if ((callsWIP.get() > getMaxConcurrentTasks())) {
                 final CalleeCall ccall = call;
+                final WAMPAuth wampAuth = auth;
                 ccall.delayed = () -> {
                     callsWIP.incrementAndGet();
                     // TODO: find stardard for actual procedure name evaluation, now rely on own "procedure" in details...
-                    return (Future) proc.callee.invoke(ccall, pool, procedure, args, argsKw);
+                    return (Future) proc.callee.invoke(ccall, pool, wampAuth, procedure, args, argsKw);
                 };
             } else {
                 callsWIP.incrementAndGet();
@@ -432,8 +434,8 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
 
             synchronized (calls) {
                 proc.wip.add(request);
-                // TODO: find stardard for actual procedure name evaluation, now rely on own "procedure" in details...
-                call.future = (call.hasDelayed()) ? null : proc.callee.invoke(call, pool, procedure, args, argsKw);
+                // 
+                call.future = (call.hasDelayed()) ? null : proc.callee.invoke(call, pool, auth, procedure, args, argsKw);
                 calls.put(request, call);
             }
         }

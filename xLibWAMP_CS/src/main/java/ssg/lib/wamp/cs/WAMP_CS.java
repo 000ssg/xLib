@@ -53,6 +53,7 @@ import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListenerDebug;
 import ssg.lib.wamp.WAMPRealm;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.events.WAMPBroker;
 import ssg.lib.wamp.events.WAMPEventListener.WAMPEventListenerBase;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_TOPIC_ON_CREATE;
@@ -323,7 +324,7 @@ public class WAMP_CS {
                     "PROC_1",
                     new Callee() {
                 @Override
-                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                     System.out.println(Thread.currentThread().getName() + ":invoke[" + args + "|" + argsKw + "]");
                     return executor.submit(new Callable() {
                         @Override

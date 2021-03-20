@@ -15,7 +15,7 @@ import ssg.lib.http.HttpUser;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class JWTUserVerifier implements UserVerifier {
 

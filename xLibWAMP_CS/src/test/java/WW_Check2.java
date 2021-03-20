@@ -54,6 +54,7 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListenerDebug;
 import ssg.lib.wamp.WAMPRealm;
 import ssg.lib.wamp.WAMPSession;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -476,7 +477,7 @@ public class WW_Check2 {
                                     "AAA",
                                     new Callee() {
                                 @Override
-                                public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                                public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                                     return executor.submit(new Callable() {
                                         @Override
                                         public Object call() throws Exception {

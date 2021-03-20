@@ -35,6 +35,7 @@ import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.impl.WAMPRPCListener.WAMPRPCListenerBase;
 import ssg.lib.wamp.WAMPConstantsBase;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListenerDebug;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_COUNT_CALLEES;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_REG_META_PROC_GET;
@@ -86,7 +87,7 @@ public class WAMPCyleTesterRPC {
                 if (client.hasRole(Role.callee)) {
                     client.addExecutor(WAMPTools.EMPTY_DICT, procA, new Callee() {
                         @Override
-                        public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                        public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                             return executor.submit(new Callable() {
                                 @Override
                                 public Object call() throws Exception {
@@ -115,7 +116,7 @@ public class WAMPCyleTesterRPC {
                     if (client.hasRole(Role.callee)) {
                         client.addExecutor(WAMPTools.EMPTY_DICT, procB, new Callee() {
                             @Override
-                            public Future invoke(CalleeCall call, ExecutorService executor, final String name, final List args, final Map argsKw) throws WAMPException {
+                            public Future invoke(CalleeCall call, ExecutorService executor, final WAMPAuth auth, final String name, final List args, final Map argsKw) throws WAMPException {
                                 return executor.submit(new Callable() {
                                     @Override
                                     public Object call() throws Exception {
