@@ -1231,7 +1231,7 @@ public class JSON implements Cloneable {
                     + "\n  c2b=" + c2b
                     + "\n  refl=" + refl
                     + "\n  buffer=" + buffer
-                    + "\n  iterator=" + iterator.toString().replace("\n", "\n  ")
+                    + (iterator != null ? "\n  iterator=" + iterator.toString().replace("\n", "\n  ") : "")
                     + "\n}";
         }
     }

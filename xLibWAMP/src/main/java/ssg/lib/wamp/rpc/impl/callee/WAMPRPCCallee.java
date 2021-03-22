@@ -52,6 +52,11 @@ import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.messages.WAMPMessageType;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure.Callee;
 import ssg.lib.wamp.rpc.WAMPCallee;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_CANCELED;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_INTERRUPTED;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_INVOCATION_ERROR;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_NO_EXECUTOR;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_TIMEOUT;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_DISCLOSE_CALLER;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_KEY;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_INVOCATION_PROCEDURE_EXACT_KEY;
@@ -543,7 +548,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                             call.getStatistics().onError();
                             call.getStatistics().onDuration(call.durationNano());
                         }
-                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, forcedTimeout ? "timeout.invocation.error" : "cancelled.invocation.error"));
+                        call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, forcedTimeout ? ERROR_RPC_TIMEOUT : ERROR_RPC_CANCELED));
                     } else if (call.future.isDone()) {
                         callsWIP.decrementAndGet();
                         call.proc.wip.remove(call.getId());
@@ -559,7 +564,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                                     call.getStatistics().onError();
                                     call.getStatistics().onDuration(call.durationNano());
                                 }
-                                call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "interrupted.invocation.error"));
+                                call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, ERROR_RPC_INTERRUPTED));
                             } catch (WAMPException wex) {
                                 if (call.getStatistics() != null) {
                                     call.getStatistics().onError();
@@ -569,7 +574,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                                         WAMPMessageType.T_INVOCATION,
                                         call.getId(),
                                         WAMPTools.EMPTY_DICT,
-                                        getClass().getName() + ".invocation.error",
+                                        wex.errorURI() != null ? wex.errorURI() : ERROR_RPC_INVOCATION_ERROR,
                                         WAMPTools.EMPTY_LIST,
                                         WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(wex))
                                 ));
@@ -582,7 +587,9 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                                         WAMPMessageType.T_INVOCATION,
                                         call.getId(),
                                         WAMPTools.EMPTY_DICT,
-                                        getClass().getName() + ".invocation.error",
+                                        (eex.getCause() instanceof WAMPException && ((WAMPException) eex.getCause()).errorURI() != null
+                                        ? ((WAMPException) eex.getCause()).errorURI()
+                                        : ERROR_RPC_INVOCATION_ERROR),
                                         WAMPTools.EMPTY_LIST,
                                         WAMPTools.createDict("stacktrace", WAMPTools.getStackTrace(eex))
                                 ));
@@ -611,7 +618,7 @@ public class WAMPRPCCallee extends WAMPRPC implements WAMPCallee {
                         call.getStatistics().onError();
                         call.getStatistics().onDuration(call.durationNano());
                     }
-                    call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, "no_executor.invocation.error"));
+                    call.session.send(WAMPMessage.error(WAMPMessageType.T_INVOCATION, call.getId(), WAMPTools.EMPTY_DICT, ERROR_RPC_NO_EXECUTOR));
                 }
             }
 

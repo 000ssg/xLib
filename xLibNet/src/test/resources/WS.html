@@ -3,7 +3,12 @@
     <head>
 
         <script>
-            var ws_1=new WebSocket("ws://127.0.0.1:18111/socketserver", "protocolOne");;
+            var ws_1=new WebSocket("ws://127.0.0.1:18111/socketserver", "protocolOne");
+            ws_1.onmessage = function(msg) {
+               var text=msg.data;
+               var el = document.getElementById('r1');
+               if(el) el.innerHTML="<pre>"+text+"</pre>";
+            }
 
             function do0() {
                 var el = document.getElementById('r0');

@@ -45,6 +45,7 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPRealm;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_PROVIDER;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.features.WAMP_FP_VirtualSession;
@@ -63,8 +64,10 @@ import ssg.lib.wamp.util.WAMPTools;
 public class REST_WAMP_MethodsProvider implements MethodsProvider {
 
     public static boolean DEBUG = false;
-    public static final String REQUEST_PARAM_NAME = "$$$";
+    public static final String REQUEST_PARAM_NAME = "$$$"; // used to pass HttpRequest info to enable use of HTTP-based authentication -> virtual WAMP sessions
+    // per-realm (WAMPClient, registered mapped REST-WAMP API calls, virtual sessions (mapped HTTP-uathenticated user -> virtual session)
     Map<String, WCI> callers = new LinkedHashMap<>();
+    // root statistics for per-realm clients
     APIStatistics baseStat;
 
     public REST_WAMP_MethodsProvider(APIStatistics stat, WAMPClient... callers) {
@@ -252,7 +255,10 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
                                                     call = new WAMPRPCListener.WAMPRPCListenerBase(options, WAMP_FP_VirtualSession.VS_REGISTER, Collections.emptyList(), WAMPTools.createDict(map -> {
                                                         map.put(K_AUTH_ID, authId);
                                                         map.put(K_AUTH_ROLE, authRole);
-                                                        map.put(K_AUTH_METHOD, authMethod);
+                                                        map.put(K_AUTH_METHOD, "any");
+                                                        map.put(K_AUTH_PROVIDER, authMethod);
+                                                        map.put("transport", "http");
+                                                        map.put("roles", user.getRoles());
                                                     })) {
                                                         @Override
                                                         public void onCancel(long callId, String reason) {
@@ -397,6 +403,7 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
         return r;
     }
 
+    // Converts java or WAMP types to Java class
     public Class type2class(Object type) {
         if (type instanceof Class) {
             return (Class) type;

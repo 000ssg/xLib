@@ -71,6 +71,8 @@ public class DemoApp_2 {
                                             : (data != null)
                                                     ? new String(data, "ISO-8859-1")
                                                     : ""));
+                                    // send echo message
+                                    ws.send("ECHO: " + (text != null ? text : data!=null ? new String(data, "ISO8859-1") : "<no text/data>"));
                                 } catch (Throwable th) {
                                     System.err.println("WS ERROR: " + th);
                                 }

@@ -42,6 +42,10 @@ public class LS<T> {
         return listeners.length == 0;
     }
 
+    public int size() {
+        return listeners.length;
+    }
+    
     public T[] get() {
         return listeners;
     }

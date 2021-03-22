@@ -263,9 +263,10 @@ public abstract class AnnotationsBasedMethodsProvider implements MethodsProvider
      * paths...
      *
      * @param wms
-     * @param pr
+     * @param pr REST provider
+     * @param ra REST access
      * @param providerPaths
-     * @param m
+     * @param m Method (java refl)
      * @param operationName
      * @param operationPaths
      * @return
@@ -281,7 +282,7 @@ public abstract class AnnotationsBasedMethodsProvider implements MethodsProvider
         int result = 0;
         List<RESTMethod> ms = null;//new ArrayList<RESTMethod>();
         for (String operationPath : operationPaths) {
-            for (String providerPath : (providerPaths != null && providerPaths.length > 0)
+            for (String providerPath : (1 == 0 && providerPaths != null && providerPaths.length > 0)
                     ? providerPaths
                     : new String[]{""}) {
                 RESTMethod mth = new RESTMethod();
@@ -325,7 +326,7 @@ public abstract class AnnotationsBasedMethodsProvider implements MethodsProvider
                     // if no annotation
                     if (wsp == null) {
                         wsp = new RESTParameter();
-                        wsp.setName("param" + i);
+                        wsp.setName(m.getParameters() != null && m.getParameters().length > i ? m.getParameters()[i].getName() : "param" + i);
                         wsp.setType(pts[i]);
                         mth.getParams().add(wsp);
                     }

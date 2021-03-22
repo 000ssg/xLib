@@ -54,7 +54,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
 public class WAMP_TestRPC implements Runnable {
 
     String wsURI = "ws://localhost:30020/ws";
-    String wsRealm = "OPENPOINT.TEST";
+    String wsRealm = "SUPER.TEST";
     WAMPFeature[] wsFeatures = new WAMPFeature[]{WAMPFeature.shared_registration};
 
     Thread runner;

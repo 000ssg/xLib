@@ -161,12 +161,15 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         String path = m.getPath();
         if (path == null || path.isEmpty()) {
             path = m.getName();
+            boolean fixed=false;
             if (path.startsWith("get") && path.length() > 3) {
                 path = path.substring(3);
+                fixed=true;
             } else if (path.startsWith("is") && path.length() > 2) {
                 path = path.substring(2);
+                fixed=true;
             }
-            if (Character.isUpperCase(path.charAt(0))) {
+            if (fixed && Character.isUpperCase(path.charAt(0))) {
                 path = path.substring(0, 1).toLowerCase() + path.substring(1);
             }
         }
@@ -220,12 +223,12 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
 //                } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
 //                    generateJS(req, req.getMatcher().getQueryPathParameter("js"));
 //                } else {
-                    HttpResponse resp = req.getResponse();
-                    resp.setResponseCode(500, "Server Error");
-                    resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
-                    resp.onHeaderLoaded();
-                    resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
-                    resp.onLoaded();
+                HttpResponse resp = req.getResponse();
+                resp.setResponseCode(500, "Server Error");
+                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+                resp.onHeaderLoaded();
+                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+                resp.onLoaded();
 //                }
                 return;
                 //throw new IOException("No REST method found for " + qrm.toString());
@@ -252,50 +255,18 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         RESTMethod m = prepareMethodAndParams(req, params);
 
         if (m == null) {
-//            if (params.containsKey("js")) {
-//                generateJS(req, "" + params.get("js"));
-//            } else if (req != null && req.getMatcher().hasQueryPathParameter("js")) {
-//                generateJS(req, req.getMatcher().getQueryPathParameter("js"));
-//            } else {
-                HttpResponse resp = req.getResponse();
-                resp.setResponseCode(500, "Server Error");
-                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
-                resp.onHeaderLoaded();
-                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
-                resp.onLoaded();
-//            }
+            HttpResponse resp = req.getResponse();
+            resp.setResponseCode(500, "Server Error");
+            resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+            resp.onHeaderLoaded();
+            resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+            resp.onLoaded();
             return;
             //throw new IOException("No REST method found for " + qrm.toString());
         } else {
             addProcessor(req, m, params);
         }
     }
-
-//    public void generateJS(HttpRequest data, String type) throws IOException {
-//        final HttpRequest req = (HttpRequest) data;
-//        HttpSession ctx = req.getHttpSession();
-//        RAT userRAT = (ctx != null) ? ctx.getRAT() : null;
-//        HttpResponse resp = req.getResponse();
-//        resp.setResponseCode(200, "OK");
-//        String namespace = root;
-//        if (namespace != null && namespace.contains("/")) {
-//            namespace = namespace.substring(namespace.lastIndexOf("/") + 1);
-//        }
-//        //Map<String, String[]> params = data.getMatcher().getParameters(data.getMatcher(), false);
-//        String apiJS = getRESTHelper().generateAPI(
-//                userRAT,
-//                (type != null) ? type : "js",
-//                getBaseURL(data),
-//                methods.values(),
-//                namespace, //root.replace("/", "_"),
-//                null);
-//        byte[] apiBIN = apiJS.getBytes("UTF-8");
-//        resp.setHeader(HttpData.HH_CONTENT_LENGTH, "" + apiBIN.length);
-//        resp.setHeader(HttpData.HH_CONTENT_TYPE, "text/javascript; encoding: utf-8");
-//        resp.onHeaderLoaded();
-//        resp.add(Collections.singletonList(ByteBuffer.wrap(apiBIN)));
-//        resp.onLoaded();
-//    }
 
     public RESTMethod prepareMethodAndParams(HttpRequest req, Map params) throws IOException {
         HttpMatcher qrm = req.getMatcher();
@@ -305,42 +276,6 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         if (req.canHaveFormParameters()) {
             req.getFormParameters(params);
         }
-//        if (req.getBody() instanceof MultipartBody) {
-//            MultipartBody mb = (MultipartBody) req.getBody();
-//            for (MultipartBody.Part part : mb.getParts()) {
-//                if (part.hasDisposition("form-data")) {
-//                    String s = part.getStringValue();
-//                    if (s == null) {
-//                        Object v = part.getValue();
-//                        params.put(part.name, v);
-//                    } else {
-//                        params.put(part.name, s);
-//                    }
-//
-//                }
-//            }
-//        } else if (req.getContentType() != null && req.getContentType().contains("www-form-urlencoded")) {
-//            try {
-//                String encoding = req.getContentCharset();
-//                String[] fparams = BufferTools.toText(encoding, req.getBody().data()).split("&");
-//                for (String fparam : fparams) {
-//                    int idx = fparam.indexOf("=");
-//                    if (idx == -1) {
-//                        // param without value
-//                        String pn = URLDecoder.decode(fparam, encoding);
-//                        params.put(pn, null);
-//                    } else {
-//                        String pn = fparam.substring(0, idx);
-//                        String pv = fparam.substring(idx + 1);
-//                        pn = URLDecoder.decode(pn, encoding);
-//                        pv = URLDecoder.decode(pv, encoding);
-//                        params.put(pn, pv);
-//                    }
-//                }
-//            } catch (Throwable th) {
-//                throw new IOException("Failed to parse www-form-urlencoded params: " + th, th);
-//            }
-//        }
 
         // get path-based matches
         HttpMatcher[] brms = bestMatches(parentRM, qrm);
@@ -353,6 +288,22 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                 RESTMethod[] ms = methods.get(brm);
                 RESTMethod m = RESTMethod.findBestWSMethod(Arrays.asList(ms), probeParams);
 
+                // do provider-level access check
+                if (m != null && m.getProvider() != null && m.getProvider().getAccess() != null) {
+                    HttpSession ctx = req.getHttpSession();
+                    if (ctx == null || !m.getAccess().test(ctx.getRAT())) {
+                        if (ctx.getUser() == null && ctx.getApplication() != null) {
+                            if (ctx.getApplication().doAuthentication(req)) {
+                                return null;
+                            }
+                        }
+                        throw new IOException("Not authorized to execute REST methods ('" + m.getName() + "') for " + m.getProvider().getName() + "/" + m.getProvider().getDescription()
+                                + "\n  need: " + m.getAccess().toString().replace("\n", "  ")
+                                + "\n  have: " + ("" + ctx.getRAT()).replace("\n", "  "));
+                    }
+                }
+
+                // do method-level access check
                 if (m != null && m.getAccess() != null) {
                     HttpSession ctx = req.getHttpSession();
                     if (ctx == null || !m.getAccess().test(ctx.getRAT())) {
@@ -361,9 +312,9 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                                 return null;
                             }
                         }
-                        throw new IOException("No access to REST method '" + m.getName() + "'"
-                                + "\n  need: " + m.getAccess().toString().replace("\n", "\n      ")
-                                + "\n  have: " + ("" + ctx.getRAT()).replace("\n", "\n      "));
+                        throw new IOException("Not authorized to execute REST method '" + m.getName() + "'"
+                                + "\n  need: " + m.getAccess().toString().replace("\n", "  ")
+                                + "\n  have: " + ("" + ctx.getRAT()).replace("\n", "  "));
                     }
                 }
 

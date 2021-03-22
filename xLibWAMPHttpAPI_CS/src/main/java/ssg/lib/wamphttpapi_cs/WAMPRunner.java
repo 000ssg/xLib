@@ -72,6 +72,8 @@ import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.nodes.WAMPRouter;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_NOT_AUTHENTICATED;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_NOT_AUTHORIZED;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -126,7 +128,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         wamp.configure(l);
         return this;
     }
-    
+
     @Override
     public WAMPRunner configureAPIStatistics(APIStatistics stat) {
         super.configureAPIStatistics(stat);
@@ -200,6 +202,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         return r;
                     }
                 };
+                // add listener for API reflection events to modify published REST-WAMP methods
                 wamp().getRouter().addWAMPNodeListener(new WAMPNodeListener() {
                     @Override
                     public void onCreatedRealm(WAMPNode node, WAMPRealm realm) {
@@ -557,15 +560,14 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                             if (auth != null) {
                                 APIProcedure proc = api.getCallable(name, null).getAPIProcedure(argsKw);
                                 if (proc.access != null) {
-                                    long l = proc.access.get(auth.getAuthid()) | proc.access.get(auth.getRole());
-                                    if ((APIAccess.A_EXECUTE & l) == 0) {
-                                        throw new WAMPException("Access denied (not authorized): " + proc);
+                                    if (!proc.access.hasAccess(APIAccess.A_EXECUTE, true, auth.getRole())) {
+                                        throw new WAMPException("Access denied (not authorized): " + proc, ERROR_RPC_NOT_AUTHORIZED);
                                     }
                                 }
-                            }else{
+                            } else {
                                 APIProcedure proc = api.getCallable(name, null).getAPIProcedure(argsKw);
                                 if (proc.access != null) {
-                                        throw new WAMPException("Access denied (not authenticated): " + proc);
+                                    throw new WAMPException("Access denied (not authenticated): " + proc, ERROR_RPC_NOT_AUTHENTICATED);
                                 }
                             }
                             return api.getCallable(name, null).call(argsKw);

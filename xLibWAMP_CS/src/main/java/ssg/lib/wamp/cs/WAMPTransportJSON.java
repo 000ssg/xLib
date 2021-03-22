@@ -248,6 +248,57 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
         listeners.remove(ls);
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("id=" + id);
+        sb.append(", listeners=" + listeners.size());
+        if (encoder != null) {
+            sb.append(", encoder=" + (encoder.getClass().isAnonymousClass() ? encoder.getClass().getName() : encoder.getClass().getSimpleName()));
+        }
+        if (decoder != null) {
+            sb.append(", decoder=" + (decoder.getClass().isAnonymousClass() ? decoder.getClass().getName() : decoder.getClass().getSimpleName()));
+        }
+        if (last != null) {
+            sb.append("\n  last=" + last.toList().toString().replace("\n", "\n    "));
+        }
+        sb.append("\n  provider=" + ("" + provider).replace("\n", "\n    "));
+        //sb.append("\n  transport=" + ("" + transport).replace("\n", "\n    "));
+//        if (statistics != null) {
+//            sb.append("\n  statistics=" + statistics.dumpStatistics(true).replace("\n", "\n    "));
+//        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 97 * hash + this.id;
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final WAMPTransportJSON<?> other = (WAMPTransportJSON<?>) obj;
+        if (this.id != other.id) {
+            return false;
+        }
+        return true;
+    }
+
     public static class TransportData {
 
         private List output;

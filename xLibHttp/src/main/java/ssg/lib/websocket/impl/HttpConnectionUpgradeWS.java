@@ -82,7 +82,12 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
         if (wsp != null) {
             httpws.ws.setProcessor(wsp);
         } else if (wsl != null) {
-            httpws.ws.getProcessor().addWebSocketMessageListener(wsl);
+            if (httpws.ws.getProcessor() != null) {
+                httpws.ws.getProcessor().addWebSocketMessageListener(wsl);
+            } else {
+                httpws.ws.setDefaultMessageListener(wsl);
+                //throw new IOException("Failed to upgrade to WebSocket: no processor assigned.");
+            }
         }
         return httpws;
     }

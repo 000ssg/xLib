@@ -56,7 +56,7 @@ import ssg.lib.common.CommonTools;
  * @author 000ssg
  */
 public class NetTools {
-    
+
     public static boolean delay(long duration) {
         try {
             Thread.sleep(duration);
@@ -65,7 +65,7 @@ public class NetTools {
             return false;
         }
     }
-    
+
     public static final long NI_OPT_UP = 0x0001;
     public static final long NI_OPT_LOOPBACK = 0x0002;
     public static final long NI_OPT_MULTICAST = 0x0004;
@@ -188,7 +188,7 @@ public class NetTools {
                 if (ni.isPointToPoint()) {
                     opts |= NI_OPT_P2P;
                 }
-                
+
                 if (ni_opts_include == null || (ni_opts_include & opts) != 0) {
                     if (ni_opts_exclude == null || (ni_opts_exclude & opts) == 0) {
                         result.add(ni);
@@ -199,11 +199,11 @@ public class NetTools {
         }
         return result;
     }
-    
+
     public static NetworkInterface getDefaultNetworkInterface() {
         for (NetworkInterface ni0 : getSupportedNetworkInterfaces(true, false, null, false, false)) {
             final NetworkInterface ni = ni0;
-            
+
             List<InterfaceAddress> ias = ni.getInterfaceAddresses();
             for (InterfaceAddress ia : ias) {
                 //System.out.println(" " + ni.getDisplayName() + "  " + ia.getAddress() + ", " + ia.getNetworkPrefixLength() + ", " + ia.getBroadcast() + ", " + ia.toString());
@@ -433,7 +433,7 @@ public class NetTools {
             if (ds != null) {
                 ds.close();
             }
-            
+
             if (ss != null) {
                 try {
                     ss.close();
@@ -479,7 +479,7 @@ public class NetTools {
         }
         return a;
     }
-    
+
     public static String httpGetText(URL url, Map<String, Object> headers, byte[] data) throws IOException {
         StringBuilder sb = new StringBuilder();
         int res = httpGet(url, headers, data, new HttpResult.HttpResultDebug() {
@@ -497,7 +497,7 @@ public class NetTools {
         });
         return sb.toString();
     }
-    
+
     public static int httpGet(URL url, Map<String, Object> headers, byte[] data, HttpResult result) throws IOException {
         long started = System.nanoTime();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -534,32 +534,39 @@ public class NetTools {
         }
         return conn != null ? conn.getResponseCode() : -1;
     }
-    
+
     public static interface HttpResult {
-        
+
         void onResult(HttpURLConnection conn, long startedNano) throws IOException;
-        
+
         void onError(HttpURLConnection conn, long startedNano) throws IOException;
-        
+
         public static class HttpResultDebug implements HttpResult {
-            
+
             boolean quiet = false;
-            
+            String title;
+
             public HttpResultDebug() {
             }
-            
+
             public HttpResultDebug(boolean quiet) {
                 this.quiet = quiet;
             }
-            
-            public void dump(HttpURLConnection conn, long startedNano, int responseCode, byte[] data) {
+
+            public HttpResultDebug(boolean quiet, String title) {
+                this.quiet = quiet;
+                this.title = title;
+            }
+
+            public void dump(HttpURLConnection conn, long startedNano, int responseCode, byte[] data) throws IOException {
                 if (!quiet) {
                     System.out.println(""
-                            + "--   Request: " + conn.getURL()
-                            + "\n  Response[" + (System.nanoTime() - startedNano) / 1000000f + "ms, " + data.length + "]: " + new String(data).replace("\n", "\n  "));
+                            + "--  Request: " + conn.getURL()
+                            + (title != null ? "\n    " + title : "")
+                            + "\n    Response[" + conn.getResponseCode() + " " + conn.getResponseMessage() + "  " + (System.nanoTime() - startedNano) / 1000000f + "ms, " + data.length + "]: " + new String(data).replace("\n", "\n  "));
                 }
             }
-            
+
             public void result(HttpURLConnection conn, long startedNano) throws IOException {
                 byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
                         ? conn.getErrorStream()
@@ -569,12 +576,12 @@ public class NetTools {
                 );
                 dump(conn, startedNano, conn.getResponseCode(), data);
             }
-            
+
             @Override
             public void onResult(HttpURLConnection conn, long startedNano) throws IOException {
                 this.result(conn, startedNano);
             }
-            
+
             @Override
             public void onError(HttpURLConnection conn, long startedNano) throws IOException {
                 this.result(conn, startedNano);

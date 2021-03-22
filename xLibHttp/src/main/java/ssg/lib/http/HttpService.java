@@ -79,6 +79,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
 
     public String defaultConnectionBehaviour = HttpData.HCONN_KEEP_ALIVE;
 
+    public static boolean DEBUG_SERVICE_ERROR = false;
     String name = "Http service";
     private long options = SPO_NO_OPTIONS;
     private Repository<DataProcessor> dataProcessors;
@@ -448,10 +449,10 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                     uRoot = "";
                 }
                 if (http instanceof HttpRequest && ((HttpRequest) http).getHttpSession().getApplication() != null) {
-                    String aRoot=((HttpRequest) http).getHttpSession().getApplication().getRoot();
-                    uRoot+=aRoot;
+                    String aRoot = ((HttpRequest) http).getHttpSession().getApplication().getRoot();
+                    uRoot += aRoot;
                 }
-                final String mRoot=uRoot;
+                final String mRoot = uRoot;
                 List<HttpConnectionUpgrade> cus = cur.find(new Matcher<HttpConnectionUpgrade>() {
                     @Override
                     public float match(HttpConnectionUpgrade t) {
@@ -524,14 +525,16 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     @Override
     public void onServiceError(P provider, DI<ByteBuffer, P> pd, Throwable error) throws IOException {
         HttpData http = (pd instanceof DIHttpData) ? ((DIHttpData) pd).http(provider) : null;
-        System.out.println(getClass().getSimpleName() + ".onServiceError:"
-                + "\n  provider: " + provider
-                + "\n  error   : " + error
-                + ((http != null)
-                        ? "\n  request : " + ((http instanceof HttpRequest) ? http.toString().replace("\n", "\n    ") : "<none>")
-                        + "\n  response: " + ((http instanceof HttpRequest) ? ("" + ((HttpRequest) http).getResponse()).replace("\n", "\n    ") : "<none>")
-                        : "")
-        );
+        if (DEBUG_SERVICE_ERROR) {
+            System.out.println(getClass().getSimpleName() + ".onServiceError:"
+                    + "\n  provider: " + provider
+                    + "\n  error   : " + error
+                    + ((http != null)
+                            ? "\n  request : " + ((http instanceof HttpRequest) ? http.toString().replace("\n", "\n    ") : "<none>")
+                            + "\n  response: " + ((http instanceof HttpRequest) ? ("" + ((HttpRequest) http).getResponse()).replace("\n", "\n    ") : "<none>")
+                            : "")
+            );
+        }
         if (http != null) {
             if (http instanceof HttpRequest) {
                 HttpRequest req = (HttpRequest) http;

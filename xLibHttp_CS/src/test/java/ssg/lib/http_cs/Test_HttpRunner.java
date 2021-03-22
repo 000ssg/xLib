@@ -23,16 +23,21 @@
  */
 package ssg.lib.http_cs;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collection;
-import ssg.lib.common.CommonTools;
+import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.HttpAuthenticator.Domain;
 import ssg.lib.http.HttpMatcher;
+import ssg.lib.http.RAT;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.ReflectiveMethodsProvider;
+import ssg.lib.http.rest.XMethodsProvider;
+import ssg.lib.http.rest.annotations.XAccess;
+import ssg.lib.http.rest.annotations.XMethod;
+import ssg.lib.http.rest.annotations.XParameter;
+import ssg.lib.http.rest.annotations.XType;
 
 /**
  *
@@ -58,28 +63,43 @@ public class Test_HttpRunner {
         }
     }
 
+    @XType(paths = "demo")
     public static class DemoHW2 {
 
+        @XAccess(roles = "admin")
+        @XMethod
         public Long getTimestamp() {
             return System.currentTimeMillis();
         }
 
-        public String getHello(String who) {
+//        @XAccess(roles = "admin")
+        @XMethod
+        public String getHello(@XParameter(name = "who") String who) {
             return "Hello2, " + who + "!";
         }
 
-        public int error() throws IOException {
+        @XAccess(roles = {"admin", "guest"})
+        @XMethod
+        public int getError() throws IOException {
             throw new IOException("Demo error");
         }
     }
 
     public static void main(String... args) throws Exception {
         int port = 30001;
-        HttpRunner r = new HttpRunner(new HttpApplication("aaa", "/app"))
+        HttpRunner r = new HttpRunner(new HttpApplication("aaa", "/app")
+                .configureBasicAuthentication(true)
+        )
                 .configureHttp(port)
                 .configureREST("rest");
+        r.getService()
+                .configureAuthentication(new Domain("def")
+                        .configureUser("aaa", "bbb", "def", new RAT().roles("admin", "super"))
+                        .configureUser("bbb", "bbb", "def", new RAT().roles("friend"))
+                );
         Collection<HttpMatcher> lst = r.getREST().registerProviders(
                 new MethodsProvider[]{
+                    new XMethodsProvider(),
                     new ReflectiveMethodsProvider().setClassNameInPath(true)
                 },
                 new DemoHW(),
@@ -89,29 +109,43 @@ public class Test_HttpRunner {
         //System.out.println(lst);
         r.start();
         try {
-            for (String s : new String[]{
-                "http://localhost:" + port + "/app/rest/demoHW/hello?who=a",
-                "http://localhost:" + port + "/app/rest/demoHW/time",
-                "http://localhost:" + port + "/app/rest/demoHW2/error"
+            for (String[] ss : new String[][]{
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demoHW/hello?who=a", "OK"},
+                {"http://localhost:" + port + "/app/rest/demoHW/time", "OK"},
+                {"http://localhost:" + port + "/app/rest/demoHW1/data", "OK"},
+                {"http://localhost:" + port + "/app/rest/demoHW2/hello?who=a", "OK"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demoHW2/hello?who=a", "OK"},
+                {"http://bbb:bbb@localhost:" + port + "/app/rest/demoHW2/hello?who=a", "OK"},
+                {"http://localhost:" + port + "/app/rest/demoHW2/timestamp", "OK"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demoHW2/timestamp", "OK"},
+                {"http://bbb:bbb@localhost:" + port + "/app/rest/demoHW2/timestamp", "OK"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demoHW2/error", "ERROR: demo error"},
+                {"http://localhost:" + port + "/app/rest/demo/hello?who=a", "OK"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demo/hello?who=a", "OK"},
+                {"http://bbb:bbb@localhost:" + port + "/app/rest/demo/hello?who=a", "OK"},
+                {"http://localhost:" + port + "/app/rest/demo/timestamp", "ERROR: Not authenticated"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demo/timestamp", "OK"},
+                {"http://bbb:bbb@localhost:" + port + "/app/rest/demo/timestamp", "ERROR: not authorized"},
+                {"http://aaa:bbb@localhost:" + port + "/app/rest/demo/error", "ERROR: demo error"}
             }) {
                 long started = System.nanoTime();
-                URL url = new URL(s);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                URL url = new URL(ss[0]);
                 try {
-                    conn.setDoInput(true);
-                    conn.setDoOutput(false);
-                    conn.connect();
-                    byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
-                            ? conn.getErrorStream()
-                            : conn.getResponseCode() > 300
-                            ? new ByteArrayInputStream((conn.getResponseCode() + " " + conn.getResponseMessage()).getBytes())
-                            : conn.getInputStream()
-                    );
-                    System.out.println(""
-                            + "--   Request: " + s
-                            + "\n  Response[" + (System.nanoTime() - started) / 1000000f + "ms, " + data.length + "]: " + new String(data));
+                    NetTools.httpGet(url, null, null, new NetTools.HttpResult.HttpResultDebug(false,"Expect: "+ss[1]));
+//                    conn.setDoInput(true);
+//                    conn.setDoOutput(false);
+//                    conn.connect();
+//                    byte[] data = CommonTools.loadInputStream(conn.getErrorStream() != null
+//                            ? conn.getErrorStream()
+//                            : conn.getResponseCode() > 300
+//                            ? new ByteArrayInputStream((conn.getResponseCode() + " " + conn.getResponseMessage()).getBytes())
+//                            : conn.getInputStream()
+//                    );
+//                    System.out.println(""
+//                            + "--   Request: " + s
+//                            + "\n  Response[" + (System.nanoTime() - started) / 1000000f + "ms, " + data.length + "]: " + new String(data));
                 } finally {
-                    conn.disconnect();
+//                    conn.disconnect();
                 }
             }
         } catch (Throwable th) {

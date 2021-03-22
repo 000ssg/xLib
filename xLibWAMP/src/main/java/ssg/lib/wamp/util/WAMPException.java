@@ -31,6 +31,8 @@ import java.io.IOException;
  */
 public class WAMPException extends IOException {
 
+    String errorURI;
+
     public WAMPException() {
     }
 
@@ -46,4 +48,22 @@ public class WAMPException extends IOException {
         super(cause);
     }
 
+    public WAMPException(String message, String errorURI) {
+        super(message);
+        this.errorURI = errorURI;
+    }
+
+    public WAMPException(String message, Throwable cause, String errorURI) {
+        super(message, cause);
+        this.errorURI = errorURI;
+    }
+
+    public WAMPException(Throwable cause, String errorURI) {
+        super(cause);
+        this.errorURI = errorURI;
+    }
+
+    public String errorURI() {
+        return errorURI;
+    }
 }

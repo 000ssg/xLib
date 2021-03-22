@@ -82,10 +82,57 @@ public class APIAccess implements Serializable, Cloneable {
         return (r != null) ? r : defaultAccess;
     }
 
-    public boolean hasACL(){
-        return access!=null && !access.isEmpty();
+    public boolean hasACL() {
+        return access != null && !access.isEmpty();
     }
-    
+
+    /**
+     * Get cumulative access for given names (roles).
+     *
+     * @param names
+     * @return
+     */
+    public Long getAccess(String... names) {
+        Long r = null;
+        if (names != null) {
+            for (String name : names) {
+                if (name == null) {
+                    continue;
+                }
+                Long l = access.get(name);
+                if (l != null) {
+                    if (r == null) {
+                        r = l;
+                    } else {
+                        r |= l;
+                    }
+                }
+            }
+        }
+        return r;
+    }
+
+    /**
+     * Returns true if given names (roles) has access mask (exact if all==true,
+     * any - if false). If no ACL - return true (default to enabled).
+     *
+     * @param mask
+     * @param all
+     * @param names
+     * @return
+     */
+    public boolean hasAccess(long mask, boolean all, String... names) {
+        if (hasACL()) {
+            Long l = getAccess(names);
+            return l != null
+                    && all
+                            ? (l & mask) == mask
+                            : (l & mask) != 0;
+        } else {
+            return true;
+        }
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

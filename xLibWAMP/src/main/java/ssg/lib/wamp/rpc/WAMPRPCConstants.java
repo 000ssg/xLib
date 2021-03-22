@@ -85,5 +85,15 @@ public class WAMPRPCConstants {
      * contexts... what is in WAMP spec?
      */
     public static final String RPC_INVOCATION_PROCEDURE_EXACT_KEY = "procedure"; // value - actual procedure name
+    /**
+     * Error codes for RPC
+     */
+    public static final String ERROR_RPC_NOT_AUTHENTICATED = "wamp.rpc.not_authenticated";
+    public static final String ERROR_RPC_NOT_AUTHORIZED = "wamp.rpc.not_authorized";
+    public static final String ERROR_RPC_INTERRUPTED = "wamp.rpc.interrupted";
+    public static final String ERROR_RPC_CANCELED = "wamp.rpc.canceled";
+    public static final String ERROR_RPC_TIMEOUT = "wamp.rpc.timeout";
+    public static final String ERROR_RPC_INVOCATION_ERROR = "wamp.rpc.invocation_error";
+    public static final String ERROR_RPC_NO_EXECUTOR = "wamp.rpc.no_executor";
 
 }

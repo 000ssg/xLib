@@ -26,6 +26,7 @@ package ssg.lib.wamp.nodes;
 import ssg.lib.wamp.util.WAMPException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.WAMPActor;
@@ -211,6 +212,7 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
         WAMPSession session = sessions.get(transport);
         if (session == WAMPSessionImpl.NO_SESSION) {
             session = null;
+            sessions.remove(transport);
         }
 
         if (session != null) {
@@ -327,8 +329,10 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
         }
         if (!sessions.isEmpty()) {
             sb.append("\n  Sessions[" + sessions.size() + "]:");
-            for (Object obj : sessions.values().toArray()) {
-                WAMPSession session = (WAMPSession) obj;
+            for (Entry<WAMPTransport, WAMPSession> entry : sessions.entrySet().toArray(new Entry[sessions.size()])) {
+                WAMPTransport transport = entry.getKey();
+                WAMPSession session = entry.getValue();
+                sb.append("\n    Transport: " + ("" + transport).replace("\n", "\n    "));
                 if (session == null) {
                     sb.append("\n   <none>");
                 } else {
@@ -385,6 +389,7 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
     public static interface WAMPRouterMessageListener extends WAMPNodeListener {
 
         void onMessageReceived(WAMPTransport transport, WAMPMessage msg);
+
         void onMessageSent(WAMPTransport transport, WAMPMessage msg);
     }
 
