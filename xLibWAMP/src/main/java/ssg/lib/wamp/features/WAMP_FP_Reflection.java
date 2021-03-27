@@ -99,16 +99,25 @@ public class WAMP_FP_Reflection implements WAMPFeatureProvider, WAMPNodeListener
         }
 
         public Collection<String> getNames(String category) {
+            Collection<String> r = new ArrayList<>();
             if (category.startsWith("t")) {
-                return types.keySet();
+                synchronized (types) {
+                    r.addAll(types.keySet());
+                }
             } else if (category.startsWith("p")) {
-                return procs.keySet();
+                synchronized (procs) {
+                    r.addAll(procs.keySet());
+                }
             } else if (category.startsWith("e")) {
-                return errors.keySet();
+                synchronized (errors) {
+                    r.addAll(errors.keySet());
+                }
             } else if (category.startsWith("p")) {
-                return pubs.keySet();
+                synchronized (pubs) {
+                    r.addAll(pubs.keySet());
+                }
             }
-            return Collections.emptySet();
+            return r;
         }
 
         public Map<String, Object> getMap(String category, String name) {

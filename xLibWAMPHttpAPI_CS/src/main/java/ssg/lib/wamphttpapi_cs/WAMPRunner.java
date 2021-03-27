@@ -27,8 +27,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,9 +39,11 @@ import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import ssg.lib.api.APIAccess;
 import ssg.lib.api.APIAttr;
+import ssg.lib.api.APIAuthContext;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.APIDataType;
 import ssg.lib.api.APIDataType.APICollectionType;
@@ -51,6 +55,7 @@ import ssg.lib.api.APIProcedure;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpConnectionUpgrade;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.StubVirtualData;
@@ -74,6 +79,7 @@ import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_NOT_AUTHENTICATED;
 import static ssg.lib.wamp.rpc.WAMPRPCConstants.ERROR_RPC_NOT_AUTHORIZED;
+import static ssg.lib.wamp.rpc.WAMPRPCConstants.RPC_CALLER_ID_DISCLOSE_CALLER;
 import ssg.lib.wamp.rpc.impl.callee.CalleeCall;
 import ssg.lib.wamp.rpc.impl.callee.CalleeProcedure;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -113,8 +119,16 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         super(app);
     }
 
+    public WAMPRunner(HttpAuthenticator auth, HttpApplication app) {
+        super(auth, app);
+    }
+
     public WAMPRunner(HttpApplication app, APIStatistics stat) {
         super(app, stat);
+    }
+
+    public WAMPRunner(HttpAuthenticator auth, HttpApplication app, APIStatistics stat) {
+        super(auth, app, stat);
     }
 
     public WAMPRunner configure(WAMPRealmFactory realmFactory) {
@@ -223,6 +237,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                                     || WAMP_FP_Reflection.WR_EVENT_ON_UNDEFINE.equals(msg.getUri(2))) {
                                 update_REST_WAMP(session.getRealm());
                             }
+                        } else if (msg.getType().getId() == WAMPMessageType.T_REGISTER) {
+                            if (msg.getDict(1).containsKey("reflection")) {
+                                update_REST_WAMP(session.getRealm());
+                            }
                         }
                     }
 
@@ -242,8 +260,64 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         }
     }
 
+    @Override
+    public void onAfterPublishAPI(URI wsURI, APIGroup group, Collection<String> names) {
+        try {
+            super.onAfterPublishAPI(wsURI, group, names);
+        } finally {
+            lockUrQueue.getAndDecrement();
+            update_REST_WAMP(null);
+        }
+    }
+
+    @Override
+    public void onBeforePublishAPI(URI wsURI, APIGroup group, Collection<String> names) {
+        try {
+            super.onBeforePublishAPI(wsURI, group, names);
+        } finally {
+            lockUrQueue.getAndIncrement();
+        }
+    }
+
+    transient private Collection<WAMPRealm> urQueue = new HashSet<>();
+    transient private AtomicInteger lockUrQueue = new AtomicInteger();
+
     public void update_REST_WAMP(WAMPRealm realm) {
-        getREST().registerProviders(new MethodsProvider[]{wampAsREST}, realm);
+        if (realm != null) {
+            if (lockUrQueue.get() > 0) {
+                synchronized (urQueue) {
+                    urQueue.add(realm);
+                }
+            } else {
+                System.out.println("Registering REST_WAMP(" + realm.getName() + ")");
+                getREST().registerProviders(new MethodsProvider[]{wampAsREST}, realm);
+            }
+        } else {
+            if (lockUrQueue.get() == 0) {
+                lockUrQueue.getAndIncrement();
+                try {
+                    synchronized (urQueue) {
+                        WAMPRealm[] rs = urQueue.toArray(new WAMPRealm[urQueue.size()]);
+                        System.out.println("Registering REST_WAMP(" + rs.length + " realms)");
+                        urQueue.clear();
+                        for (WAMPRealm r : rs) {
+                            System.out.println("Registering REST_WAMP(" + r.getName() + ")");
+                            getREST().registerProviders(new MethodsProvider[]{wampAsREST}, r);
+                        }
+
+                        for (WAMPRealm r : rs) {
+                            urQueue.remove(r);
+                        }
+                    }
+                } finally {
+                    lockUrQueue.getAndDecrement();
+                    if (!urQueue.isEmpty()) {
+                        update_REST_WAMP(null);
+                    }
+                }
+            }
+        }
+
     }
 
     /**
@@ -362,7 +436,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         if (client != null) {
             String apiKey = null;
             if (apiName == null && api == null) {
-                //client.connect();
+                if (!client.publish(WAMPTools.EMPTY_DICT, WAMP_FP_Reflection.WR_RPC_DEFINE, WAMPTools.EMPTY_LIST, WAMPTools.EMPTY_DICT)) {
+                    // TODO: error or notification that reflection is not supported due to missing "publisher" role?
+                    boolean est1 = client.isSessionEstablished();
+                    boolean can = client.canPublish();
+                    int a = 0;
+                }
             } else {
                 apiKey = group.realm + "/" + apiName;
             }
@@ -517,6 +596,11 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                                             }).collect(Collectors.toList()))
                                             .data("proc", procs[0].fqn())
                                     ).data();
+                            for (APIProcedure proc : procs) {
+                                if (proc.access != null) {
+                                    opts.put(RPC_CALLER_ID_DISCLOSE_CALLER, true);
+                                }
+                            }
                         } else {
                             opts = new HashMap() {
                                 {
@@ -570,7 +654,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                                     throw new WAMPException("Access denied (not authenticated): " + proc, ERROR_RPC_NOT_AUTHENTICATED);
                                 }
                             }
-                            return api.getCallable(name, null).call(argsKw);
+                            return api.getCallable(name, null).call(new WAMPAPIAuth(auth), argsKw);
                         } catch (Throwable th) {
                             if (apiStat != null) {
                                 apiStat.onError();
@@ -651,4 +735,50 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         }
         return null;
     }
+
+    public static class WAMPAPIAuth implements APIAuthContext {
+
+        WAMPAuth auth;
+
+        public WAMPAPIAuth(WAMPAuth auth) {
+            this.auth = auth;
+        }
+
+        @Override
+        public List<String> chain() {
+            return new ArrayList() {
+                {
+                    add("API");
+                    add("WAMP");
+                    add("http");
+                }
+            };
+        }
+
+        @Override
+        public String id() {
+            return auth != null ? auth.getAuthid() : null;
+        }
+
+        @Override
+        public String name() {
+            return auth != null ? auth.getAuthid() : null;
+        }
+
+        @Override
+        public String domain() {
+            return auth != null ? auth.getMethod() : null;
+        }
+
+        @Override
+        public String transport() {
+            return "WAMP";
+        }
+
+        @Override
+        public List<String> roles() {
+            return auth != null && auth.getRole() != null ? Collections.singletonList(auth.getRole()) : Collections.emptyList();
+        }
+    }
+
 }

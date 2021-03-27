@@ -263,6 +263,14 @@ public interface Stub<A, F, P, T> {
         public abstract String nameOf(Object obj);
 
         /**
+         * Returns optional extra path for method.
+         *
+         * @param method
+         * @return
+         */
+        public abstract String pathOf(F method);
+
+        /**
          * List of methods for rendering.
          *
          * @param api
@@ -406,6 +414,7 @@ public interface Stub<A, F, P, T> {
             sb.append("function(");
             String prefix = (compact) ? "" : "\n\t";
             if (!compact && context.returnType(m) != null) {
+                sb.append("\n\t// path: " + context.pathOf(m));
                 sb.append("\n\t// RETURNS: " + getStubMethodTypeNameForComment(context, context.returnType(m)));
             }
             boolean first = true;
@@ -561,6 +570,11 @@ public interface Stub<A, F, P, T> {
             } else {
                 return "instance";
             }
+        }
+
+        @Override
+        public String pathOf(Method method) {
+            return "";
         }
 
         @Override

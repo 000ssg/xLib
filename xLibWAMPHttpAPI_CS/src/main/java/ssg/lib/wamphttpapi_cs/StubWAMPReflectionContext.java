@@ -66,6 +66,11 @@ public class StubWAMPReflectionContext extends StubContext<WAMPRealm, Map, Map, 
     }
 
     @Override
+    public String pathOf(Map method) {
+        return "";
+    }
+
+    @Override
     public List<Map> methods(WAMPRealm api) {
         RR rr = rr(api);
         if (rr != null) {

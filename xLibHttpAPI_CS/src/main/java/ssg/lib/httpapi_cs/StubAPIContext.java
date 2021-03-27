@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import ssg.lib.api.API;
 import ssg.lib.api.APIDataType;
 import ssg.lib.api.APIFunction;
@@ -36,6 +35,7 @@ import ssg.lib.api.APIParameter;
 import ssg.lib.api.APIProcedure;
 import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
 import ssg.lib.common.Stub.StubContext;
+import ssg.lib.http.base.HttpData;
 
 /**
  *
@@ -53,6 +53,11 @@ public class StubAPIContext extends StubContext<API, APIProcedure, APIParameter,
             return ((APIItem) obj).fqn();
         }
         return null;
+    }
+
+    @Override
+    public String pathOf(APIProcedure method) {
+        return "";
     }
 
     @Override
@@ -74,7 +79,15 @@ public class StubAPIContext extends StubContext<API, APIProcedure, APIParameter,
     @Override
     public List<APIParameter> parameters(APIProcedure method) {
         if (method != null) {
-            return method.toParametersList((Map) method.params);
+            List<APIParameter> r = new ArrayList<>();
+            for (APIParameter p : method.params.values()) {
+                if (p == null || p.type == null || HttpData.class.isAssignableFrom(p.type.getJavaType())) {
+                    continue;
+                }
+                r.add(p);
+            }
+            return r;
+            //return method.toParametersList((Map) method.params);
         } else {
             return Collections.emptyList();
         }

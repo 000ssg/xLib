@@ -42,12 +42,12 @@ import ssg.lib.wamp.nodes.WAMPRouter;
  */
 public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
 
-    public StubWAMPVirtualData(WAMPRouter owner, String path, Stub... stubs) {
-        super(owner, path, stubs);
+    public StubWAMPVirtualData(String resPath, String basePath, WAMPRouter owner, Stub... stubs) {
+        super(resPath, basePath, owner, stubs);
     }
 
-    public StubWAMPVirtualData(WAMPRouter owner, String path, String... stubs) {
-        super(owner, path, stubs);
+    public StubWAMPVirtualData(String resPath, String basePath, WAMPRouter owner, String... stubs) {
+        super(resPath, basePath, owner, stubs);
     }
 
     @Override

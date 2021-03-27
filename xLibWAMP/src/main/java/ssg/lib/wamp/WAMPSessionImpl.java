@@ -88,6 +88,7 @@ public abstract class WAMPSessionImpl implements WAMPSession {
     private AtomicLong nextID = new AtomicLong(1);
 
     WAMPRealm realm;
+    WAMPMessage helloMessage;
     long id = 0; // no session: id MUST be > 0
     WAMPSessionState state = WAMPSessionState.open;
     WAMPParty local;
@@ -111,7 +112,7 @@ public abstract class WAMPSessionImpl implements WAMPSession {
     private WAMPSessionImpl() {
     }
 
-    public WAMPSessionImpl(WAMPRealm realm, Role... localRoles) throws WAMPException {
+    public WAMPSessionImpl(WAMPRealm realm, WAMPMessage hello, Role... localRoles) throws WAMPException {
         this.realm = realm;
         local = new WAMPParty(null, localRoles);
         flows.add(new WAMPSessionFlow());
@@ -122,6 +123,14 @@ public abstract class WAMPSessionImpl implements WAMPSession {
             flows.add(new WAMPRPCFlow());
         }
         adjustFeatureSets(realm.featureProviders);
+        if (local.isRouter() && hello != null) {
+            helloMessage = hello;
+        }
+    }
+
+    @Override
+    public WAMPMessage helloMessage() {
+        return helloMessage;
     }
 
     @Override

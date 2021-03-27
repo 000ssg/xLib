@@ -26,9 +26,9 @@
         <module>xLibService</module>
         <module>xLibHttp</module>
         <module>xLibNet</module>
+        <module>xLibWS_CS</module>
         <module>xLibHttp_CS</module>
         <module>xLibHttpAPI_CS</module>
-        <module>xLibWS_CS</module>
         <module>xLibWAMP_CS</module>
         <module>xLibWAMPHttpAPI_CS</module>
     </modules>

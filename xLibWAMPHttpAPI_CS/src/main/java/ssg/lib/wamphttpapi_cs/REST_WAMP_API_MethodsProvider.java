@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.API_Publisher;
+import ssg.lib.http.HttpUser;
 import ssg.lib.http.rest.RESTMethod;
 import ssg.lib.http.rest.RESTProvider;
 import ssg.lib.httpapi_cs.APIStatistics;
@@ -70,6 +71,7 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
 
     @Override
     public Runnable invokeAsync(
+            final HttpUser user,
             final RESTMethod method,
             final String name,
             final APICallable m,
@@ -127,7 +129,7 @@ public class REST_WAMP_API_MethodsProvider extends API_MethodsProvider {
             // no runnable is needed. callback is invoked via WAMPRPCListener event...
             return null;
         } else {
-            return super.invokeAsync(method, name, m, service, parameters, callback);
+            return super.invokeAsync(user, method, name, m, service, parameters, callback);
         }
     }
 

@@ -237,9 +237,9 @@ public abstract class WAMPNode implements WAMPSessionExtendedListener, WAMPRealm
      * @return
      * @throws WAMPException
      */
-    public WAMPSession createSession(WAMPTransport transport, WAMPRealm realm, Role... roles) throws WAMPException {
+    public WAMPSession createSession(WAMPTransport transport, WAMPMessage hello, WAMPRealm realm, Role... roles) throws WAMPException {
         try {
-            final WAMPSession session = new WAMPSessionImpl(realm, roles) {
+            final WAMPSession session = new WAMPSessionImpl(realm, hello, roles) {
                 @Override
                 public void doSend(WAMPMessage msg) throws WAMPException {
                     if (transport.isOpen()) {

@@ -231,6 +231,29 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                                     session.send(WAMPMessage.abort(WAMPTools.EMPTY_DICT, WAMPConstantsBase.ERROR_AuthorizationFailed));
                                     return WAMPFlowStatus.failed;
                                 }
+                            } else {
+                                try {
+                                    List<String> authMethods = (List<String>) session.helloMessage().getDict(1).get(K_AUTH_METHODS);
+                                    for (String s : authMethods) {
+                                        if (authMethod == null) {
+                                            authMethod = s;
+                                            ap = authProviders.get(authMethod);
+                                            if (ap != null) {
+                                                WAMPMessage challenge = ap.challenge(session, session.helloMessage());
+                                                if (challenge != null) {
+                                                    session.send(challenge);
+                                                    return WAMPFlowStatus.handled;
+                                                }
+                                            }
+                                            authMethod = null;
+                                        }
+                                        if (s.equals(authMethod)) {
+                                            authMethod = null;
+                                        }
+                                    }
+                                } catch (Throwable th) {
+                                    th.printStackTrace();
+                                }
                             }
                         }
                         // no auth or not authenticated...

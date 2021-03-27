@@ -35,8 +35,13 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import ssg.lib.api.API;
+import ssg.lib.api.APIAccess;
 import ssg.lib.api.APIAttr;
+import ssg.lib.api.APIAuthContext;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.APIItemCategory;
 import ssg.lib.api.APIParameterDirection;
@@ -196,6 +201,9 @@ public class Reflective_API_Builder {
                     f.usedIn.add(api);
                 }
             }
+            if (context.access != null) {
+                f.access = context.access.evalAccess(type, m);
+            }
 
             // errors/exceptions?
             Class[] errors = m.getExceptionTypes();
@@ -249,6 +257,9 @@ public class Reflective_API_Builder {
                     api.procs.put(f.name, ff);
                     f.usedIn.add(api);
                 }
+            }
+            if (context.access != null) {
+                f.access = context.access.evalAccess(type, m);
             }
 
             // errors/exceptions?
@@ -504,6 +515,7 @@ public class Reflective_API_Builder {
     public static class Reflective_API_Context {
 
         private ReflectiveFilter filter;
+        private ReflectiveAccessHelper access;
 
         public Reflective_API_Context() {
         }
@@ -515,6 +527,11 @@ public class Reflective_API_Builder {
         public <T extends Reflective_API_Context> T configure(ReflectiveFilter filter) {
             setFilter(filter);
             return (T) this;
+        }
+
+        public Reflective_API_Context configure(ReflectiveAccessHelper access) {
+            this.access = access;
+            return this;
         }
 
         /**
@@ -548,7 +565,7 @@ public class Reflective_API_Builder {
                     if ("getClass".equals(pn)) {
                         continue;
                     }
-                    if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().startsWith("get")) {
+                    if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().length() > 3 && m.getName().startsWith("get")) {
                         pn = pn.substring(3);
                         pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
                         Method[] pms = mms.get(pn);
@@ -558,7 +575,7 @@ public class Reflective_API_Builder {
                         } else {
                             pms[0] = m;
                         }
-                    } else if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().startsWith("is")) {
+                    } else if (m.getParameterCount() == 0 && m.getReturnType() != void.class && m.getName().length() > 2 && m.getName().startsWith("is")) {
                         pn = pn.substring(2);
                         pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
                         Method[] pms = mms.get(pn);
@@ -568,7 +585,7 @@ public class Reflective_API_Builder {
                         } else {
                             pms[0] = m;
                         }
-                    } else if (m.getParameterCount() == 1 && m.getReturnType() == void.class && m.getName().startsWith("set")) {
+                    } else if (m.getParameterCount() == 1 && m.getReturnType() == void.class && m.getName().length() > 3 && m.getName().startsWith("set")) {
                         pn = pn.substring(3);
                         pn = pn.substring(0, 1).toLowerCase() + pn.substring(1);
                         Method[] pms = mms.get(pn);
@@ -688,8 +705,18 @@ public class Reflective_API_Builder {
         }
 
         @Override
-        public <T> T call(Map<String, Object> params) throws APIException {
+        public <T> T call(APIAuthContext authContext, Map<String, Object> params) throws APIException {
             try {
+                if (proc.params != null) {
+                    for (Entry<String, APIParameter> e : proc.params.entrySet()) {
+                        if (APIAuthContext.class.isAssignableFrom(e.getValue().type.getJavaType())) {
+                            if (params.get(e.getKey()) == null) {
+                                params.put(e.getKey(), authContext);
+                                break;
+                            }
+                        }
+                    }
+                }
                 if (proc instanceof ReflAPIProcedure) {
                     Class type = ((ReflAPIProcedure) proc).type;
                     Method method = ((ReflAPIProcedure) proc).method;
@@ -737,6 +764,14 @@ public class Reflective_API_Builder {
                     Array.set(arr, off++, ci);
                 }
                 v = arr;
+            } else if (p.getType().isArray() && p.getType().getComponentType().isAssignableFrom(v.getClass())) {
+                try {
+                    Object a = Array.newInstance(p.getType().getComponentType(), 1);
+                    Array.set(a, 0, v);
+                    v = a;
+                } catch (SecurityException ex) {
+                    Logger.getLogger(Reflective_API_Builder.class.getName()).log(Level.SEVERE, null, ex);
+                }
             } else if (typeConverter != null) {
                 v = typeConverter.toType(p.getType(), v);
             }
@@ -751,4 +786,8 @@ public class Reflective_API_Builder {
         Object toType(Class type, Object value);
     }
 
+    public static interface ReflectiveAccessHelper {
+
+        APIAccess evalAccess(Class cl, Method m);
+    }
 }

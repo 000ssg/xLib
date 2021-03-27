@@ -32,7 +32,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import ssg.lib.http.HttpSession;
+import ssg.lib.api.APIAuthContext;
 import ssg.lib.http.HttpUser;
 import ssg.lib.http.base.HttpRequest;
 import ssg.lib.http.rest.MethodsProvider;
@@ -136,269 +136,263 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
                 wci = new WCI(null);
                 callers.put(pr.getName(), wci);
             }
-            for (String operationName : rr.getNames("proc")) {
-                List<RESTMethod> rms = new ArrayList<>();
-                try {
-                    for (Map<String, Object> map : rr.getMaps("proc", operationName)) {
-                        String keyPrint = methodKeyprint(operationName, map);
-                        if (wci.registered.contains(keyPrint)) {
-                            continue;
-                        }
-                        RESTMethod mth = new RESTMethod() {
-                            RESTMethod self = this;
-                            boolean inAsynch = false; // avoid short circuit...
-                            APIStatistics apiStat = baseStat != null ? baseStat.createChild(baseStat, "REST:" + operationName) : null;
-
-                            {
-                                if (apiStat != null) {
-                                    setProperty("apiStat", apiStat);
+            synchronized (rr) {
+                for (String operationName : rr.getNames("proc")) {
+                    List<RESTMethod> rms = new ArrayList<>();
+                    synchronized (wci.registered) {
+                        try {
+                            for (Map<String, Object> map : rr.getMaps("proc", operationName)) {
+                                String keyPrint = methodKeyprint(operationName, map);
+                                if (wci.registered.contains(keyPrint)) {
+                                    continue;
                                 }
-                            }
+                                RESTMethod mth = new RESTMethod() {
+                                    RESTMethod self = this;
+                                    boolean inAsynch = false; // avoid short circuit...
+                                    APIStatistics apiStat = baseStat != null ? baseStat.createChild(baseStat, "REST:" + operationName) : null;
 
-                            /**
-                             * Pass async invocation via method provider to
-                             * enable alternative solution.
-                             */
-                            @Override
-                            public Runnable invokeAsync(Object service, Map<String, Object> parameters, RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
-                                String realm = self.getProvider().getProperty("realm");
-                                WAMPClient caller = caller(realm);
-                                if (caller != null && caller.isConnected()) {
-                                    if (DEBUG) {
-                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "]: " + operationName + "(" + parameters + ")");
+                                    {
+                                        if (apiStat != null) {
+                                            setProperty("apiStat", apiStat);
+                                        }
                                     }
 
-                                    APIStatistics apiStat = self.getProperty("apiStat");
-                                    if (apiStat != null) {
-                                        apiStat.onTryInvoke();
-                                        apiStat.onInvoke();
-                                    }
-
-                                    // prepare the call
-                                    final long started = System.nanoTime();
-                                    Map<String, Object> options = WAMPTools.createDict(RPC_CALLER_ID_DISCLOSE_ME, true);
-                                    WAMPRPCListener.WAMPRPCListenerBase call = new WAMPRPCListener.WAMPRPCListenerBase(options, operationName, Collections.emptyList(), parameters) {
-                                        @Override
-                                        public void onCancel(long callId, String reason) {
-                                            if (apiStat != null) {
-                                                apiStat.onDone();
-                                            }
+                                    /**
+                                     * Pass async invocation via method provider
+                                     * to enable alternative solution.
+                                     */
+                                    @Override
+                                    public Runnable invokeAsync(HttpUser user, Object service, Map<String, Object> parameters, RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
+                                        String realm = self.getProvider().getProperty("realm");
+                                        WAMPClient caller = caller(realm);
+                                        if (caller != null && caller.isConnected()) {
                                             if (DEBUG) {
-                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - CANCEL [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
+                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "]: " + operationName + "(" + parameters + ")");
                                             }
-                                            callback.onResult(self, service, parameters, null, System.nanoTime() - started, null, reason);
-                                        }
 
-                                        @Override
-                                        public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                                            APIStatistics apiStat = self.getProperty("apiStat");
                                             if (apiStat != null) {
-                                                apiStat.onDone();
+                                                apiStat.onTryInvoke();
+                                                apiStat.onInvoke();
                                             }
-                                            if (DEBUG) {
-                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - RESULT [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
-                                            }
-                                            callback.onResult(self, service, parameters, (argsKw != null) ? argsKw : args, System.nanoTime() - started, null, null);
-                                            return true;
-                                        }
 
-                                        @Override
-                                        public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                                            if (apiStat != null) {
-                                                apiStat.onError();
-                                            }
-                                            if (DEBUG) {
-                                                System.out.println("" + getClass().getName() + ".invokeAsync: WAMP[" + caller.getAgent() + "] - ERROR  [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
-                                            }
-                                            callback.onResult(self, service, parameters, (argsKw != null) ? argsKw : args, System.nanoTime() - started, null, error);
-                                        }
-                                    };
-
-                                    // adjust user session (virtual session if any)
-                                    HttpRequest req = null;
-                                    for (String key : parameters.keySet()) {
-                                        Object v = parameters.get(key);
-                                        if (v instanceof HttpRequest) {
-                                            req = (HttpRequest) v;
-                                            break;
-                                        }
-                                    }
-                                    if (parameters.containsKey(REQUEST_PARAM_NAME)) {
-                                        parameters.remove(REQUEST_PARAM_NAME);
-                                    }
-
-                                    if (req != null) {
-                                        HttpSession sess = req.getHttpSession();
-                                        HttpUser user = sess.getUser();
-                                        if (user != null) {
-                                            // virtual session id (if any)
-                                            Long id = null;
-
-                                            // registered/to be registered ids
-                                            Map<String, VSI> vss = virtualSessions(realm);
-                                            synchronized (vss) {
-                                                String un = user.getId();
-                                                String ur = "guest";
-                                                if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-                                                    ur = user.getRoles().get(0);
+                                            // prepare the call
+                                            final long started = System.nanoTime();
+                                            Map<String, Object> options = WAMPTools.createDict(RPC_CALLER_ID_DISCLOSE_ME, true);
+                                            WAMPRPCListener.WAMPRPCListenerBase call = new WAMPRPCListener.WAMPRPCListenerBase(options, operationName, Collections.emptyList(), parameters) {
+                                                @Override
+                                                public void onCancel(long callId, String reason) {
+                                                    if (apiStat != null) {
+                                                        apiStat.onDone();
+                                                    }
+                                                    if (DEBUG) {
+                                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - CANCEL [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
+                                                    }
+                                                    callback.onResult(self, service, parameters, null, System.nanoTime() - started, null, reason);
                                                 }
-                                                String uk = un + ":" + ur;
-                                                VSI vs = vss.get(uk);
-                                                if (vs == null) {
-                                                    // initialize virtual session evaluation, replace call with it, on success add for execution original call.
-                                                    vs = new VSI();
-                                                    vss.put(uk, vs);
-                                                    vs.waitingCalls.add(call);
-                                                    final VSI vsi = vs;
-                                                    final String authId = un;
-                                                    final String authRole = ur;
-                                                    final String authMethod = (String) user.getProperties().get("authMethod");
-                                                    call = new WAMPRPCListener.WAMPRPCListenerBase(options, WAMP_FP_VirtualSession.VS_REGISTER, Collections.emptyList(), WAMPTools.createDict(map -> {
-                                                        map.put(K_AUTH_ID, authId);
-                                                        map.put(K_AUTH_ROLE, authRole);
-                                                        map.put(K_AUTH_METHOD, "any");
-                                                        map.put(K_AUTH_PROVIDER, authMethod);
-                                                        map.put("transport", "http");
-                                                        map.put("roles", user.getRoles());
-                                                    })) {
-                                                        @Override
-                                                        public void onCancel(long callId, String reason) {
-                                                            vsi.id = 0;
-                                                            if (DEBUG) {
-                                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - CANCEL REGISTER VIRTUAL SESSION [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
-                                                            }
-                                                            synchronized (vsi.waitingCalls) {
-                                                                WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
-                                                                vsi.waitingCalls.clear();
-                                                                for (WAMPRPCListener l : ls) {
-                                                                    l.onCancel(l.getCallId(), reason);
-                                                                }
-                                                            }
-                                                        }
 
-                                                        @Override
-                                                        public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                                                            vsi.id = (Long) args.get(0);
-                                                            if (DEBUG) {
-                                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - REGISTERED VIRTUAL SESSION, " + vsi.id + " [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName);
-                                                            }
-                                                            synchronized (vsi.waitingCalls) {
-                                                                WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
-                                                                vsi.waitingCalls.clear();
-                                                                for (WAMPRPCListener l : ls) {
-                                                                    try {
-                                                                        l.getOptions().put(RPC_CALLER_ID_KEY, vsi.id);
-                                                                        caller.addWAMPRPCListener(l);
-                                                                    } catch (WAMPException wex) {
-                                                                        wex.printStackTrace();
+                                                @Override
+                                                public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                                                    if (apiStat != null) {
+                                                        apiStat.onDone();
+                                                    }
+                                                    if (DEBUG) {
+                                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - RESULT [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
+                                                    }
+                                                    callback.onResult(self, service, parameters, (argsKw != null) ? argsKw : args, System.nanoTime() - started, null, null);
+                                                    return true;
+                                                }
+
+                                                @Override
+                                                public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                                                    if (apiStat != null) {
+                                                        apiStat.onError();
+                                                    }
+                                                    if (DEBUG) {
+                                                        System.out.println("" + getClass().getName() + ".invokeAsync: WAMP[" + caller.getAgent() + "] - ERROR  [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
+                                                    }
+                                                    callback.onResult(self, service, parameters, (argsKw != null) ? argsKw : args, System.nanoTime() - started, null, error);
+                                                }
+                                            };
+
+                                            if (user != null) {
+                                                if (user != null) {
+                                                    // virtual session id (if any)
+                                                    Long id = null;
+
+                                                    // registered/to be registered ids
+                                                    Map<String, VSI> vss = virtualSessions(realm);
+                                                    synchronized (vss) {
+                                                        String un = user.getId();
+                                                        String ur = "guest";
+                                                        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                                                            ur = user.getRoles().get(0);
+                                                        }
+                                                        String uk = un + ":" + ur;
+                                                        VSI vs = vss.get(uk);
+                                                        if (vs == null) {
+                                                            // initialize virtual session evaluation, replace call with it, on success add for execution original call.
+                                                            vs = new VSI();
+                                                            vss.put(uk, vs);
+                                                            vs.waitingCalls.add(call);
+                                                            final VSI vsi = vs;
+                                                            final String authId = un;
+                                                            final String authRole = ur;
+                                                            final String authMethod = (String) user.getProperties().get("authMethod");
+                                                            call = new WAMPRPCListener.WAMPRPCListenerBase(options, WAMP_FP_VirtualSession.VS_REGISTER, Collections.emptyList(), WAMPTools.createDict(map -> {
+                                                                map.put(K_AUTH_ID, authId);
+                                                                map.put(K_AUTH_ROLE, authRole);
+                                                                map.put(K_AUTH_METHOD, "any");
+                                                                map.put(K_AUTH_PROVIDER, authMethod);
+                                                                map.put("transport", "http");
+                                                                map.put("roles", user.getRoles());
+                                                            })) {
+                                                                @Override
+                                                                public void onCancel(long callId, String reason) {
+                                                                    vsi.id = 0;
+                                                                    if (DEBUG) {
+                                                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - CANCEL REGISTER VIRTUAL SESSION [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + "(" + parameters + ")");
+                                                                    }
+                                                                    synchronized (vsi.waitingCalls) {
+                                                                        WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
+                                                                        vsi.waitingCalls.clear();
+                                                                        for (WAMPRPCListener l : ls) {
+                                                                            l.onCancel(l.getCallId(), reason);
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                @Override
+                                                                public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                                                                    vsi.id = (Long) args.get(0);
+                                                                    if (DEBUG) {
+                                                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - REGISTERED VIRTUAL SESSION, " + vsi.id + " [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName);
+                                                                    }
+                                                                    synchronized (vsi.waitingCalls) {
+                                                                        WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
+                                                                        vsi.waitingCalls.clear();
+                                                                        for (WAMPRPCListener l : ls) {
+                                                                            try {
+                                                                                l.getOptions().put(RPC_CALLER_ID_KEY, vsi.id);
+                                                                                caller.addWAMPRPCListener(l);
+                                                                            } catch (WAMPException wex) {
+                                                                                wex.printStackTrace();
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    return true;
+                                                                }
+
+                                                                @Override
+                                                                public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
+                                                                    vsi.id = 0;
+                                                                    if (DEBUG) {
+                                                                        System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - REGISTER VIRTUAL SESSION FAILED [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + " -> " + error);
+                                                                    }
+                                                                    synchronized (vsi.waitingCalls) {
+                                                                        WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
+                                                                        vsi.waitingCalls.clear();
+                                                                        for (WAMPRPCListener l : ls) {
+                                                                            l.onError(l.getCallId(), error, details, args, argsKw);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            };
+                                                        } else {
+                                                            if (vs.id < 0) {
+                                                                // add to waiting queue (if not proceded while waitd...
+                                                                synchronized (vs.waitingCalls) {
+                                                                    if (vs.id < 0) {
+                                                                        vs.waitingCalls.add(call);
+                                                                        call = null;
                                                                     }
                                                                 }
                                                             }
-                                                            return true;
-                                                        }
-
-                                                        @Override
-                                                        public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
-                                                            vsi.id = 0;
-                                                            if (DEBUG) {
-                                                                System.out.println("" + getClass().getName() + ".invokeAsync: REST over WAMP[" + caller.getAgent() + "] - REGISTER VIRTUAL SESSION FAILED [" + (System.nanoTime() - started) / 1000000f + "ms]: " + operationName + " -> " + error);
-                                                            }
-                                                            synchronized (vsi.waitingCalls) {
-                                                                WAMPRPCListener[] ls = vsi.waitingCalls.toArray(new WAMPRPCListener[vsi.waitingCalls.size()]);
-                                                                vsi.waitingCalls.clear();
-                                                                for (WAMPRPCListener l : ls) {
-                                                                    l.onError(l.getCallId(), error, details, args, argsKw);
-                                                                }
-                                                            }
-                                                        }
-                                                    };
-                                                } else {
-                                                    if (vs.id < 0) {
-                                                        // add to waiting queue (if not proceded while waitd...
-                                                        synchronized (vs.waitingCalls) {
-                                                            if (vs.id < 0) {
-                                                                vs.waitingCalls.add(call);
+                                                            if (vs.id > 0) {
+                                                                vs.lastUsed = System.currentTimeMillis();
+                                                                options.put(RPC_CALLER_ID_KEY, vs.id);
+                                                            } else if (vs.id == 0) {
+                                                                call.onError(0, "access.denied", WAMPTools.EMPTY_DICT, WAMPTools.EMPTY_LIST, WAMPTools.EMPTY_DICT);
                                                                 call = null;
                                                             }
                                                         }
                                                     }
-                                                    if (vs.id > 0) {
-                                                        vs.lastUsed = System.currentTimeMillis();
-                                                        options.put(RPC_CALLER_ID_KEY, vs.id);
-                                                    } else if (vs.id == 0) {
-                                                        call.onError(0, "access.denied", WAMPTools.EMPTY_DICT, WAMPTools.EMPTY_LIST, WAMPTools.EMPTY_DICT);
-                                                        call = null;
-                                                    }
                                                 }
                                             }
+
+                                            if (call != null) {
+                                                caller.addWAMPRPCListener(call);
+                                            }
+                                            // no runnable is needed. callback is invoked via WAMPRPCListener event...
+                                            return null;
+                                        } else {
+                                            throw new IOException("No connection to WAMP service!");
                                         }
                                     }
 
-                                    if (call != null) {
-                                        caller.addWAMPRPCListener(call);
+                                    /**
+                                     * Replace reflective invocation with
+                                     * DBCaller call providing proper
+                                     * parametrization.
+                                     */
+                                    @Override
+                                    public <T> T invoke(HttpUser user, Object service, Object[] parameters) throws IOException {
+                                        throw new IOException("Only asynchronous calls are supported!");
                                     }
-                                    // no runnable is needed. callback is invoked via WAMPRPCListener event...
-                                    return null;
-                                } else {
-                                    throw new IOException("No connection to WAMP service!");
+                                };
+                                mth.setProvider(pr);
+                                //mth.setMethod(m);
+                                mth.setName(operationName);
+                                mth.setPath("");
+
+                                boolean hasRequest = false;
+                                int pri = 0;
+                                List<Map<String, Object>> params = (List) map.get("parameters");
+                                if (params != null) {
+                                    for (Map<String, Object> prm : params) {
+                                        if (HttpRequest.class.isAssignableFrom(type2class(prm.get("type")))) {
+                                            hasRequest = true;
+                                            continue;
+                                        }
+                                        if (APIAuthContext.class.isAssignableFrom(type2class(prm.get("type")))) {
+                                            continue;
+                                        }
+                                        if ((!prm.containsKey("direction") || prm.get("direction").toString().contains("in"))) {
+                                            RESTParameter wsp = new RESTParameter();
+                                            wsp.setName((String) prm.get("name"));
+                                            wsp.setType(type2class(prm.get("type")));
+                                            wsp.setOptional(prm.containsKey("optional") && Boolean.TRUE.equals(prm.get("optional")));
+                                            mth.getParams().add(wsp);
+                                            pri++;
+                                        }
+                                    }
                                 }
-                            }
-
-                            /**
-                             * Replace reflective invocation with DBCaller call
-                             * providing proper parametrization.
-                             */
-                            @Override
-                            public <T> T invoke(Object service, Object[] parameters) throws IOException {
-                                throw new IOException("Only asynchronous calls are supported!");
-                            }
-                        };
-                        mth.setProvider(pr);
-                        //mth.setMethod(m);
-                        mth.setName(operationName);
-                        mth.setPath("");
-
-                        boolean hasRequest = false;
-                        int pri = 0;
-                        List<Map<String, Object>> params = (List) map.get("parameters");
-                        if (params != null) {
-                            for (Map<String, Object> prm : params) {
-                                if ((!prm.containsKey("direction") || prm.get("direction").toString().contains("in"))) {
+                                if (1 == 0 && !hasRequest) {
+                                    // need to add HttpRequest to enable http-authenticated identity...
                                     RESTParameter wsp = new RESTParameter();
-                                    wsp.setName((String) prm.get("name"));
-                                    wsp.setType(type2class(prm.get("type")));
-                                    if (!hasRequest && HttpRequest.class.isAssignableFrom(wsp.getType())) {
-                                        hasRequest = true;
-                                    }
-                                    wsp.setOptional(prm.containsKey("optional") && Boolean.TRUE.equals(prm.get("optional")));
+                                    wsp.setName(REQUEST_PARAM_NAME);
+                                    wsp.setType(HttpRequest.class);
+                                    wsp.setOptional(true);
                                     mth.getParams().add(wsp);
                                     pri++;
                                 }
+
+                                if (map.containsKey("returns")) {
+                                    mth.setReturnType(type2class(((Map) map.get("returns")).get("type")));
+                                }
+                                rms.add(mth);
+                                wci.registered.add(keyPrint);
                             }
-                        }
-                        if (!hasRequest) {
-                            // need to add HttpRequest to enable http-authenticated identity...
-                            RESTParameter wsp = new RESTParameter();
-                            wsp.setName(REQUEST_PARAM_NAME);
-                            wsp.setType(HttpRequest.class);
-                            wsp.setOptional(true);
-                            mth.getParams().add(wsp);
-                            pri++;
+                        } catch (Throwable th) {
+                            th.printStackTrace();
                         }
 
-                        if (map.containsKey("returns")) {
-                            mth.setReturnType(type2class(((Map) map.get("returns")).get("type")));
+                        if (!rms.isEmpty()) {
+                            r.put(operationName, rms);
                         }
-                        rms.add(mth);
-                        wci.registered.add(keyPrint);
-                    }
-                } catch (Throwable th) {
-                    th.printStackTrace();
+                    } // END synchronized wci.registered
                 }
-
-                if (!rms.isEmpty()) {
-                    r.put(operationName, rms);
-                }
-            }
+            } // END synchronized rr
         }
         return r;
     }
@@ -495,5 +489,4 @@ public class REST_WAMP_MethodsProvider implements MethodsProvider {
         long lastUsed = System.currentTimeMillis();
         List<WAMPRPCListener> waitingCalls = new ArrayList<>();
     }
-
 }

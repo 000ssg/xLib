@@ -193,28 +193,57 @@ public class WAMPRealm implements Serializable, Cloneable {
         sb.append(name);
         sb.append(", actors=");
         sb.append(actors.size());
+        if (featureProviders != null) {
+            sb.append(", feature providers=");
+            sb.append(featureProviders.size());
+        }
+        sb.append(", auth providers=");
+        sb.append(authProviders.size());
+        sb.append(", session verifiers=");
+        sb.append(sessionVerifiers.size());
         if (!actors.isEmpty()) {
+            sb.append("\n  actors:");
             Collection duplicates = new HashSet();
             for (Entry<Role, WAMPActor> entry : actors.entrySet()) {
-                sb.append("\n  ");
+                sb.append("\n    ");
                 sb.append(entry.getKey());
                 sb.append(": ");
                 if (duplicates.contains(entry.getValue())) {
                     sb.append("#DUP:" + entry.getValue().getClass().getName());
                 } else {
-                    sb.append(entry.getValue().toString().replace("\n", "\n  "));
+                    sb.append(entry.getValue().toString().replace("\n", "\n    "));
                 }
                 duplicates.add(entry.getValue());
             }
-            sb.append('\n');
         }
-        if (getStatistics() != null) {
-            if (sb.charAt(sb.length() - 1) != '\n') {
-                sb.append('\n');
+
+        if (featureProviders != null && !featureProviders.isEmpty()) {
+            sb.append("\n  feature providers:");
+            for (Entry<WAMPFeature, WAMPFeatureProvider> e : featureProviders.entrySet()) {
+                sb.append("\n    " + e.getKey());
+                sb.append("\n      " + e.getValue().toString().replace("\n", "\n      "));
             }
-            sb.append("  " + getStatistics().dumpStatistics(false).replace("\n", "\n  "));
-            sb.append('\n');
         }
+
+        if (!authProviders.isEmpty()) {
+            sb.append("\n  auth providers:");
+            for (WAMPAuthProvider ap : authProviders) {
+                sb.append("\n    " + ap.toString().replace("\n", "\n    "));
+            }
+        }
+        if (!sessionVerifiers.isEmpty()) {
+            sb.append("\n  session verifiers:");
+            for (SessionVerifier sp : sessionVerifiers.get()) {
+                sb.append("\n    " + sp.toString().replace("\n", "\n    "));
+            }
+        }
+
+        if (getStatistics()
+                != null) {
+            sb.append("\n  " + getStatistics().dumpStatistics(false).replace("\n", "\n  "));
+        }
+
+        sb.append('\n');
         sb.append('}');
         return sb.toString();
     }
@@ -247,6 +276,7 @@ public class WAMPRealm implements Serializable, Cloneable {
         if (!sessionVerifiers.isEmpty()) {
             for (SessionVerifier verifier : sessionVerifiers.get()) {
                 verifier.verifySession(this, session, auth);
+
             }
         }
     }

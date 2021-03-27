@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.api.API;
+import ssg.lib.api.APIAuthContext;
 import ssg.lib.api.APICallable;
 import ssg.lib.api.util.APIException;
 import static ssg.lib.api.APIParameterDirection.in_out;
@@ -209,7 +210,7 @@ public class DB_API extends API {
         }
 
         @Override
-        public <T> T call(Map<String, Object> params) throws APIException {
+        public <T> T call(APIAuthContext authContext, Map<String, Object> params) throws APIException {
             APIResult r = new APIResult();
 
             Connection connection = getConnectable().getConnection(1000);

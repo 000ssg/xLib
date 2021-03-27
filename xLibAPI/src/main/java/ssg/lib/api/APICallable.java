@@ -57,7 +57,7 @@ public abstract interface APICallable {
         return null;
     }
 
-    default List toParametersList(Map<String, Object> params) {
+    default List toParametersList(APIAuthContext authContext, Map<String, Object> params) {
         APIProcedure proc = getAPIProcedure(params);
         if (proc != null) {
             return proc.toParametersList(params);
@@ -66,7 +66,7 @@ public abstract interface APICallable {
         }
     }
 
-    default Map<String, Object> toParametersMap(List params) {
+    default Map<String, Object> toParametersMap(APIAuthContext authContext, List params) {
         APIProcedure proc = getAPIProcedure(params);
         if (proc != null) {
             return proc.toParametersMap(params);
@@ -75,7 +75,7 @@ public abstract interface APICallable {
         }
     }
 
-    default Map<String, Object> toParametersMap(Object[] params) {
+    default Map<String, Object> toParametersMap(APIAuthContext authContext, Object[] params) {
         APIProcedure proc = getAPIProcedure(params);
         if (proc != null) {
             return proc.toParametersMap(params);
@@ -84,5 +84,5 @@ public abstract interface APICallable {
         }
     }
 
-    <T> T call(Map<String, Object> params) throws APIException;
+    <T> T call(APIAuthContext authContext, Map<String, Object> params) throws APIException;
 }

@@ -23,14 +23,18 @@
  */
 package ssg.lib.http.rest;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.common.Stub.StubContext;
+import ssg.lib.http.HttpMatcher;
 
 /**
  *
  * @author 000ssg
  */
-public class StubRESTHttpContext extends StubContext<List<RESTMethod>, RESTMethod, RESTParameter, Class> {
+public class StubRESTHttpContext extends StubContext<RESTHttpDataProcessor, Entry<HttpMatcher, RESTMethod>, RESTParameter, Class> {
 
     public StubRESTHttpContext(String baseURL, String namespace, boolean generateExtendedComments) {
         super(baseURL, namespace, generateExtendedComments);
@@ -38,8 +42,8 @@ public class StubRESTHttpContext extends StubContext<List<RESTMethod>, RESTMetho
 
     @Override
     public String nameOf(Object obj) {
-        if (obj instanceof RESTMethod) {
-            return ((RESTMethod) obj).getName();
+        if (obj instanceof Entry) {
+            return ((Entry<HttpMatcher, RESTMethod>) obj).getValue().getName();
         } else if (obj instanceof RESTParameter) {
             return ((RESTParameter) obj).getName();
         } else if (obj instanceof Class) {
@@ -49,13 +53,40 @@ public class StubRESTHttpContext extends StubContext<List<RESTMethod>, RESTMetho
     }
 
     @Override
-    public List<RESTMethod> methods(List<RESTMethod> api) {
-        return api;
+    public String pathOf(Entry<HttpMatcher, RESTMethod> method) {
+        return method.getKey().getPath();
     }
 
     @Override
-    public List<RESTParameter> parameters(RESTMethod method) {
-        return method.getParams();
+    public List<Entry<HttpMatcher, RESTMethod>> methods(RESTHttpDataProcessor api) {
+        List<Entry<HttpMatcher, RESTMethod>> ms = new ArrayList<>();
+        for (Entry<HttpMatcher, RESTMethod[]> me : ((Map<HttpMatcher, RESTMethod[]>) api.methods).entrySet()) {
+            final HttpMatcher p = me.getKey();
+            for (final RESTMethod m : me.getValue()) {
+                ms.add(new Entry() {
+                    @Override
+                    public Object getKey() {
+                        return p;
+                    }
+
+                    @Override
+                    public Object getValue() {
+                        return m;
+                    }
+
+                    @Override
+                    public Object setValue(Object value) {
+                        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                    }
+                });
+            }
+        }
+        return ms;
+    }
+
+    @Override
+    public List<RESTParameter> parameters(Entry<HttpMatcher, RESTMethod> method) {
+        return method.getValue().getParams();
     }
 
     @Override
@@ -74,8 +105,8 @@ public class StubRESTHttpContext extends StubContext<List<RESTMethod>, RESTMetho
     }
 
     @Override
-    public Class returnType(RESTMethod method) {
-        return method != null ? method.getReturnType() : null;
+    public Class returnType(Entry<HttpMatcher, RESTMethod> method) {
+        return method != null ? method.getValue().getReturnType() : null;
     }
 
     @Override

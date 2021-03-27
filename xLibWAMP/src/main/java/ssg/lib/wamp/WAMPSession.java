@@ -69,6 +69,7 @@ public interface WAMPSession extends Cloneable, Serializable {
     WAMPAuth getAuth();
 
     Map<Long, WAMPAuth> getVirtualAuths();
+
     void killVirtualAuths(Long... ids);
 
     /**
@@ -205,6 +206,16 @@ public interface WAMPSession extends Cloneable, Serializable {
     void setStatistics(WAMPStatistics statistics);
 
     boolean supportsFeature(WAMPFeature feature);
+
+    /**
+     * Returns HELLO message (USED IN MULTI-AUTH HANDLING...)
+     *
+     * NOTE: valid only for Router-side session!!! Used to enable iterate
+     * authentication methods...
+     *
+     * @return
+     */
+    WAMPMessage helloMessage();
 
     /**
      * Represents session local or remote side with corresponding basic info and
@@ -357,6 +368,7 @@ public interface WAMPSession extends Cloneable, Serializable {
     public static interface WAMPSessionExtendedListener extends WAMPSessionListener {
 
         void toSend(WAMPSession session, WAMPMessage message);
+
         void onSent(WAMPSession session, WAMPMessage message, Throwable error);
     }
 
@@ -561,6 +573,11 @@ public interface WAMPSession extends Cloneable, Serializable {
         @Override
         public boolean supportsFeature(WAMPFeature feature) {
             return base.supportsFeature(feature);
+        }
+
+        @Override
+        public WAMPMessage helloMessage() {
+            return base.helloMessage();
         }
     }
 }

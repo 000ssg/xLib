@@ -351,6 +351,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                         }
                     }
                     req.setContext(sess);
+
                     if (meta.getCertificates() != null) {
                         for (Certificate cert : meta.getCertificates()) {
                             HttpUser user = this.auth.authenticate(meta.getProvider(), cert);
@@ -359,6 +360,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                             }
                         }
                     } else if (sess.getUser() == null && sess.getRevalidateUser() == null) {
+                        if (!sess.getApplication().isNoAuth(req))
                         try {
                             // try user authentication
                             HttpUser user = this.auth.authenticate(meta.getProvider(), req);

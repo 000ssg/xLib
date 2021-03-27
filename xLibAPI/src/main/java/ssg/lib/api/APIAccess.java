@@ -24,7 +24,9 @@
 package ssg.lib.api;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,6 +62,22 @@ public class APIAccess implements Serializable, Cloneable {
 
     public APIAccess(long access) {
         defaultAccess = access;
+    }
+
+    /**
+     * Returns names having given access.
+     *
+     * @param access
+     * @return
+     */
+    public Collection<String> accessOf(long access) {
+        Collection<String> r = new ArrayList<>();
+        for (Entry<String, Long> e : this.access.entrySet()) {
+            if ((e.getValue() & access) == access) {
+                r.add(e.getKey());
+            }
+        }
+        return r;
     }
 
     public APIAccess set(String name, long access) {
@@ -124,8 +142,8 @@ public class APIAccess implements Serializable, Cloneable {
     public boolean hasAccess(long mask, boolean all, String... names) {
         if (hasACL()) {
             Long l = getAccess(names);
-            return l != null
-                    && all
+            return l == null ? false
+                    : all
                             ? (l & mask) == mask
                             : (l & mask) != 0;
         } else {

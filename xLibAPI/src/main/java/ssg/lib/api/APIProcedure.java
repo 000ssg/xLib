@@ -172,7 +172,9 @@ public class APIProcedure extends APIItem {
         } else {
             pp = 0f;
         }
-        return (p3 > 0) ? -pp : pp;
+        return (p3 > 0) 
+                ? -pp 
+                : pp==0 ? 1 : pp;
     }
 
     /**

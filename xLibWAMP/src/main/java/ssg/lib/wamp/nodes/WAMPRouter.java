@@ -233,7 +233,7 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                 if (WAMPMessageType.T_HELLO == msg.getType().getId()) {
                     String realmS = msg.getUri(0);
                     WAMPRealm realm = createRealm(transport, realmS, getNodeFeatures(), roles);
-                    session = createSession(transport, realm, roles);
+                    session = createSession(transport, msg, realm, roles);
                     session.getLocal().setAgent(getAgent());
                     session.setId(nextSessionId());
                     if (session.getStatistics() != null) {

@@ -16,8 +16,7 @@ import java.util.Map.Entry;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
 import ssg.lib.http.HttpApplication;
-import ssg.lib.http.dp.HttpResourceBytes;
-import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.StubVirtualData;
 import ssg.lib.http_cs.HttpRunner;
@@ -36,8 +35,6 @@ public class APIRunner<T> extends HttpRunner {
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
-    StubVirtualData<?> stub;
-    HttpStaticDataProcessor stubDP;
 
     /**
      * API group enables defining multiple APIs for same context, that is realm,
@@ -85,8 +82,17 @@ public class APIRunner<T> extends HttpRunner {
         super(app);
     }
 
+    public APIRunner(HttpAuthenticator auth, HttpApplication app) {
+        super(auth, app);
+    }
+
     public APIRunner(HttpApplication app, APIStatistics stat) {
         super(app);
+        this.apiStat = stat;
+    }
+
+    public APIRunner(HttpAuthenticator auth, HttpApplication app, APIStatistics stat) {
+        super(auth, app);
         this.apiStat = stat;
     }
 
@@ -178,20 +184,7 @@ public class APIRunner<T> extends HttpRunner {
     }
 
     public APIRunner configureStub(StubVirtualData<?> stub) {
-        if (this.stub == null && stub != null) {
-            initHttp();
-            this.stub = stub;
-            String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
-            stubDP = new HttpStaticDataProcessor();
-            for (StubVirtualData.WR wr : stub.resources()) {
-                stubDP.add(new HttpResourceBytes(stub, wr.getPath())); //, "text/javascript; encoding=utf-8"));
-            }
-            if (getApp() != null) {
-                getApp().configureDataProcessor(0, stubDP);
-            } else {
-                getService().configureDataProcessor(0, stubDP);
-            }
-        }
+        super.configureStub(stub);
         return this;
     }
 
@@ -262,31 +255,57 @@ public class APIRunner<T> extends HttpRunner {
             return null;
         }
 
-        final String realm = group.realm;
-        API_Publishers apis = group.apis;
-        final Collection<String> apiNames = names != null ? names : group.apis.getAPINames();
-        if (apiNames == null || apiNames.isEmpty()) {
-            return null;
-        }
+        onBeforePublishAPI(wsURI, group, names);
 
-        T client = initClient(wsURI, group, "api-pub");
+        try {
+            final String realm = group.realm;
+            API_Publishers apis = group.apis;
+            final Collection<String> apiNames = names != null ? names : group.apis.getAPINames();
+            if (apiNames == null || apiNames.isEmpty()) {
+                return null;
+            }
 
-        // add callable APIs
-        for (String apiName : apiNames) {
-            if (apiName != null) {
-                final API_Publisher api = apis.getAPIPublisher(apiName);
-                // enable API-level publishing
-                onPublishingAPI(wsURI, group, client, apiName, api, null);
-                for (final String pn : apis.getNames(apiName)) {
-                    // proceed with procedure-level publishing
-                    onPublishingAPI(wsURI, group, client, apiName, api, pn);
+            T client = initClient(wsURI, group, "api-pub");
+
+            // add callable APIs
+            for (String apiName : apiNames) {
+                if (apiName != null) {
+                    final API_Publisher api = apis.getAPIPublisher(apiName);
+                    // enable API-level publishing
+                    onPublishingAPI(wsURI, group, client, apiName, api, null);
+                    for (final String pn : apis.getNames(apiName)) {
+                        // proceed with procedure-level publishing
+                        onPublishingAPI(wsURI, group, client, apiName, api, pn);
+                    }
                     onPublishedAPI(wsURI, group, client, apiName, api);
                 }
             }
+            // connect and register API calls
+            onPublishedAPI(wsURI, group, client, null, null);
+            return client;
+        } finally {
+            onAfterPublishAPI(wsURI, group, names);
         }
-        // connect and register API calls
-        onPublishedAPI(wsURI, group, client, null, null);
-        return client;
+    }
+
+    /**
+     * API publishing pre-event
+     *
+     * @param wsURI
+     * @param group
+     * @param names
+     */
+    public void onBeforePublishAPI(URI wsURI, APIGroup group, Collection<String> names) {
+    }
+
+    /**
+     * API publishing post-event
+     *
+     * @param wsURI
+     * @param group
+     * @param names
+     */
+    public void onAfterPublishAPI(URI wsURI, APIGroup group, Collection<String> names) {
     }
 
     /**
@@ -327,9 +346,5 @@ public class APIRunner<T> extends HttpRunner {
             group.apiStat = apiStat.createChild(null, group.realm + "/" + (group.authid != null ? group.authid : "<no-auth>"));
         }
         return group != null ? group.apiStat : apiStat;
-    }
-
-    public StubVirtualData<?> getStub() {
-        return stub;
     }
 }

@@ -114,7 +114,7 @@ public class Reflective_API_BuilderTest {
         APICallable caller = api.createCallable(procs.get(best), instance);
 
         try {
-            r = caller.call(params);
+            r = caller.call(null, params);
             if (dump) {
                 System.out.println("R(" + params + "): " + r);
             }
@@ -143,12 +143,12 @@ public class Reflective_API_BuilderTest {
         assertEquals(name, result.name);
         //
         Collection<APIProcedure> procs = result.find((item) -> {
-            return APIMatcher.matchAPIProcedure(item, name+".T1Engine.first");
+            return APIMatcher.matchAPIProcedure(item, name + ".T1Engine.first");
         }, APIProcedure.class, null);
         APICallable caller = result.createCallable(procs.iterator().next(), demo);
 
         try {
-            Object r = caller.call(new HashMap() {
+            Object r = caller.call(null, new HashMap() {
                 {
                     put("a", "A");
                 }
@@ -158,13 +158,13 @@ public class Reflective_API_BuilderTest {
             aex.printStackTrace();
         }
 
-        System.out.println("Call first('A'): " + call(result, name+".T1Engine.first", demo, new HashMap() {
+        System.out.println("Call first('A'): " + call(result, name + ".T1Engine.first", demo, new HashMap() {
             {
                 put("a", "A");
             }
         }, false));
 
-        System.out.println("Call find(,'B'): " + call(result, name+".T1Engine.find", demo, new HashMap() {
+        System.out.println("Call find(,'B'): " + call(result, name + ".T1Engine.find", demo, new HashMap() {
             {
                 put("b", "B");
             }
@@ -178,7 +178,7 @@ public class Reflective_API_BuilderTest {
     public void testBuildGroup() {
         System.out.println("buildGroup");
         API api = new API_Reflective("demo");
-        APIGroup group = new APIGroup("test",api.getScopeForChild());
+        APIGroup group = new APIGroup("test", api.getScopeForChild());
         T1Engine demo = getTestItem();
         Class type = demo.getClass();
         Reflective_API_Builder.ReflectiveFilter filter = null;
@@ -312,13 +312,13 @@ public class Reflective_API_BuilderTest {
                 if (callable != null) {
                     try {
                         if (map != null) {
-                            result = callable.call(map);
+                            result = callable.call(null, map);
                         } else if (list != null) {
-                            result = callable.call(callable.toParametersMap(list));
+                            result = callable.call(null, callable.toParametersMap(null,list));
                         } else if (arr != null) {
-                            result = callable.call(callable.toParametersMap(arr));
+                            result = callable.call(null, callable.toParametersMap(null,arr));
                         } else {
-                            result = callable.call(null);
+                            result = callable.call(null, null);
                         }
                         System.out.println("Callable: " + callable + " -> " + result);
                     } catch (Throwable th) {

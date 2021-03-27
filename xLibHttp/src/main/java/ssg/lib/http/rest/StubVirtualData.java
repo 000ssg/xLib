@@ -40,14 +40,21 @@ import ssg.lib.http.dp.HttpResourceBytes.VirtualData;
 public class StubVirtualData<T> implements VirtualData {
 
     T owner;
-    String path;
+    // stub resource base path
+    String resPath;
+    // stubbed resource base path (REST entry point)
+    String basePath;
+    // stub data provider (base)
     StubContext context;
+    // stub generators
     Map<String, Stub> stubs = new HashMap<>();
+    // per-stub resources
     Map<String, WR> resources = new HashMap<>();
 
-    public StubVirtualData(T owner, String path, Stub... stubs) {
+    public StubVirtualData(String resPath, String basePath, T owner, Stub... stubs) {
         this.owner = owner;
-        this.path = path;
+        this.resPath = resPath;
+        this.basePath = basePath != null ? basePath : resPath;
         if (stubs != null) {
             for (Stub st : stubs) {
                 for (String t : st.getTypes()) {
@@ -57,9 +64,10 @@ public class StubVirtualData<T> implements VirtualData {
         }
     }
 
-    public StubVirtualData(T owner, String path, String... stubs) {
+    public StubVirtualData(String resPath, String basePath, T owner, String... stubs) {
         this.owner = owner;
-        this.path = path;
+        this.resPath = resPath;
+        this.basePath = basePath != null ? basePath : resPath;
         if (stubs != null) {
             for (String st : stubs) {
                 Stub stub = initNamedStub(st);
@@ -135,7 +143,7 @@ public class StubVirtualData<T> implements VirtualData {
     }
 
     public String path() {
-        return path;
+        return resPath;
     }
 
     public Collection<WR> resources() {
@@ -146,10 +154,20 @@ public class StubVirtualData<T> implements VirtualData {
         return (Z) context;
     }
 
+    /**
+     * Prepare StubContext (by cloning base) for resource/request pair. By
+     * default builds BASE_URL property (as combination of HttpData, stub base
+     * and realm and namespace (as resource realm/type combination).
+     *
+     * @param wr
+     * @param httpData
+     * @return
+     * @throws IOException
+     */
     public StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         try {
             return context.clone()
-                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.path + "/" + wr.realm)
+                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
                     .setProperty(Stub.StubContext.NAMESPACE, wr.realm + "_" + wr.type) //                    .setProperty("wampRealm", wr.realm)
                     ;
         } catch (Throwable th) {
@@ -175,7 +193,7 @@ public class StubVirtualData<T> implements VirtualData {
         public WR(String realm, String type) {
             this.realm = realm;
             this.type = type;
-            path = StubVirtualData.this.path + "/" + realm + "/script." + type;
+            path = StubVirtualData.this.resPath + "/" + realm + "/script." + type;
         }
 
         public WR(String realm, String type, String path) {

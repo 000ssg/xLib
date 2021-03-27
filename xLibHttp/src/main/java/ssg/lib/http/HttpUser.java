@@ -42,7 +42,7 @@ public class HttpUser {
     public static final String P_AUTH_TYPE = "authType";
 
     public static enum AUTH_TYPE {
-        none, password, basic, certificate, oauth, token, other
+        none, password, basic, certificate, oauth, token, apk, other
     }
 
     String domain;

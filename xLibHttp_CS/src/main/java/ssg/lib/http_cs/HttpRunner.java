@@ -28,11 +28,15 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import ssg.lib.http.HttpApplication;
+import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpDataProcessor;
 import ssg.lib.http.HttpService;
 import ssg.lib.http.base.HttpData;
 import ssg.lib.http.dp.HttpDataProcessorFavIcon;
+import ssg.lib.http.dp.HttpResourceBytes;
+import ssg.lib.http.dp.HttpStaticDataProcessor;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
+import ssg.lib.http.rest.StubVirtualData;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
 import ssg.lib.service.Repository;
@@ -47,6 +51,7 @@ public class HttpRunner extends CS {
 
     public static final String CFG_HTTP_PORT = "httpPort";
     public static final String CFG_REST_PATH = "restPath";
+    public static final String CFG_AUTH = "auth";
 
     // builders/holders
     Http http;
@@ -56,7 +61,8 @@ public class HttpRunner extends CS {
     HttpApplication app;
     RESTHttpDataProcessor rest;
     URI restURI;
-//    HttpConnectionUpgrade ws_wamp_connection_upgrade;
+    StubVirtualData<?> stub;
+    HttpStaticDataProcessor stubDP;
 
     // embedding CS support: nested (indirect) calls to start/stop are safe
     private transient Boolean starting = false;
@@ -90,6 +96,12 @@ public class HttpRunner extends CS {
     public HttpRunner(HttpApplication app) {
         this.app = app;
         http = new Http();
+        http.configureApp(app);
+    }
+
+    public HttpRunner(HttpAuthenticator auth, HttpApplication app) {
+        this.app = app;
+        http = new Http(auth);
         http.configureApp(app);
     }
 
@@ -148,13 +160,35 @@ public class HttpRunner extends CS {
                 if (getApp().getDataProcessors() == null) {
                     getApp().setDataPorcessors(new Repository<>());
                 }
-                getApp().getDataProcessors().addItem(rest);
+                getApp().configureDataProcessor(1, rest);
             }
             configUpdated(CFG_REST_PATH, null, path);
         } else {
             throw new IOException("REST configuration is defined already.");
         }
         return this;
+    }
+
+    public HttpRunner configureStub(StubVirtualData<?> stub) {
+        if (this.stub == null && stub != null) {
+            initHttp();
+            this.stub = stub;
+            String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
+            stubDP = new HttpStaticDataProcessor();
+            for (StubVirtualData.WR wr : stub.resources()) {
+                stubDP.add(new HttpResourceBytes(stub, wr.getPath())); //, "text/javascript; encoding=utf-8"));
+            }
+            if (getApp() != null) {
+                getApp().configureDataProcessor(0, stubDP);
+            } else {
+                getService().configureDataProcessor(0, stubDP);
+            }
+        }
+        return this;
+    }
+
+    public StubVirtualData<?> getStub() {
+        return stub;
     }
 
     public void onStarted() throws IOException {
@@ -195,5 +229,28 @@ public class HttpRunner extends CS {
 
     public HttpService getService() {
         return http != null ? http.getHttpService() : null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("httpPort=" + httpPort);
+        sb.append(", restURI=" + restURI);
+        sb.append(", starting=" + starting);
+        sb.append(", stopping=" + stopping);
+        if (1 == 0 && http != null) {
+            sb.append("\n  http=" + http.toString().replace("\n", "\n  "));
+        }
+        if (app != null) {
+            sb.append("\n  app=" + app.toString().replace("\n", "\n  "));
+        }
+        if (rest != null) {
+            //sb.append("\n  rest=" + rest.toString().replace("\n", "\n  "));
+        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
     }
 }

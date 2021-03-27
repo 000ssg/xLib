@@ -308,7 +308,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                             ? options.get(RPC_CALLER_ID_KEY)
                             : session.getId()
                     );
-                } else if (proc.getOptions().containsKey(RPC_CALLER_ID_DISCLOSE_CALLER) && (Boolean) options.get(RPC_CALLER_ID_DISCLOSE_CALLER) && session.supportsFeature(WAMPFeature.caller_identification)) {
+                } else if (proc.getOptions().containsKey(RPC_CALLER_ID_DISCLOSE_CALLER) && (Boolean) proc.getOptions().get(RPC_CALLER_ID_DISCLOSE_CALLER) && session.supportsFeature(WAMPFeature.caller_identification)) {
                     // on callee request
                     call.details.put(
                             RPC_CALLER_ID_KEY,

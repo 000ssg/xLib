@@ -124,7 +124,7 @@ public class WAMPClient extends WAMPNode {
         this.transport = (transport != null) ? transport : new WAMPTransportWrapper(transport);
         setAgent(agent);
         WAMPRealm realm = createRealm(connectionContext, realmS, getNodeFeatures(), roles);
-        session = createSession(WAMPClient.this.transport, realm, roles);
+        session = createSession(WAMPClient.this.transport, null, realm, roles);
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
         return this;
@@ -137,7 +137,7 @@ public class WAMPClient extends WAMPNode {
         this.transport = (transport != null) ? transport : new WAMPTransportWrapper(transport);
         setAgent(agent);
         WAMPRealm realm = createRealm(connectionContext, realmS, getNodeFeatures(features), roles);
-        session = createSession(WAMPClient.this.transport, realm, roles);
+        session = createSession(WAMPClient.this.transport, null, realm, roles);
         session.getLocal().setAgent(getAgent());
         session.addWAMPSessionListener(this);
         return this;
@@ -191,7 +191,7 @@ public class WAMPClient extends WAMPNode {
         }
         this.transport = (transport != null) ? transport : new WAMPTransportWrapper(transport);
         setAgent(agent);
-        session = new WAMPSessionImpl(realm, roles) {
+        session = new WAMPSessionImpl(realm, null, roles) {
             @Override
             public void doSend(WAMPMessage msg) throws WAMPException {
                 if (WAMPClient.this.transport != null && WAMPClient.this.transport.isOpen()) {

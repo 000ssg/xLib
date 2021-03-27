@@ -104,8 +104,8 @@ public class RESTAccess implements Serializable, Cloneable {
     @Override
     public String toString() {
         return "RESTAccess{"
-                + "instance=" + ("" + instance).replace("\n", "\n  ")
-                + "\n   method=" + ("" + method).replace("\n", "\n  ")
+                + "\n  instance=" + ("" + instance).replace("\n", "\n  ")
+                + "\n  method=" + ("" + method).replace("\n", "\n  ")
                 + '\n'
                 + '}';
     }

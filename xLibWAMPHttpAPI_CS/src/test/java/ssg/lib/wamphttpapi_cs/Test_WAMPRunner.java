@@ -78,7 +78,7 @@ public class Test_WAMPRunner {
         // add javascripts generation for WAMP for WAMP (authobahn.js "wamp")
         // and REST ("js" and "jw", jquery)
         r.configureStub(
-                new StubWAMPVirtualData(r.getRouter(), (r.getApp() != null ? r.getApp().getRoot() + "/" : "/") + "wamp", "js", "jw", "wamp")
+                new StubWAMPVirtualData((r.getApp() != null ? r.getApp().getRoot() + "/" : "/") + "wamp", (r.getApp() != null ? r.getApp().getRoot() + "/" : "/") + "wamp", r.getRouter(), "js", "jw", "wamp")
                         .configure(new StubWAMPReflectionContext(null, null, true))
                         .configure("demo", "js", "jw", "wamp")
                         .configure("test", "js", "jw", "wamp")

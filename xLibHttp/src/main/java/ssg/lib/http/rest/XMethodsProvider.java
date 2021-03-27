@@ -54,6 +54,8 @@ public class XMethodsProvider extends AnnotationsBasedMethodsProvider {
     Method miTags;
     Method moRoles;
     Method moTags;
+    Method mmRoles;
+    Method mmTags;
 
     public XMethodsProvider() {
         // com.ssg.xcs.xpd.http.rest.annotations
@@ -79,6 +81,8 @@ public class XMethodsProvider extends AnnotationsBasedMethodsProvider {
         miTags = getAnnotationPropertyReader(waClass, "tags");
         moRoles = getAnnotationPropertyReader(woClass, "roles");
         moTags = getAnnotationPropertyReader(woClass, "tags");
+        mmRoles = getAnnotationPropertyReader(wmClass, "roles");
+        mmTags = getAnnotationPropertyReader(wmClass, "tags");
     }
 
     @Override
@@ -213,7 +217,10 @@ public class XMethodsProvider extends AnnotationsBasedMethodsProvider {
         String[] iroles = null;
         String[] otags = null;
         String[] oroles = null;
+        String[] mtags = null;
+        String[] mroles = null;
         boolean hasI = false;
+        boolean hasM = false;
         boolean hasO = false;
 
         if (miActions != null) {
@@ -286,8 +293,36 @@ public class XMethodsProvider extends AnnotationsBasedMethodsProvider {
             } catch (InvocationTargetException itex) {
             }
         }
+        if (mmRoles != null) {
+            try {
+                mroles = (String[]) mmRoles.invoke(annotation);
+                if (mroles != null && mroles.length == 0) {
+                    mroles = null;
+                }
+                if (mroles != null) {
+                    hasM = true;
+                }
+            } catch (IllegalAccessException iaex) {
+            } catch (IllegalArgumentException iaex) {
+            } catch (InvocationTargetException itex) {
+            }
+        }
+        if (mmTags != null) {
+            try {
+                mtags = (String[]) mmTags.invoke(annotation);
+                if (mtags != null && mtags.length == 0) {
+                    mtags = null;
+                }
+                if (mtags != null) {
+                    hasM = true;
+                }
+            } catch (IllegalAccessException iaex) {
+            } catch (IllegalArgumentException iaex) {
+            } catch (InvocationTargetException itex) {
+            }
+        }
 
-        if (hasI || hasO) {
+        if (hasI || hasO || hasM) {
             if (access == null) {
                 access = new RESTAccess();
             }
@@ -359,6 +394,37 @@ public class XMethodsProvider extends AnnotationsBasedMethodsProvider {
                         rad.setTags(l);
                     }
                     for (String s : otags) {
+                        if (!l.contains(s)) {
+                            l.add(s);
+                        }
+                    }
+                }
+            }
+            if (hasM) {
+                RAT rad = access.getMethod();
+                if (rad == null) {
+                    rad = new RAT();
+                    access.setMethod(rad);
+                }
+                if (mroles != null) {
+                    List<String> l = rad.getRoles();
+                    if (l == null) {
+                        l = new ArrayList<>();
+                        rad.setRoles(l);
+                    }
+                    for (String s : mroles) {
+                        if (!l.contains(s)) {
+                            l.add(s);
+                        }
+                    }
+                }
+                if (mtags != null) {
+                    List<String> l = rad.getTags();
+                    if (l == null) {
+                        l = new ArrayList<>();
+                        rad.setTags(l);
+                    }
+                    for (String s : mtags) {
                         if (!l.contains(s)) {
                             l.add(s);
                         }

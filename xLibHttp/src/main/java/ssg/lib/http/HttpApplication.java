@@ -26,10 +26,12 @@ package ssg.lib.http;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.common.TaskProvider;
 import ssg.lib.http.base.HttpData;
 import ssg.lib.http.base.HttpRequest;
@@ -51,6 +53,7 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
     private boolean basicAuthEnabled = false;
     transient HttpAuthenticator auth;
     HttpMatcher matcher;
+    Collection<HttpMatcher> noAuthPaths = new ArrayList<>();
 
     public HttpApplication() {
         name = "Default";
@@ -94,6 +97,21 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         }
         getProperties().put("root", root);
         matcher = new HttpMatcher(root);
+        return (T) this;
+    }
+
+    public <T extends HttpApplication> T configureNoAuthPaths(String... paths) throws IOException {
+        if (paths != null) {
+            for (String p : paths) {
+                if (p.startsWith("/")) {
+                    if (p.startsWith(root)) {
+                        noAuthPaths.add(new HttpMatcher(p));
+                    }
+                } else {
+                    noAuthPaths.add(new HttpMatcher(root + (!root.endsWith("/") ? "/" : "") + p));
+                }
+            }
+        }
         return (T) this;
     }
 
@@ -151,9 +169,53 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
         return getRoot() + ((getRoot().isEmpty() || getRoot().endsWith("/") ? "" : "/")) + "index.html";
     }
 
+//    @Override
+//    public String toString() {
+//        return "HttpApplication{" + "name=" + name + ", root=" + root + '}';
+//    }
     @Override
     public String toString() {
-        return "HttpApplication{" + "name=" + name + ", root=" + root + '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+
+        sb.append("name=" + name);
+        sb.append(", root=" + root);
+        sb.append(", basicAuthEnabled=" + basicAuthEnabled);
+        if (properties != null && !properties.isEmpty()) {
+            sb.append("\n  properties[" + properties.size() + "]=");
+            for (Entry<String, Object> e : properties.entrySet()) {
+                sb.append("\n    " + e.getKey() + "=" + (e.getValue() != null ? e.getValue().toString().replace("\n", "\n    ") : "<none>"));
+            }
+        }
+        if (auth != null) {
+            sb.append("\n  auth=" + auth.toString().replace("\n", "\n    "));
+        }
+        if (matcher != null) {
+            sb.append("\n  matcher=" + matcher.toString().replace("\n", "\n    "));
+        }
+        if (noAuthPaths != null && !noAuthPaths.isEmpty()) {
+            sb.append("\n  noAuthPaths[" + noAuthPaths.size() + "]:");
+            for (HttpMatcher m : noAuthPaths) {
+                sb.append("\n    " + m.toString().replace("\n", "\n    "));
+            }
+        }
+        if (dataProcessors != null) {
+            sb.append("\n  dataProcessors=" + dataProcessors.toString().replace("\n", "\n    "));
+            int order=0;
+            for (DataProcessor dp : dataProcessors.find(null, null)) {
+                if (dp instanceof HttpDataProcessor) {
+                    HttpDataProcessor hdp = (HttpDataProcessor) dp;
+                    sb.append("\n    ["+order+++"]" + hdp.toString().replace("\n", "\n    "));
+                } else {
+                    sb.append("\n    ["+order+++"]" + dp.toString().replace("\n", "\n    "));
+                }
+            }
+        }
+
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
     }
 
     public <T> T getProperty(String name) {
@@ -242,6 +304,19 @@ public class HttpApplication implements Serializable, Cloneable, TaskProvider {
 
     public HttpUser onAuhtenticatedUser(HttpSession session, HttpUser user) {
         return user;
+    }
+
+    public boolean isNoAuth(HttpRequest req) {
+        if (noAuthPaths.isEmpty()) {
+            return false;
+        }
+        HttpMatcher rm = req.getMatcher();
+        for (HttpMatcher m : noAuthPaths) {
+            if (m.match(rm) == 1f) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

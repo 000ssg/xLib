@@ -154,12 +154,12 @@ public class API_Publisher {
         }
 
         @Override
-        public <T> T call(Map<String, Object> params) throws APIException {
+        public <T> T call(APIAuthContext authContext, Map<String, Object> params) throws APIException {
             int best = best(params);
             if (best == -1) {
                 throw new APIException("Parameters mismatch for '" + procs[0].fqn() + "': " + params);
             }
-            return callables[best].call(params);
+            return callables[best].call(authContext, params);
         }
 
         public APICallable bestCallable(Map<String, Object> params) {
@@ -232,7 +232,7 @@ public class API_Publisher {
         }
 
         @Override
-        public Map<String, Object> toParametersMap(Object[] params) {
+        public Map<String, Object> toParametersMap(APIAuthContext authContext, Object[] params) {
             int best = best(params);
             if (best >= 0) {
                 return procs[best].toParametersMap(params);
@@ -241,7 +241,7 @@ public class API_Publisher {
         }
 
         @Override
-        public Map<String, Object> toParametersMap(List params) {
+        public Map<String, Object> toParametersMap(APIAuthContext authContext, List params) {
             int best = best(params);
             if (best >= 0) {
                 return procs[best].toParametersMap(params);
@@ -250,7 +250,7 @@ public class API_Publisher {
         }
 
         @Override
-        public List toParametersList(Map<String, Object> params) {
+        public List toParametersList(APIAuthContext authContext, Map<String, Object> params) {
             int best = best(params);
             if (best >= 0) {
                 return procs[best].toParametersList(params);
@@ -342,7 +342,7 @@ public class API_Publisher {
 
         public Collection<String> getNames(final String apiName) {
             API api = getAPI(apiName);
-            return getNames(api,apiName);
+            return getNames(api, apiName);
         }
 
         public Collection<String> getNames(API api, final String apiName) {

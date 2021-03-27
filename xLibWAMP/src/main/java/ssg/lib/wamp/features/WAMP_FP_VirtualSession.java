@@ -61,7 +61,7 @@ public class WAMP_FP_VirtualSession implements WAMPFeatureProvider, WAMPNodeList
             WAMP.Role.dealer,
             WAMP.Role.caller);
     public static final String VS_REGISTER = "virtual_session.register";
-    public static final String VS_UNREGISTER = "virtual_session.unregioster";
+    public static final String VS_UNREGISTER = "virtual_session.unregister";
 
     WAMPNodeSessionManagement sessionManager;
 

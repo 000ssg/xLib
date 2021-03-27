@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import ssg.lib.http.HttpUser;
 import ssg.lib.http.base.HttpRequest;
 
 /**
@@ -220,7 +221,7 @@ public class RESTMethod {
                 boolean missingMandatoryParams = false;
                 for (RESTParameter p : m.getParams()) {
                     if (!p.isOptional() && !params.containsKey(p.getName())) {
-                        if (!HttpRequest.class.isAssignableFrom(p.getType())) {
+                        if (!(HttpRequest.class.isAssignableFrom(p.getType()) || HttpUser.class.isAssignableFrom(p.getType()))) {
                             missingMandatoryParams = true;
                         }
                         break;
@@ -421,7 +422,7 @@ public class RESTMethod {
      * @throws InvocationTargetException
      * @throws IOException
      */
-    public <T> T invoke(Object service, Object[] parameters) throws
+    public <T> T invoke(HttpUser user, Object service, Object[] parameters) throws
             IllegalAccessException,
             InvocationTargetException,
             IOException {
@@ -443,7 +444,7 @@ public class RESTMethod {
      * @return
      * @throws IOException
      */
-    public Runnable invokeAsync(Object service, Map<String, Object> parameters, RESTMethodAsyncCallback callback) throws IOException {
+    public Runnable invokeAsync(HttpUser user, Object service, Map<String, Object> parameters, RESTMethodAsyncCallback callback) throws IOException {
         Runnable r = new Runnable() {
             @Override
             public void run() {
@@ -456,10 +457,10 @@ public class RESTMethod {
 
                     // invoke
                     if (m.getReturnType() != null && !m.getReturnType().equals(void.class)) {
-                        Object obj = m.invoke(service, values);
+                        Object obj = m.invoke(user, service, values);
                         result = obj;
                     } else {
-                        m.invoke(service, values);
+                        m.invoke(user, service, values);
                     }
                 } catch (Throwable th) {
                     error = th;

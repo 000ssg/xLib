@@ -522,93 +522,6 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                         th.printStackTrace();
                     }
                 }
-
-//                if (param.contains("session")) {
-//                    String p = param.substring(param.indexOf("session") + "session".length() + 1);
-//                    if (pEnder != null) {
-//                        p = p.substring(0, p.length() - pEnder.length());
-//                    }
-//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-//                    Object v = sess.getProperties().get(p);
-//                    if (v != null) {
-//                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-//                    } else if ("locale".equals(p)) {
-//                        Locale locale = sess.getLocale();
-//                        String loc = (locale != null) ? locale.getLanguage() : "en";
-//                        pvs.put(param.getBytes("UTF-8"), ("" + loc).getBytes("UTF-8"));
-//                    }
-//                } else if (param.contains("user.")) {
-//                    String p = param.substring(param.indexOf("user") + "user".length() + 1);
-//                    if (pEnder != null) {
-//                        p = p.substring(0, p.length() - pEnder.length());
-//                    }
-//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-//                    HttpUser user = sess.getUser();
-//                    if (user != null) {
-//                        if ("id".equals(p)) {
-//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getId()).getBytes("UTF-8"));
-//                        } else if ("name".equals(p)) {
-//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getName()).getBytes("UTF-8"));
-//                        } else if ("domain".equals(p)) {
-//                            pvs.put(param.getBytes("UTF-8"), ("" + user.getDomainName()).getBytes("UTF-8"));
-//                        } else if ("roles".equals(p)) {
-//                            StringBuilder sb = new StringBuilder();
-//                            if (user.getRoles() != null) {
-//                                for (String s : user.getRoles()) {
-//                                    if (sb.length() > 0) {
-//                                        sb.append(",");
-//                                    }
-//                                    sb.append(s);
-//                                }
-//                            }
-//                            pvs.put(param.getBytes("UTF-8"), sb.toString().getBytes("UTF-8"));
-//                        } else {
-//                            Object v = (user != null) ? user.getProperties().get(p) : "";
-//                            if (v != null) {
-//                                pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-//                            }
-//                        }
-//                    }
-//                } else if (param.contains("app.")) {
-//                    String p = param.substring(param.indexOf("app") + "app".length() + 1);
-//                    if (pEnder != null) {
-//                        p = p.substring(0, p.length() - pEnder.length());
-//                    }
-//                    HttpSession sess = ((HttpRequest) data).getHttpSession();
-//                    HttpApplication app = sess.getApplication();
-//                    Object v = (app != null) ? app.getProperties().get(p) : "";
-//                    if (v != null) {
-//                        pvs.put(param.getBytes("UTF-8"), ("" + v).getBytes("UTF-8"));
-//                    }
-//                } else if (param.contains("resource.name")) {
-//                    String name = res.path();
-//                    if (name.contains("/")) {
-//                        name = name.substring(name.lastIndexOf("/") + 1);
-//                    }
-//                    pvs.put(param.getBytes("UTF-8"), name.getBytes("UTF-8"));
-//                } else if (param.contains("resource.path")) {
-//                    pvs.put(param.getBytes("UTF-8"), res.path().getBytes("UTF-8"));
-//                } else if (param.contains("include ")) {
-//                    String rn = param.substring(param.indexOf(" ", param.indexOf("include ")));
-//                    if (rn.length() > 1) {
-//                        rn = rn.substring(0, rn.length() - 1).trim();
-//                    }
-//                    HttpResource ri = base.find(rn);
-//                    if (ri != null) {
-//                        Replacement[] replacements = null;
-//                        Map<byte[], byte[]> pvi = resolveParameters(data, ri, base);
-//                        if (pvi != null && !pvi.isEmpty()) {
-//                            if (pvi != null && !pvi.isEmpty()) {
-//                                replacements = new Replacement[pvi.size()];
-//                                int off = 0;
-//                                for (Map.Entry<byte[], byte[]> entry : pvi.entrySet()) {
-//                                    replacements[off++] = new Replacement(entry.getKey(), entry.getValue());
-//                                }
-//                            }
-//                        }
-//                        pvs.put(param.getBytes("UTF-8"), ri.data(data, replacements));
-//                    }
-//                }
             }
         }
         if (localizables != null && res.localizeable() != null && res.localizeable().length > 0) {
@@ -750,6 +663,49 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             return r;
         }
         return Collections.emptyList();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("DEBUG=" + DEBUG);
+        sb.append(", DEBUG_DP=" + DEBUG_DP);
+        sb.append(", pStarter=" + pStarter);
+        sb.append(", pEnder=" + pEnder);
+        sb.append(", useDataPipes=" + useDataPipes);
+        if (runnables != null) {
+            sb.append(", runnables=" + runnables.size());
+        }
+        if (initializers != null) {
+            sb.append(", initializers=" + initializers.size());
+        }
+        if (localizables != null) {
+            sb.append(", localizables=" + localizables);
+        }
+        if (resolvers != null) {
+            sb.append(", resolvers=" + resolvers.size());
+        }
+        if (dataPipes != null) {
+            sb.append(", dataPipes=" + dataPipes.size());
+        }
+        if (dataPipeTask != null) {
+            sb.append(", dataPipeTask=" + dataPipeTask);
+        }
+        if (assigned != null) {
+            sb.append(", assigned=" + assigned.size());
+        }
+        if (resources != null) {
+            sb.append("\n  resources[" + resources.size() + "]:");
+            for (Entry<HttpMatcher, HttpResource> e : resources.entrySet()) {
+                sb.append("\n    " + e.getKey().toString().replace("\n", "\n    "));
+                sb.append("\n      " + e.getValue().toString().replace("\n", "\n      "));
+            }
+        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
     }
 
     /**

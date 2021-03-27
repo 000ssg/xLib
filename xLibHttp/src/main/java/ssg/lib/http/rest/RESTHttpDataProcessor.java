@@ -46,6 +46,7 @@ import ssg.lib.common.Refl.ReflJSON;
 import ssg.lib.di.DI;
 import ssg.lib.http.HttpMatcher.HttpMatcherComposite;
 import ssg.lib.http.HttpSession;
+import ssg.lib.http.HttpUser;
 import ssg.lib.service.SERVICE_PROCESSING_STATE;
 
 /**
@@ -91,7 +92,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
             methodsProviders = new MethodsProvider[]{new XMethodsProvider()};
         }
 
-        if (providers != null && providers.length > 0) {
+        if (providers != null && providers.length > 0) try {
             for (MethodsProvider mp : methodsProviders) {
                 if (providers != null) {
                     for (Object p : providers) {
@@ -117,6 +118,8 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                     }
                 }
             }
+        } catch (Throwable th) {
+            th.printStackTrace();
         }
         return result;
     }
@@ -149,7 +152,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                     this.methods.put(rm, rms);
                     serviceProviders.put(m, provider);
                     //System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
-                    System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
+                    System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + (m.getReturnType() != null ? " -> " + m.getReturnType().getName() : ""));
                     paths.add(rm);
                 }
             }
@@ -161,13 +164,13 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         String path = m.getPath();
         if (path == null || path.isEmpty()) {
             path = m.getName();
-            boolean fixed=false;
+            boolean fixed = false;
             if (path.startsWith("get") && path.length() > 3) {
                 path = path.substring(3);
-                fixed=true;
+                fixed = true;
             } else if (path.startsWith("is") && path.length() > 2) {
                 path = path.substring(2);
-                fixed=true;
+                fixed = true;
             }
             if (fixed && Character.isUpperCase(path.charAt(0))) {
                 path = path.substring(0, 1).toLowerCase() + path.substring(1);
@@ -340,12 +343,13 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         }
 
         try {
-            if (beforeRESTMethodInvoke(m, params)) {
-                Runnable exec = m.invokeAsync(serviceProviders.get(m), params,
+            HttpUser user = req != null && req.getHttpSession() != null ? req.getHttpSession().getUser() : null;
+            if (beforeRESTMethodInvoke(user, m, params)) {
+                Runnable exec = m.invokeAsync(user, serviceProviders.get(m), params,
                         (RESTMethod method, Object service, Map<String, Object> parameters, Object result, long nano, Throwable error, String errorMessage) -> {
                             if (error == null && errorMessage == null) {
                                 try {
-                                    result = afterRESTMethodInvoke(m, parameters, result);
+                                    result = afterRESTMethodInvoke(user, m, parameters, result);
 
                                     HttpResponse resp = req.getResponse();
                                     if (!resp.isCompleted()) {
@@ -498,19 +502,26 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                             break;
                         }
                     }
+                    for (int i = 0; i < values.length; i++) {
+                        if (values[i] == null && HttpUser.class.isAssignableFrom(rps.get(i).getType())) {
+                            values[i] = req.getHttpSession() != null ? req.getHttpSession().getUser() : null;
+                            break;
+                        }
+                    }
                 }
 
+                HttpUser user = req != null && req.getHttpSession() != null ? req.getHttpSession().getUser() : null;
                 // invoke
-                if (beforeRESTMethodInvoke(m, params)) {
+                if (beforeRESTMethodInvoke(user, m, params)) {
                     if (m.getReturnType() != null && !m.getReturnType().equals(void.class)) {
-                        Object obj = m.invoke(service, values);
+                        Object obj = m.invoke(user, service, values);
                         // callback
-                        obj = afterRESTMethodInvoke(m, params, obj);
+                        obj = afterRESTMethodInvoke(user, m, params, obj);
                         result = obj;
                     } else {
-                        m.invoke(service, values);
+                        m.invoke(user, service, values);
                         // callback
-                        result = afterRESTMethodInvoke(m, params, null);
+                        result = afterRESTMethodInvoke(user, m, params, null);
                     }
 
                 } else {
@@ -577,7 +588,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
      * @param values
      * @return
      */
-    public boolean beforeRESTMethodInvoke(RESTMethod m, Map<String, Object> params) {
+    public boolean beforeRESTMethodInvoke(HttpUser user, RESTMethod m, Map<String, Object> params) {
         return true;
     }
 
@@ -590,7 +601,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
      * @param result
      * @return
      */
-    public Object afterRESTMethodInvoke(RESTMethod m, Map<String, Object> params, Object result) throws IOException {
+    public Object afterRESTMethodInvoke(HttpUser user, RESTMethod m, Map<String, Object> params, Object result) throws IOException {
         return result;
     }
 
