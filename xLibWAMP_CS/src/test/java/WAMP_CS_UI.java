@@ -180,7 +180,7 @@ public class WAMP_CS_UI extends CS {
             if (httpService.getConnectionUpgrades() == null) {
                 httpService.setConnectionUpgrades(new Repository<HttpConnectionUpgrade>());
             }
-            httpService.getConnectionUpgrades().addItem(wsGroup.createWebSocketConnectionUpgrade(path, null));
+            httpService.getConnectionUpgrades().addItem(wsGroup.createWebSocketConnectionUpgrade(path, null,false));
             return path;
         }
         return null;

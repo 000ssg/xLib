@@ -75,10 +75,10 @@ import ssg.lib.wamp.util.WAMPTools;
  * @author 000ssg
  */
 public class WAMPClient extends WAMPNode {
-
+    
     WAMPTransport transport;
     WAMPSession session;
-
+    
     Collection<WAMPEventListener> eventListeners = WAMPTools.createSynchronizedList();
     //Collection<WAMPRPCListener> rpcListeners = WAMPTools.createSynchronizedList();
     LS<WAMPRPCListener> rpcListeners = new LS<>(new WAMPRPCListener[0]);
@@ -88,10 +88,10 @@ public class WAMPClient extends WAMPNode {
     private long maxWaitTimeForSynchronousCall = 1000 * 15;
     private Object connectionContext;
     private String authid;
-
+    
     public WAMPClient() {
     }
-
+    
     public WAMPClient(String authid) {
         this.authid = authid;
     }
@@ -116,7 +116,7 @@ public class WAMPClient extends WAMPNode {
         this.connectionContext = context;
         return this;
     }
-
+    
     public WAMPClient configure(WAMPTransport transport, String agent, String realmS, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
@@ -129,7 +129,7 @@ public class WAMPClient extends WAMPNode {
         session.addWAMPSessionListener(this);
         return this;
     }
-
+    
     public WAMPClient configure(WAMPTransport transport, WAMPFeature[] features, String agent, String realmS, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
@@ -142,28 +142,28 @@ public class WAMPClient extends WAMPNode {
         session.addWAMPSessionListener(this);
         return this;
     }
-
+    
     public WAMPClient configure(WAMPAuthProvider authProviders) {
         super.configure(authProviders);
         return this;
     }
-
+    
     @Override
     public WAMPClient configure(WAMPAuthProvider... authProviders) {
         return super.configure(authProviders);
     }
-
+    
     @Override
     public WAMPClient configure(WAMPRealmFactory realmFactory) {
         return super.configure(realmFactory);
     }
-
+    
     @Override
     public WAMPClient configure(WAMPStatistics statistics) {
         super.configure(statistics);
         return this;
     }
-
+    
     @Override
     public WAMPClient configure(WAMPFeature feature, WAMPFeatureProvider provider) {
         super.configure(feature, provider);
@@ -178,13 +178,13 @@ public class WAMPClient extends WAMPNode {
         }
         return this;
     }
-
+    
     @Override
     public WAMPClient configure(WAMPFeature... features) {
         super.configure(features);
         return this;
     }
-
+    
     public WAMPClient configure(WAMPTransport transport, String agent, WAMPRealm realm, Role... roles) throws WAMPException {
         if (session != null) {
             throw new WAMPException("Cannot change client configuration.");
@@ -208,7 +208,7 @@ public class WAMPClient extends WAMPNode {
         session.addWAMPSessionListener(this);
         return this;
     }
-
+    
     public synchronized void setTransport(WAMPTransport transport) throws WAMPException {
         if (this.transport instanceof WAMPTransportWrapper && ((WAMPTransportWrapper) this.transport).getBase() == null && transport != null && WAMPSessionState.open == session.getState()) {
             ((WAMPTransportWrapper) this.transport).setBase(transport);
@@ -217,15 +217,15 @@ public class WAMPClient extends WAMPNode {
             throw new WAMPException("Cannot change already assigned valid WAMP transport: now=" + this.transport + ", tried: " + transport);
         }
     }
-
+    
     public boolean hasRole(Role role) {
         return session.hasLocalRole(role);
     }
-
+    
     public String getRealm() {
         return session.getRealm().getName();
     }
-
+    
     public boolean isSessionEstablished() {
         return session != null && WAMPSessionState.established == session.getState();
     }
@@ -259,15 +259,15 @@ public class WAMPClient extends WAMPNode {
         }
         return -3;
     }
-
+    
     public Map<String, Object> getProperties() {
         return properties;
     }
-
+    
     public boolean supportsFeature(WAMPFeature feature) {
         return session != null && session.supportsFeature(feature);
     }
-
+    
     @Override
     public void onEstablished(WAMPSession session) {
         super.onEstablished(session);
@@ -297,7 +297,7 @@ public class WAMPClient extends WAMPNode {
             }
         }
     }
-
+    
     @Override
     public void onClosed(WAMPSession session) {
         super.onClosed(session);
@@ -319,7 +319,7 @@ public class WAMPClient extends WAMPNode {
         }
         transport.close();
     }
-
+    
     public void addWAMPEventListener(WAMPEventListener l) throws WAMPException {
         synchronized (eventListeners) {
             if (session != null && session.getState() == WAMPSessionState.established) {
@@ -332,7 +332,7 @@ public class WAMPClient extends WAMPNode {
             }
         }
     }
-
+    
     public void removeWAMPEventListener(WAMPEventListener l) throws WAMPException {
         synchronized (eventListeners) {
             if (eventListeners.contains(l)) {
@@ -346,7 +346,7 @@ public class WAMPClient extends WAMPNode {
             }
         }
     }
-
+    
     public void removeWAMPEventListener(String topic) throws WAMPException {
         WAMPEventListener[] wel = null;
         for (WAMPEventListener l : eventListeners) {
@@ -365,7 +365,7 @@ public class WAMPClient extends WAMPNode {
             }
         }
     }
-
+    
     public void addWAMPRPCListener(WAMPRPCListener l) throws WAMPException {
         if (l != null) {
             synchronized (rpcListeners) {
@@ -373,24 +373,24 @@ public class WAMPClient extends WAMPNode {
             }
         }
     }
-
+    
     public void removeWAMPRPCListener(WAMPRPCListener l) throws WAMPException {
         if (l != null) {
             rpcListeners.add(l);
         }
     }
-
+    
     public boolean isConnected() {
         return session != null
                 && (WAMPSessionState.open == session.getState()
                 || WAMPSessionState.established == session.getState()
                 || WAMPSessionState.closing == session.getState());
     }
-
+    
     public void connect() throws WAMPException {
         connect(authid);
     }
-
+    
     public void connect(String authid) throws WAMPException {
         if (session != null && WAMPSessionState.open == session.getState()) {
             Map<String, Object> details = WAMPTools.createDict(null);
@@ -427,16 +427,18 @@ public class WAMPClient extends WAMPNode {
             session.send(WAMPMessage.hello(session.getRealm().getName(), details));
         }
     }
-
+    
     public void disconnect(String reason) throws WAMPException {
         if (session != null && WAMPSessionState.established == session.getState()) {
             session.send(WAMPMessage.goodbye(WAMPTools.EMPTY_DICT, reason != null ? reason : INFO_CloseNormal));
+        } else if (WAMPSessionState.open == session.getState()) {
+            session.setState(WAMPSessionState.closed);
         }
     }
-
+    
     private volatile boolean runCycleWIP = false;
     Map<WAMPMessage, WAMPFlowStatus> tempStat = WAMPTools.createSynchronizedMap();
-
+    
     public void runCycle() throws WAMPException {
         if (runCycleWIP) {
             return;
@@ -446,7 +448,7 @@ public class WAMPClient extends WAMPNode {
             synchronized (session) {
                 WAMPMessage msg = null;
                 msg = transport.receive();
-
+                
                 if (msg != null) {
                     try {
                         boolean done = false;
@@ -487,7 +489,7 @@ public class WAMPClient extends WAMPNode {
                     }
                 }
             }
-
+            
             if (WAMPSessionState.established == session.getState()) {
                 if (session.getRealm().getActor(WAMP.Role.caller) instanceof WAMPRPCCaller) {
                     if (!rpcListeners.isEmpty() && (getMaxPendingMessagesQueue() <= 0 || session.getPendingCount() < getMaxPendingMessagesQueue())) {
@@ -513,7 +515,7 @@ public class WAMPClient extends WAMPNode {
                         }
                     }
                 }
-
+                
                 try {
                     while (!pendingActions.isEmpty() && (getMaxPendingMessagesQueue() <= 0 || session.getPendingCount() < getMaxPendingMessagesQueue())) {
                         Runnable action = pendingActions.remove(0);
@@ -529,7 +531,7 @@ public class WAMPClient extends WAMPNode {
             runCycleWIP = false;
         }
     }
-
+    
     public synchronized long tryCall(WAMPRPCListener l) {
         try {
             if (l != null && l.getCallId() <= 0) {
@@ -548,7 +550,7 @@ public class WAMPClient extends WAMPNode {
                         super.onError(callId, error, details, args, argsKw);
                         setState(CALL_STATE.failed);
                     }
-
+                    
                     @Override
                     public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
                         boolean r = super.onResult(callId, details, args, argsKw);
@@ -560,7 +562,7 @@ public class WAMPClient extends WAMPNode {
                         }
                         return r;
                     }
-
+                    
                     @Override
                     public void onCancel(long callId, String reason) {
                         synchronized (rpcListeners) {
@@ -577,11 +579,11 @@ public class WAMPClient extends WAMPNode {
         }
         return 0L;
     }
-
+    
     public boolean canPublish() {
         return hasRole(Role.publisher) && WAMPSessionState.established == session.getState() && session.getRealm().getActor(WAMP.Role.publisher) instanceof WAMPPublisher;
     }
-
+    
     public boolean publish(Map<String, Object> options, String topic, List arguments, Map<String, Object> argumentsKw) throws WAMPException {
         if (canPublish()) {
             ((WAMPPublisher) session.getRealm().getActor(WAMP.Role.publisher)).publish(session, options, topic, arguments, argumentsKw);
@@ -589,11 +591,11 @@ public class WAMPClient extends WAMPNode {
         }
         return false;
     }
-
+    
     public boolean canExecute() {
         return hasRole(Role.callee) && WAMPSessionState.established == session.getState() && session.getRealm().getActor(WAMP.Role.callee) instanceof WAMPRPCCallee;
     }
-
+    
     public boolean addExecutor(final Map<String, Object> options, final String procedure, final Callee callee) throws WAMPException {
         if (canExecute()) {
             ((WAMPRPCCallee) session.getRealm().getActor(WAMP.Role.callee)).register(
@@ -621,7 +623,7 @@ public class WAMPClient extends WAMPNode {
         }
         return false;
     }
-
+    
     public boolean removeExecutor(String procedure) throws WAMPException {
         if (canExecute()) {
             WAMPRPCCallee rpc = (WAMPRPCCallee) session.getRealm().getActor(WAMP.Role.callee);
@@ -632,11 +634,11 @@ public class WAMPClient extends WAMPNode {
         }
         return false;
     }
-
+    
     public boolean hasRunningExecutors() {
         return !rpcListeners.isEmpty();
     }
-
+    
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -668,7 +670,7 @@ public class WAMPClient extends WAMPNode {
         sb.append('}');
         return sb.toString();
     }
-
+    
     public Collection<WAMPMessage> getLostMessages() {
         List<WAMPMessage> r = new ArrayList<>();
         synchronized (tempStat) {
@@ -715,20 +717,20 @@ public class WAMPClient extends WAMPNode {
             public void onCall(long callId) {
                 super.onCall(callId);
             }
-
+            
             @Override
             public void onCancel(long callId, String reason) {
                 result[1] = reason;
                 done[0] = true;
             }
-
+            
             @Override
             public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
                 result[0] = (argsKw != null) ? argsKw : args;
                 done[0] = true;
                 return true;
             }
-
+            
             @Override
             public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
                 result[0] = (argsKw != null) ? argsKw : args;
@@ -736,7 +738,7 @@ public class WAMPClient extends WAMPNode {
                 done[0] = true;
             }
         });
-
+        
         long timeout = System.currentTimeMillis() + getMaxWaitTimeForSynchronousCall();
         while (System.currentTimeMillis() < timeout) {
             if (done[0]) {
@@ -748,11 +750,11 @@ public class WAMPClient extends WAMPNode {
                 break;
             }
         }
-
+        
         if (result[1] != null) {
             throw new WAMPException((String) result[1]);
         }
-
+        
         return (T) result[0];
     }
 
@@ -788,18 +790,18 @@ public class WAMPClient extends WAMPNode {
                 public void onCall(long callId) {
                     super.onCall(callId);
                 }
-
+                
                 @Override
                 public void onCancel(long callId, String reason) {
                     caller.onError(callId, reason, WAMPTools.EMPTY_DICT, null, null);
                 }
-
+                
                 @Override
                 public boolean onResult(long callId, Map<String, Object> details, List args, Map<String, Object> argsKw) {
                     caller.onResult(callId, details, args, argsKw);
                     return true;
                 }
-
+                
                 @Override
                 public void onError(long callId, String error, Map<String, Object> details, List args, Map<String, Object> argsKw) {
                     caller.onError(callId, error, details, args, argsKw);
@@ -809,9 +811,9 @@ public class WAMPClient extends WAMPNode {
         }
         return false;
     }
-
+    
     public boolean call2(String procedure, List args, Map<String, Object> argsKw, final SimpleCallListener caller) throws WAMPException {
         return this.call(procedure, args, argsKw, (CallListener) caller);
     }
-
+    
 }

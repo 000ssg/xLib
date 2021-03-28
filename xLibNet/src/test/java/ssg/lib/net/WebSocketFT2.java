@@ -232,12 +232,12 @@ public class WebSocketFT2 extends CS {
 //        ));
         csws.start();
 
-        WebSocket ws = new WebSocketChannel(new URI("ws://localhost:" + wsPort + "/chat"));
+        WebSocket ws = new WebSocketChannel(new URI("ws://localhost:" + wsPort + "/chat"), null);
         byte[] ping = "Hello, WS-PDI".getBytes();
         byte[] pong = ws.ping(ping, false);
         System.out.println("ping-pong:" + "\n  -> " + new String(ping) + "\n  <- " + new String(pong));
 
-        WebSocket ws2 = new WebSocketChannel(new URI("ws://localhost:" + wsPort2 + "/chat"));
+        WebSocket ws2 = new WebSocketChannel(new URI("ws://localhost:" + wsPort2 + "/chat"), null);
         ws2.getProcessor().addWebSocketMessageListener(new DumpMessageListener());
         byte[] ping2 = "Hello, WS-PDI-SC".getBytes();
         byte[] pong2 = ws2.ping(ping2, false);
@@ -245,14 +245,14 @@ public class WebSocketFT2 extends CS {
         ws2.send("Hello, as text (WS_PDI-SC)");
         ws2.send("Hello, as binary (WS-PDI-SC)".getBytes());
 
-        WebSocket ws3 = new WebSocketChannel(new URI("ws://localhost:" + wsPort3 + "/chat"));
+        WebSocket ws3 = new WebSocketChannel(new URI("ws://localhost:" + wsPort3 + "/chat"), null);
         byte[] ping3 = "Hello, WS".getBytes();
         byte[] pong3 = ws3.ping(ping3, false);
         System.out.println("ping-pong:" + "\n  -> " + new String(ping3) + "\n  <- " + new String(pong3));
         ws3.send("Hello, as text (WS)");
         ws3.send("Hello, as binary (WS)".getBytes());
 
-        WebSocket wss = new WebSocketChannel(null, new URI("wss://localhost:" + wssPort + "/chat"), sslh_abc.createSSLContext("TLS", false).createSSLEngine());
+        WebSocket wss = new WebSocketChannel(null, new URI("wss://localhost:" + wssPort + "/chat"), null, sslh_abc.createSSLContext("TLS", false).createSSLEngine());
         byte[] pings = "Hello, WSS".getBytes();
         byte[] pongs = wss.ping(pings, false);
         System.out.println("ping-pong:" + "\n  -> " + new String(pings) + "\n  <- " + new String(pongs));
@@ -260,7 +260,7 @@ public class WebSocketFT2 extends CS {
         wss.send("Hello, as binary (SSL)".getBytes());
 
         try {
-            wss = new WebSocketChannel(new URI("wss://localhost:" + wssPort + "/chat"));
+            wss = new WebSocketChannel(new URI("wss://localhost:" + wssPort + "/chat"), null);
             pings = "Hello, WSS-2".getBytes();
             pongs = wss.ping(pings, false);
             System.out.println("ping-pong:" + "\n  -> " + new String(pings) + "\n  <- " + new String(pongs));
@@ -271,7 +271,7 @@ public class WebSocketFT2 extends CS {
         if (defaultSSLCtx != sslCtx) {
             try {
                 SSLContext.setDefault(sslCtx);
-                wss = new WebSocketChannel(new URI("wss://localhost:" + wssPort + "/chat"));
+                wss = new WebSocketChannel(new URI("wss://localhost:" + wssPort + "/chat"), null);
                 pings = "Hello, WSS-3".getBytes();
                 pongs = wss.ping(pings, false);
                 System.out.println("ping-pong:" + "\n  -> " + new String(pings) + "\n  <- " + new String(pongs));
@@ -283,7 +283,7 @@ public class WebSocketFT2 extends CS {
         }
 
         // stress -> send multiple var size messages...
-        ws = new WebSocketChannel(new URI("ws://localhost:" + wsPort3 + "/chat"));
+        ws = new WebSocketChannel(new URI("ws://localhost:" + wsPort3 + "/chat"), null);
         System.out.println("Stress test at " + ws);
         final String[] wsText = new String[1];
         final byte[][] wsBin = new byte[1][];

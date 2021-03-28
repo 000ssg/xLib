@@ -58,6 +58,11 @@ public abstract class WAMPAuthTicket implements WAMPAuthProvider {
     }
 
     @Override
+    public boolean needChallenge(WAMPSession session, WAMPMessage msg) throws WAMPException {
+        return true;
+    }
+
+    @Override
     public WAMPMessage challenge(WAMPSession session, WAMPMessage msg) throws WAMPException {
         if (session.getLocal().isRouter()) {
             // router

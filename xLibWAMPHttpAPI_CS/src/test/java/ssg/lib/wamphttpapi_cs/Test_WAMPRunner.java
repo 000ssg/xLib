@@ -64,7 +64,7 @@ public class Test_WAMPRunner {
         // (within app) WAMP and REST (for same subpath "wamp")
         // register reflection-based API (DemoHW class) and register instance (context)
         WAMPRunner r = new WAMPRunner(new HttpApplication("A", "/app"), new APIStatistics())
-                .configureWAMPRouter("wamp")
+                .configureWAMPRouter("wamp",false)
                 .configureAPI("demo", "test", new API_Publisher()
                         .configure(Reflective_API_Builder.buildAPI("test", null, DemoHW.class))
                         .configureContext(new DemoHW())

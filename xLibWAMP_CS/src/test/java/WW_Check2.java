@@ -437,7 +437,7 @@ public class WW_Check2 {
         // prepare
         WAMPClient[] callers = new WAMPClient[maxClients];
         for (int i = 0; i < callers.length; i++) {
-            callers[i] = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, new WAMPFeature[]{WAMPFeature.shared_registration}, null, "agent_" + i, "OPENPOINT.TEST2", isItemOf(callees, i) ? Role.callee : Role.caller, Role.publisher, Role.subscriber);
+            callers[i] = clients.connect(wsURI, WAMP.WS_SUB_PROTOCOL_JSON, null, new WAMPFeature[]{WAMPFeature.shared_registration}, null, "agent_" + i, "OPENPOINT.TEST2", isItemOf(callees, i) ? Role.callee : Role.caller, Role.publisher, Role.subscriber);
             callers[i].addWAMPNodeListener(new WAMPNodeListenerDebug("CLIENT[" + i + "]: ").filter((session, msg, mf, error) -> {
                 return false;//msg == null || msg.getType().getId() != WAMPMessageType.T_EVENT;
             }));

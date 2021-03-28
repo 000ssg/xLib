@@ -68,6 +68,11 @@ public class WAMPAuthCRA implements WAMPAuthProvider {
     }
 
     @Override
+    public boolean needChallenge(WAMPSession session, WAMPMessage msg) throws WAMPException {
+        return true;
+    }
+
+    @Override
     public boolean isChallenged(WAMPSession session) {
         return wip.containsKey(session.getId());
     }

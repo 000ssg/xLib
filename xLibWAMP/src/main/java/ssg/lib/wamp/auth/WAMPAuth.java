@@ -23,6 +23,7 @@
  */
 package ssg.lib.wamp.auth;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
@@ -67,6 +68,17 @@ public class WAMPAuth {
         this.details.remove(K_AUTH_METHOD);
         this.details.remove(K_AUTH_ID);
         this.details.remove(K_AUTH_ROLE);
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put(K_AUTH_METHOD, method);
+        r.put(K_AUTH_ID, authid);
+        r.put(K_AUTH_ROLE, role);
+        if (details != null) {
+            r.putAll(details);
+        }
+        return r;
     }
 
     /**

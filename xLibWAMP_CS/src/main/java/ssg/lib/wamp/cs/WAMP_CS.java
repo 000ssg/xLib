@@ -257,7 +257,8 @@ public class WAMP_CS {
             WAMPClient spy = clients.connect(
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
-                    null,
+                    null, // http headers
+                    null, // features
                     null, // no authid
                     "spy",
                     "OPENPOINT.TEST.1",
@@ -265,6 +266,7 @@ public class WAMP_CS {
             WAMPClient rpc1 = clients.connect(
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
+                    null, // http headers
                     new WAMPFeature[]{WAMPFeature.shared_registration},
                     null, // no authid
                     "rpc.1",
@@ -273,6 +275,7 @@ public class WAMP_CS {
             WAMPClient rpc2 = clients.connect(
                     new URI("ws://localhost:" + wsPort + "/ws"),
                     WAMP.WS_SUB_PROTOCOL_JSON,
+                    null, // http headers
                     new WAMPFeature[]{WAMPFeature.shared_registration},
                     null, // no authid
                     "rpc.2",

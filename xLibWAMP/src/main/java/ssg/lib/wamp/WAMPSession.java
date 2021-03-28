@@ -68,6 +68,14 @@ public interface WAMPSession extends Cloneable, Serializable {
      */
     WAMPAuth getAuth();
 
+    /**
+     * Returns transport auth (if any). may differ from auth if explicit
+     * authentication method or no auth in use.
+     *
+     * @return the transport auth
+     */
+    WAMPAuth getTransportAuth();
+
     Map<Long, WAMPAuth> getVirtualAuths();
 
     void killVirtualAuths(Long... ids);
@@ -183,6 +191,12 @@ public interface WAMPSession extends Cloneable, Serializable {
      * @param auth the auth to set
      */
     void setAuth(WAMPAuth auth);
+
+    /**
+     * 
+     * @param remoteAuth 
+     */
+    void setTransportAuth(WAMPAuth remoteAuth);
 
     /**
      * @param closeReason the closeReason to set
@@ -403,6 +417,16 @@ public interface WAMPSession extends Cloneable, Serializable {
         @Override
         public WAMPAuth getAuth() {
             return base.getAuth();
+        }
+
+        @Override
+        public WAMPAuth getTransportAuth() {
+            return base.getTransportAuth();
+        }
+
+        @Override
+        public void setTransportAuth(WAMPAuth auth) {
+            base.setTransportAuth(auth);
         }
 
         @Override

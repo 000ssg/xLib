@@ -39,6 +39,7 @@ import ssg.lib.common.Refl.ReflImpl;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.WAMPTransport;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
 import ssg.lib.wamp.util.LS;
 
@@ -61,6 +62,7 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
     private WAMPMessageStatistics statistics;
     LS<WAMPTransportMessageListener> listeners = new LS<>(new WAMPTransportMessageListener[0]);
     WAMPMessage last;
+    WAMPAuth auth;
 
     public WAMPTransportJSON() {
         transport = new TransportData();
@@ -93,6 +95,23 @@ public class WAMPTransportJSON<P> implements WAMPTransport {
     public WAMPTransportJSON(List input, List output, Class outputType) {
         transport = new TransportData(input, output);
         transport.setOutputType(outputType);
+    }
+
+    @Override
+    public WAMPAuth getTransportAuth() {
+        return auth;
+    }
+
+    /**
+     * Set auth once!
+     * @param auth
+     * @return 
+     */
+    public WAMPTransportJSON configureAuth(WAMPAuth auth) {
+        if (this.auth == null && auth != null) {
+            this.auth = auth;
+        }
+        return this;
     }
 
     @Override

@@ -35,17 +35,15 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.function.BiConsumer;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.ssl.SSLSocketChannel;
-import ssg.lib.websocket.WebSocketExtension;
 
 /**
  *
@@ -71,8 +69,7 @@ public class WebSocketChannel extends WebSocket {
         }
     }
 
-    public WebSocketChannel(URI uri) throws IOException {
-        super(uri);
+    public WebSocketChannel(URI uri, Map<String, String> httpHeaders) throws IOException {
         InetAddress addr = InetAddress.getByName(uri.getHost());
         int port = uri.getPort();
         this.channel = SocketChannel.open(new InetSocketAddress(addr, port));
@@ -85,7 +82,7 @@ public class WebSocketChannel extends WebSocket {
                 throw new IOException("Failed to connect via SSL: " + nsaex);
             }
         }
-        handshake(version, uri);
+        handshake(version, uri, httpHeaders);
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();//List<ByteBuffer> r = read();
@@ -102,7 +99,8 @@ public class WebSocketChannel extends WebSocket {
     public WebSocketChannel(
             URL url,
             SSLEngine sslEngine,
-            String[] proposedProtocols
+            String[] proposedProtocols,
+            Map<String, String> httpHeaders
     ) throws IOException {
         InetAddress addr = InetAddress.getByName(url.getHost());
         int port = (url.getPort() <= 0) ? url.getDefaultPort() : url.getPort();
@@ -118,7 +116,8 @@ public class WebSocketChannel extends WebSocket {
                 null,
                 proposedProtocols,
                 new String[]{"timestamp; keepOffset=true", "gzipped"},
-                0);
+                0,
+                httpHeaders);
 
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
@@ -136,7 +135,7 @@ public class WebSocketChannel extends WebSocket {
     ////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////// constructors with addons
     ////////////////////////////////////////////////////////////////////////////
-    public WebSocketChannel(WebSocketAddons addOns, URI uri, SSLEngine sslEngine) throws IOException {
+    public WebSocketChannel(WebSocketAddons addOns, URI uri, Map<String, String> httpHeaders, SSLEngine sslEngine) throws IOException {
         super(uri, addOns);
         InetAddress addr = InetAddress.getByName(uri.getHost());
         int port = uri.getPort();
@@ -145,7 +144,7 @@ public class WebSocketChannel extends WebSocket {
             sslEngine.setUseClientMode(true);
             this.channel = new SSLSocketChannel(this.channel, sslEngine);
         }
-        handshake(version, uri);
+        handshake(version, uri, httpHeaders);
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();
@@ -168,12 +167,12 @@ public class WebSocketChannel extends WebSocket {
         super(addOns);
         this.channel = channel;
         this.handshake(head);
-        if (head.isHeadCompleted() && head.isConnectionUpgrade() && head.isRequest()) {
-
-        }
+//        if (head.isHeadCompleted() && head.isConnectionUpgrade() && head.isRequest()) {
+//            int a=0;
+//        }
     }
 
-    public WebSocketChannel(WebSocketAddons addOns, URI uri) throws IOException {
+    public WebSocketChannel(WebSocketAddons addOns, URI uri, Map<String, String> httpHeaders) throws IOException {
         super(uri, addOns);
         InetAddress addr = InetAddress.getByName(uri.getHost());
         int port = uri.getPort();
@@ -187,7 +186,7 @@ public class WebSocketChannel extends WebSocket {
                 throw new IOException("Failed to connect via SSL: " + nsaex);
             }
         }
-        handshake(version, uri);
+        handshake(version, uri, httpHeaders);
         long timeout = System.currentTimeMillis() + DEFAULT_HANDSHAKE_TIMEOUT;
         while (!isInitialized() && System.currentTimeMillis() < timeout) {
             fetch();//List<ByteBuffer> r = read();
@@ -227,6 +226,12 @@ public class WebSocketChannel extends WebSocket {
     @Override
     public void closeConnection() throws IOException {
         if (isConnected()) {
+            for (WebSocketLifecycleListener l : getWSListeners()) {
+                try {
+                    l.onClosed(this, channel);
+                } catch (Throwable th) {
+                }
+            }
             channel.close();
         }
     }
@@ -302,8 +307,8 @@ public class WebSocketChannel extends WebSocket {
     }
 
     @Override
-    public void handshake(String version, String path, String host, String origin, String[] proposedProtocols, String[] proposedExtensions, Integer wsVersion) throws IOException {
-        super.handshake(version, path, host, origin, proposedProtocols, proposedExtensions, wsVersion);
+    public void handshake(String version, String path, String host, String origin, String[] proposedProtocols, String[] proposedExtensions, Integer wsVersion, Map<String, String> httpHeaders) throws IOException {
+        super.handshake(version, path, host, origin, proposedProtocols, proposedExtensions, wsVersion, httpHeaders);
         if (!isAsync()) {
             write(null);
         }
@@ -316,9 +321,9 @@ public class WebSocketChannel extends WebSocket {
      * @param path
      * @throws IOException
      */
-    public void handshake(String version, URI uri) throws IOException {
-        String[] proposedProtocols = getAddOns()!=null ? getAddOns().getProposedProtocols() : null;
-        String[] proposedExtensions = getAddOns()!=null ? getAddOns().getProposedExtensions() : new String[]{"timestamp; keepOffset=true", "gzipped"};
+    public void handshake(String version, URI uri, Map<String, String> httpHeaders) throws IOException {
+        String[] proposedProtocols = getAddOns() != null ? getAddOns().getProposedProtocols() : null;
+        String[] proposedExtensions = getAddOns() != null ? getAddOns().getProposedExtensions() : new String[]{"timestamp; keepOffset=true", "gzipped"};
         handshake(
                 version,
                 uri.getPath(),
@@ -326,7 +331,8 @@ public class WebSocketChannel extends WebSocket {
                 null,
                 proposedProtocols,
                 proposedExtensions,
-                0);
+                0,
+                httpHeaders);
     }
 
     @Override
@@ -346,5 +352,4 @@ public class WebSocketChannel extends WebSocket {
     public String toString() {
         return ((getClass().isAnonymousClass()) ? getClass().getName() : getClass().getSimpleName()) + "{" + "channel=" + channel + ", version=" + version + ", _async=" + _async + '}';
     }
-
 }

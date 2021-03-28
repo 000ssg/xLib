@@ -38,6 +38,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.common.buffers.BufferTools;
 
 /**
@@ -94,10 +96,11 @@ public class WebSocketHandshake implements WebSocketConstants {
             String origin,
             String[] proposedProtocols,
             String[] proposedExtensions,
-            Integer wsVersion
+            Integer wsVersion,
+            Map<String, String> httpHeaders
     ) throws IOException {
         this.ws = ws;
-        output = handshakeWriteClientRequest(version, path, host, origin, proposedProtocols, proposedExtensions, wsVersion);
+        output = handshakeWriteClientRequest(version, path, host, origin, proposedProtocols, proposedExtensions, wsVersion, httpHeaders);
     }
 
     public long add(Collection<ByteBuffer> input) throws IOException {
@@ -147,7 +150,8 @@ public class WebSocketHandshake implements WebSocketConstants {
             String origin,
             String[] proposedProtocols,
             String[] proposedExtensions,
-            Integer wsVersion
+            Integer wsVersion,
+            Map<String, String> httpHeaders
     ) throws IOException {
         // prepare key and response key
         key = java.util.Base64.getEncoder().encodeToString(("class " + getClass().getName().hashCode() + "_" + version).getBytes("UTF-8"));
@@ -200,6 +204,17 @@ public class WebSocketHandshake implements WebSocketConstants {
                 }
             }
         }
+
+        // add other headers, e.g. session cookie or authorization details
+        if (httpHeaders != null && !httpHeaders.isEmpty()) {
+            for (Entry<String, String> e : httpHeaders.entrySet()) {
+                req.append(e.getKey());
+                req.append(":");
+                req.append(e.getValue());
+                req.append("\r\n");
+            }
+        }
+
         req.append("\r\n");
         return Collections.singletonList(ByteBuffer.wrap(req.toString().getBytes("UTF-8")));
     }
@@ -275,7 +290,6 @@ public class WebSocketHandshake implements WebSocketConstants {
                 res.append("\r\n");
             }
         }
-
         res.append("\r\n");
 
         return Collections.singletonList(ByteBuffer.wrap(res.toString().getBytes("UTF-8")));

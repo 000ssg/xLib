@@ -30,6 +30,7 @@ import ssg.lib.http_cs.HttpRunner;
 public class APIRunner<T> extends HttpRunner {
 
     public static final String CFG_API_NAME = "apiName";
+    public static final String API_PUB_CLIENT_TITLE = "api-pub";
 
     // API support
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
@@ -265,7 +266,7 @@ public class APIRunner<T> extends HttpRunner {
                 return null;
             }
 
-            T client = initClient(wsURI, group, "api-pub");
+            T client = initClient(wsURI, group, API_PUB_CLIENT_TITLE);
 
             // add callable APIs
             for (String apiName : apiNames) {

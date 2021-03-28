@@ -236,6 +236,9 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                     session = createSession(transport, msg, realm, roles);
                     session.getLocal().setAgent(getAgent());
                     session.setId(nextSessionId());
+                    if(transport.getTransportAuth()!=null) {
+                        session.setTransportAuth(transport.getTransportAuth());
+                    }
                     if (session.getStatistics() != null) {
 //                        session.setStatistics(realm.getStatistics().createChild(null, ""
 //                                + "session"

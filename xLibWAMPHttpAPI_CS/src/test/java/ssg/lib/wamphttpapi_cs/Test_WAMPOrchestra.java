@@ -54,10 +54,12 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
+import ssg.lib.wamp.auth.impl.WAMPAuthAny;
 import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
 import ssg.lib.wamp.auth.impl.WAMPAuthTicket;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
@@ -68,6 +70,7 @@ import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
+import ssg.lib.wamp.util.WAMPTransportList;
 
 /**
  *
@@ -200,6 +203,8 @@ public class Test_WAMPOrchestra {
         WAMPNode.DUMP_ESTABLISH_CLOSE = false;
         REST_WAMP_MethodsProvider.DEBUG = false;
         CustomWAMPRealmFactory.DEBUG = false;
+        WAMPTransportList.GLOBAL_ENABLE_TRACE_MESSAGES = false;
+        boolean TRACE_ROUTER_MESSAGES = false;
 
         Test_WAMPOrchestra all = new Test_WAMPOrchestra();
         HttpCaller caller = new HttpCaller();
@@ -286,6 +291,7 @@ public class Test_WAMPOrchestra {
         final String wampTicketSecret = "wampTicket_Secret1";
         WAMPAuthProvider wampAuthCRA = null;
         WAMPAuthProvider wampAuthTicket = null;
+        WAMPAuthProvider wampAuthAny = new WAMPAuthAny();
         {
             wampAuthCRA = new WAMPAuthCRA(wampCRASecret);
             final URL tvURL = new URL("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/verify");
@@ -370,7 +376,11 @@ public class Test_WAMPOrchestra {
             CustomWAMPRealmFactory realmFactory = new CustomWAMPRealmFactory();
             for (final String[] ss : realmNames) {
                 realmFactory.configureRealms(ss[0]);
-                realmFactory.configureAuths(ss[0], wampAuthTicket, wampAuthCRA);
+                realmFactory.configureAuths(
+                        ss[0],
+                        wampAuthTicket,
+                        wampAuthCRA,
+                        wampAuthAny);
             }
 
             all.service = new WAMPRunner(serviceDomain, new HttpApplication("Service", serviceRoot)
@@ -378,7 +388,7 @@ public class Test_WAMPOrchestra {
             )
                     .configureHttp(servicePort)
                     .configureREST(serviceREST)
-                    .configureWAMPRouter(serviceWAMP)
+                    .configureWAMPRouter(serviceWAMP, true)
                     .configure(realmFactory)
                     .configureAPI("demo", "test", new API_Publisher()
                             .configure(Reflective_API_Builder.buildAPI(
@@ -388,6 +398,13 @@ public class Test_WAMPOrchestra {
                                     Service.class))
                             .configureContext(service)
                     );
+            // add "bridge" for in-router API publishing
+            all.service.configureBridgeWAMPAuth("demo", new WAMPAuth(
+                    "bridge", //String method,
+                    WAMPRunner.API_PUB_CLIENT_TITLE, // String authid,
+                    "api-publisher", // String role,
+                    null // Map<String, Object> details
+            ));
             // add WAMP reflection support to enable automatically generated javascripts
             all.service.wamp()
                     .configureFeature(WAMPFeature.caller_identification)
@@ -403,7 +420,7 @@ public class Test_WAMPOrchestra {
                             .configure("test", "js", "jw", "wamp")
             );
 
-            if (1 == 0) {
+            if (TRACE_ROUTER_MESSAGES) {
                 all.service.configure(new WAMPTransportMessageListener() {
                     @Override
                     public void onMessageReceived(WAMPTransport wt, WAMPMessage msg) {
@@ -451,7 +468,10 @@ public class Test_WAMPOrchestra {
             CustomWAMPRealmFactory realmFactory = new CustomWAMPRealmFactory();
             for (final String[] ss : realmNames) {
                 realmFactory.configureRealms(ss[0]);
-                realmFactory.configureAuths(ss[0], wampAuthTicket);
+                realmFactory.configureAuths(
+                        ss[0],
+                        wampAuthTicket,
+                        wampAuthAny);
             }
 
             WAMPRunner site = new WAMPRunner(siteDomain, null)
@@ -502,15 +522,15 @@ public class Test_WAMPOrchestra {
 
             // try service calls with different user tokens
             System.out.println("\n\n--------------------------------------------------------------------\n----- Verify API restrictions are effectively applied."
-                    +"\n-----  Users with 'a' (apk-a,api-a,aaa) have admin,user roles"
-                    +"\n-----  Users with 'a' (apk-a,api-a,aaa) have user role "
-                    +"\n-----  Users with 'a' (apk-c,api-c,ccc) have neither admin nor user role"
-                    +"\n-----  Method 'getVersionExtra' requires admin role"
-                    +"\n-----  Method 'addItems' requires admin or user role"
-                    +"\n-----  Other methods are for any user"
-                    +"\n-----    method addItems adds items for the user name collection"
-                    +"\n-----    method getItems (items) lists items from the user name collection"
-                    +"\n------------------------------------------------------------------------\n"
+                    + "\n-----  Users with 'a' (apk-a,api-a,aaa) have admin,user roles"
+                    + "\n-----  Users with 'a' (apk-a,api-a,aaa) have user role "
+                    + "\n-----  Users with 'a' (apk-c,api-c,ccc) have neither admin nor user role"
+                    + "\n-----  Method 'getVersionExtra' requires admin role"
+                    + "\n-----  Method 'addItems' requires admin or user role"
+                    + "\n-----  Other methods are for any user"
+                    + "\n-----    method addItems adds items for the user name collection"
+                    + "\n-----    method getItems (items) lists items from the user name collection"
+                    + "\n------------------------------------------------------------------------\n"
             );
             {
                 final AtomicInteger counter = new AtomicInteger();
@@ -543,16 +563,56 @@ public class Test_WAMPOrchestra {
             }
 
             try {
+                for (String tokenUser : new String[]{
+                    "apk-a",
+                    "apk-b",
+                    "api-a",
+                    "bbb"
+                }) {
+                    all.sites.get(0).configureHttpAuth("demo", tokenUser, "Authorization", "Bearer " + caller.getTokens().get(tokenUser));
+                }
                 WAMPNode.DUMP_ESTABLISH_CLOSE = false;
-                WAMPClient client1 = all.sites.get(0).connect(wrURI, caller.getTokens().get("apk-a"), "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
-                WAMPClient client2 = all.sites.get(0).connect(wrURI, caller.getTokens().get("apk-b"), "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
-                WAMPClient client3 = all.sites.get(0).connect(wrURI, caller.getTokens().get("api-a"), "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
-                WAMPClient client4 = all.sites.get(0).connect(wrURI, caller.getTokens().get("bbb"), "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
-                client1.waitEstablished(2000L);
-                client1.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"aaaa1", "aaaa2", "aaaa3"}));
-                client2.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"baaa1", "baaa2", "baaa3"}));
-                client3.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"bbaa1", "bbaa2", "bbaa3"}));
-                client4.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"bbba1", "bbba2", "bbba3"}));
+                WAMPClient client1 = all.sites.get(0).connect(wrURI, "apk-a", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
+                WAMPClient client2 = all.sites.get(0).connect(wrURI, "apk-b", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
+                WAMPClient client3 = all.sites.get(0).connect(wrURI, "api-a", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
+                WAMPClient client4 = all.sites.get(0).connect(wrURI, "bbb", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
+                long est1 = client1.waitEstablished(2000L);
+                long est2 = client2.waitEstablished(2000L);
+                long est3 = client3.waitEstablished(2000L);
+                long est4 = client4.waitEstablished(2000L);
+                WAMPClient client5 = all.sites.get(0).connect(wrURI, "aaa:bbb", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
+                int a1 = 0;
+                a1 = 2;
+                a1 = 3;
+                a1 = 4;
+                long est5 = client5.waitEstablished(2000L);
+                if (est1 >= 0) try {
+                    client1.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"aaaa1", "aaaa2", "aaaa3"}));
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                if (est2 >= 0) try {
+                    client2.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"baaa1", "baaa2", "baaa3"}));
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                if (est3 >= 0) try {
+                    client3.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"bbaa1", "bbaa2", "bbaa3"}));
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                if (est4 >= 0) try {
+                    client4.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"bbba1", "bbba2", "bbba3"}));
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                if (est5 >= 0) try {
+                    client5.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"bbbb1", "bbbb2", "bbbb3"}));
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                } else {
+                    //System.out.println("\n------------------------------------- FAILED CLIENT:\n---- " + client5.toString().replace("\n", "\n---- "));
+                }
             } catch (Throwable th) {
                 th.printStackTrace();
             }

@@ -95,6 +95,7 @@ public abstract class WAMPSessionImpl implements WAMPSession {
     WAMPParty remote;
     // WAMP authentication (client)
     private WAMPAuth auth;
+    private WAMPAuth transportAuth;
     // remote auths
     Map<Long, WAMPAuth> sessionAuths = WAMPTools.createSynchronizedMap();
 
@@ -500,6 +501,18 @@ public abstract class WAMPSessionImpl implements WAMPSession {
     @Override
     public void setAuth(WAMPAuth auth) {
         this.auth = auth;
+    }
+
+    @Override
+    public WAMPAuth getTransportAuth() {
+        return transportAuth;
+    }
+
+    @Override
+    public void setTransportAuth(WAMPAuth auth) {
+        if (transportAuth == null && auth != null) {
+            transportAuth = auth;
+        }
     }
 
     @Override

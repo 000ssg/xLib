@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.WAMPTransport;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
 
 /**
@@ -49,6 +50,7 @@ public class WAMPTransportList<P> implements WAMPTransport {
     LS<WAMPTransportMessageListener> listeners = new LS<>(new WAMPTransportMessageListener[0]);
     public boolean ENABLE_TRACE_MESSAGES = GLOBAL_ENABLE_TRACE_MESSAGES;
     public String TRACE_MESSAGES = null;
+    WAMPAuth auth;
 
     public WAMPTransportList() {
         transport = new TransportData();
@@ -84,6 +86,16 @@ public class WAMPTransportList<P> implements WAMPTransport {
     }
 
     @Override
+    public WAMPAuth getTransportAuth() {
+        return auth;
+    }
+
+    public WAMPTransportList configureAuth(WAMPAuth auth) {
+        this.auth = auth;
+        return this;
+    }
+
+    @Override
     public void send(WAMPMessage message) throws WAMPException {
         try {
             transport.send(message);
@@ -114,14 +126,16 @@ public class WAMPTransportList<P> implements WAMPTransport {
                 }
             }
             WAMPMessage r = transport.receive();
-            if (r != null && statistics != null) {
-                statistics.onReceived(r);
-            }
-            if (ENABLE_TRACE_MESSAGES && r != null && TRACE_MESSAGES != null) {
-                System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-IN: " + ("" + r.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
-            }
-            for (WAMPTransportMessageListener l : listeners.get()) {
-                l.onMessageReceived(this, r);
+            if (r != null) {
+                if (statistics != null) {
+                    statistics.onReceived(r);
+                }
+                if (ENABLE_TRACE_MESSAGES && r != null && TRACE_MESSAGES != null) {
+                    System.out.println("[" + System.currentTimeMillis() + "][" + TRACE_MESSAGES + "-" + id + "]-IN: " + ("" + r.toList()).replace("\n", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " ").replace("  ", " "));
+                }
+                for (WAMPTransportMessageListener l : listeners.get()) {
+                    l.onMessageReceived(this, r);
+                }
             }
             return r;
         } catch (IOException ioex) {
@@ -203,7 +217,10 @@ public class WAMPTransportList<P> implements WAMPTransport {
 
         public WAMPMessage receive() throws IOException {
             if (!input.isEmpty()) {
-                WAMPMessage r = new WAMPMessage(input.remove(0));
+                WAMPMessage r = null;
+                synchronized (input) {
+                    r = new WAMPMessage(input.remove(0));
+                }
                 if (r != null) {
                     onReceived(r);
                 }
@@ -218,7 +235,9 @@ public class WAMPTransportList<P> implements WAMPTransport {
                 for (WAMPMessage msg : messages) {
                     if (hasData(msg)) {
                         onSend(msg);
-                        output.add(msg.toList());
+                        synchronized (output) {
+                            output.add(msg.toList());
+                        }
                     }
                 }
             }

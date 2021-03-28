@@ -29,10 +29,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -105,6 +107,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     boolean multiHost = false; // expand URI to all DNS IPs...
     Integer routerPort; // stand-alone (non-embedded) router port (optional)
     HttpConnectionUpgrade ws_wamp_connection_upgrade;
+    // "saved" authentication headers for realm-authid -> [header,value]
+    Map<String, Map<String, String[]>> wampTransportHeaders = new LinkedHashMap<>();
+    // "saved" WAMP auth for realm-authid -> WAMPAuth
+    Map<String, Map<String, WAMPAuth>> wampTransportAuths = new LinkedHashMap<>();
 
     // WAMP/REST support
     REST_WAMP_MethodsProvider wampAsREST;
@@ -141,6 +147,34 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         initWamp();
         wamp.configure(l);
         return this;
+    }
+
+    public WAMPRunner configureHttpAuth(String realm, String authid, String header, String value) {
+        if (realm != null && header != null && value != null) {
+            Map<String, String[]> m = wampTransportHeaders.get(realm);
+            if (m == null) {
+                m = new LinkedHashMap<>();
+                wampTransportHeaders.put(realm, m);
+            }
+            m.put(authid != null ? authid : "", new String[]{header, value});
+        }
+        return this;
+    }
+
+    public WAMPRunner configureTransportWAMPAuth(String realm, String authid, WAMPAuth auth) {
+        if (realm != null && auth != null) {
+            Map<String, WAMPAuth> m = wampTransportAuths.get(realm);
+            if (m == null) {
+                m = new LinkedHashMap<>();
+                wampTransportAuths.put(realm, m);
+            }
+            m.put(authid != null ? authid : "", auth);
+        }
+        return this;
+    }
+
+    public WAMPRunner configureBridgeWAMPAuth(String realm, WAMPAuth auth) {
+        return this.configureTransportWAMPAuth(realm, API_PUB_CLIENT_TITLE + "_provider", auth);
     }
 
     @Override
@@ -296,18 +330,15 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             if (lockUrQueue.get() == 0) {
                 lockUrQueue.getAndIncrement();
                 try {
+                    WAMPRealm[] rs = null;
                     synchronized (urQueue) {
-                        WAMPRealm[] rs = urQueue.toArray(new WAMPRealm[urQueue.size()]);
-                        System.out.println("Registering REST_WAMP(" + rs.length + " realms)");
+                        rs = urQueue.toArray(new WAMPRealm[urQueue.size()]);
                         urQueue.clear();
-                        for (WAMPRealm r : rs) {
-                            System.out.println("Registering REST_WAMP(" + r.getName() + ")");
-                            getREST().registerProviders(new MethodsProvider[]{wampAsREST}, r);
-                        }
-
-                        for (WAMPRealm r : rs) {
-                            urQueue.remove(r);
-                        }
+                    }
+                    System.out.println("Registering REST_WAMP(" + rs.length + " realms)");
+                    for (WAMPRealm r : rs) {
+                        System.out.println("Registering REST_WAMP(" + r.getName() + ")");
+                        getREST().registerProviders(new MethodsProvider[]{wampAsREST}, r);
                     }
                 } finally {
                     lockUrQueue.getAndDecrement();
@@ -371,7 +402,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
      * @return
      * @throws IOException
      */
-    public WAMPRunner configureWAMPRouter(String path) throws IOException {
+    public WAMPRunner configureWAMPRouter(String path, boolean needHttpAuth) throws IOException {
         if (wamp == null) {
             initHttp();
             initWamp();
@@ -386,7 +417,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     path = "/" + path;
                 }
             }
-            ws_wamp_connection_upgrade = wamp.getCSGroup().createWebSocketConnectionUpgrade(path, null);
+            ws_wamp_connection_upgrade = wamp.getCSGroup().createWebSocketConnectionUpgrade(path, null, needHttpAuth);
             getService().configureConnectionUpgrade(0, ws_wamp_connection_upgrade);
             try {
                 if (getApp() != null) {
@@ -449,15 +480,24 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 if (getREST() != null && this.wampAsREST == null) {
                     if (wampOverREST == null) {
                         try {
-                            wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null), wamp.connect(
-                                    wsURI != null ? wsURI : wampRouterURI,
-                                    "RoW-" + client.getRealm() + "-" + client.getAgent(),
-                                    new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
-                                    group.authid,
-                                    "RoW-" + client.getRealm(),
-                                    client.getRealm(),
-                                    WAMP.Role.caller
-                            ));
+                            wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null),
+                                    connect(
+                                            wsURI != null ? wsURI : wampRouterURI,
+                                            group.authid,
+                                            "RoW-" + client.getRealm() + "-" + client.getAgent(),
+                                            client.getRealm(),
+                                            new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
+                                            WAMP.Role.caller)
+                            );
+//                            wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null), wamp.connect(
+//                                    wsURI != null ? wsURI : wampRouterURI,
+//                                    "RoW-" + client.getRealm() + "-" + client.getAgent(),
+//                                    new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
+//                                    group.authid,
+//                                    "RoW-" + client.getRealm(),
+//                                    client.getRealm(),
+//                                    WAMP.Role.caller
+//                            ));
                         } catch (IOException ioex) {
                             ioex.printStackTrace();
                         }
@@ -465,15 +505,23 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                         if (wampOverREST instanceof REST_WAMP_API_MethodsProvider) {
                             WAMPClient rclient = ((REST_WAMP_API_MethodsProvider) wampOverREST).caller(group.realm);
                             if (rclient == null) {
-                                ((REST_WAMP_API_MethodsProvider) wampOverREST).addCallers(wamp.connect(
-                                        wsURI != null ? wsURI : wampRouterURI,
-                                        "RoW-" + client.getRealm() + "-" + client.getAgent(),
-                                        new WAMPFeature[]{WAMPFeature.shared_registration},
-                                        group.authid,
-                                        "RoW-" + client.getRealm(),
-                                        client.getRealm(),
-                                        WAMP.Role.caller
-                                ));
+                                ((REST_WAMP_API_MethodsProvider) wampOverREST).addCallers(
+                                        connect(
+                                                wsURI != null ? wsURI : wampRouterURI,
+                                                group.authid,
+                                                "RoW-" + client.getRealm() + "-" + client.getAgent(),
+                                                client.getRealm(),
+                                                new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
+                                                WAMP.Role.caller)
+                                //                                        wamp.connect(
+                                //                                        wsURI != null ? wsURI : wampRouterURI,
+                                //                                        "RoW-" + client.getRealm() + "-" + client.getAgent(),
+                                //                                        new WAMPFeature[]{WAMPFeature.shared_registration},
+                                //                                        group.authid,
+                                //                                        "RoW-" + client.getRealm(),
+                                //                                        client.getRealm(),
+                                //                                        WAMP.Role.caller)
+                                );
                             }
                         }
                     }
@@ -713,27 +761,85 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         return wampRouterURI;
     }
 
-//    public API_MethodsProvider getWampOverRest() {
-//        return wampOverREST;
-//    }
+    /**
+     * "Smart" connector.
+     *
+     * If URI matches local router URI, then establishes connection over "loop"
+     * transport with optionally defined WAMPAuth transport authentication (via
+     * getWAMPAuth(...)).
+     *
+     * Otherwise establishes networked connection with optionally provided HTTP
+     * authentication/authorization headers (via getHttpAuthHeaders(...)).
+     *
+     * @param uri
+     * @param authid
+     * @param agent
+     * @param realm
+     * @param features
+     * @param roles
+     * @return
+     * @throws WAMPException
+     */
     public WAMPClient connect(URI uri, String authid, String agent, String realm, WAMPFeature[] features, WAMP.Role... roles) throws WAMPException {
         if (wamp != null) {
             try {
-                // prepare/keep client
-                return wamp.connect(
-                        uri,
-                        agent,
-                        features,
-                        authid,
-                        agent,
-                        realm,
-                        roles
-                ).configure(new WAMPStatistics(realm + "_" + agent));
+                if (wampRouterURI != null && wampRouterURI.equals(uri) && wamp.getRouter() != null) {
+                    return wamp.connect(
+                            wamp.getRouter(),
+                            getWAMPAuth(uri, authid, agent, realm, features, roles),
+                            agent,
+                            features,
+                            authid,
+                            agent,
+                            realm,
+                            roles
+                    ).configure(new WAMPStatistics(realm + "_" + agent));
+                } else {
+                    // prepare/keep client
+                    return wamp.connect(
+                            uri,
+                            agent,
+                            getHttpAuthHeaders(
+                                    uri,
+                                    authid,
+                                    agent,
+                                    realm,
+                                    features,
+                                    roles),
+                            features,
+                            authid,
+                            agent,
+                            realm,
+                            roles
+                    ).configure(new WAMPStatistics(realm + "_" + agent));
+                }
             } catch (WAMPException wex) {
                 wex.printStackTrace();
             }
         }
         return null;
+    }
+
+    public Map<String, String> getHttpAuthHeaders(URI uri, String authid, String agent, String realm, WAMPFeature[] features, WAMP.Role... roles) {
+        Map<String, String[]> auths = this.wampTransportHeaders.get(realm != null ? realm : "");
+        String[] ss = auths != null ? auths.get(authid != null ? authid : agent != null ? agent : null) : null;
+        if (ss == null && authid != null && authid.contains(":")) try {
+            // basic http auth
+            ss = new String[]{"Authorization", "Basic " + Base64.getEncoder().encodeToString(authid.getBytes("UTF-8"))};
+        } catch (IOException ioex) {
+        }
+        if (ss != null && ss.length > 0) {
+            Map<String, String> r = new HashMap();
+            r.put(ss[0], ss[1]);
+            return r;
+        }
+
+        return null;
+    }
+
+    public WAMPAuth getWAMPAuth(URI uri, String authid, String agent, String realm, WAMPFeature[] features, WAMP.Role... roles) {
+        Map<String, WAMPAuth> auths = this.wampTransportAuths.get(realm != null ? realm : "");
+        return auths != null ? auths.get(authid != null ? authid : agent != null ? agent : null) : null;
     }
 
     public static class WAMPAPIAuth implements APIAuthContext {

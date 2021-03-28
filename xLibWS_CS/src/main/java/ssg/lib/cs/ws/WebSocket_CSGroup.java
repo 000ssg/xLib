@@ -310,7 +310,7 @@ public class WebSocket_CSGroup implements CSGroup {
      * are used
      * @return
      */
-    public HttpConnectionUpgradeWS createWebSocketConnectionUpgrade(String path, final WebSocket.WebSocketAddons addOns) {
+    public HttpConnectionUpgradeWS createWebSocketConnectionUpgrade(String path, final WebSocket.WebSocketAddons addOns, boolean needAuth) {
         HttpConnectionUpgradeWS r = new HttpConnectionUpgradeWS() {
             @Override
             public HttpWS createWSHttp(Channel provider, HttpData data) throws IOException {
@@ -372,7 +372,7 @@ public class WebSocket_CSGroup implements CSGroup {
                 webSocket.handshake(data.getHead());
 
                 // return HttpWS wrapper for use within HttpService.
-                return new HttpWS(webSocket);
+                return new HttpWS(webSocket, data);
             }
 
             @Override
@@ -380,6 +380,7 @@ public class WebSocket_CSGroup implements CSGroup {
                 return super.testWSPath(root, head) && head.getProtocolInfo()[1].equals(root + (!root.isEmpty() && !root.endsWith("/") && !path.startsWith("/") ? "/" : "") + path);
             }
         };
+        r.configureNeedAuth(needAuth);
 
         httpListeners.put(path, r);
 

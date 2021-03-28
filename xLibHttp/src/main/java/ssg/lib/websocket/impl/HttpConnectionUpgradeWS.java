@@ -34,6 +34,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import ssg.lib.http.base.HttpRequest;
+import ssg.lib.http.base.HttpResponse;
 import ssg.lib.service.Repository;
 import ssg.lib.service.Repository.RepositoryListener;
 import ssg.lib.websocket.WebSocketProcessor;
@@ -48,6 +50,7 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
 
     WebSocketProcessor wsp;
     WebSocketProcessor.WebSocketMessageListener wsl;
+    boolean requireAuth = false;
 
     public HttpConnectionUpgradeWS<P> configure(WebSocketProcessor wsp) {
         this.wsp = wsp;
@@ -56,6 +59,11 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
 
     public HttpConnectionUpgradeWS<P> configure(WebSocketProcessor.WebSocketMessageListener wsl) {
         this.wsl = wsl;
+        return this;
+    }
+
+    public HttpConnectionUpgradeWS<P> configureNeedAuth(boolean needAuth) {
+        requireAuth = needAuth;
         return this;
     }
 
@@ -77,6 +85,16 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
         if (data instanceof HttpWS) {
             // already upgraded...
             return data;
+        }
+        if (requireAuth && data instanceof HttpRequest) {
+            HttpRequest req = (HttpRequest) data;
+            if (req.getHttpSession() == null || req.getHttpSession().getUser() == null) {
+                HttpResponse res = req.getResponse();
+                res.setResponseCode(401, "Not autenticated");
+                res.onHeaderLoaded();
+                res.onLoaded();
+                return data;
+            }
         }
         HttpWS httpws = createWSHttp(provider, data);
         if (wsp != null) {
@@ -114,7 +132,7 @@ public class HttpConnectionUpgradeWS<P extends Channel> implements HttpConnectio
      * @throws IOException
      */
     public HttpWS createWSHttp(P provider, HttpData data) throws IOException {
-        HttpWS httpws = new HttpWS(new WebSocketChannel((SocketChannel) provider, data.getHead()));
+        HttpWS httpws = new HttpWS(new WebSocketChannel((SocketChannel) provider, data.getHead()), data);
         return httpws;
     }
 

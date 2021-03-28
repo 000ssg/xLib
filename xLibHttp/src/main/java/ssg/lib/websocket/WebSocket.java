@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,7 @@ public abstract class WebSocket implements WebSocketConstants {
     private boolean client = false;
     String protocol;
     WebSocketExtensions extensions = new WebSocketExtensions();
+    Collection<WebSocketLifecycleListener> wsListeners = new LinkedHashSet<>();
 
     // limitations: frame, timeout and any other stoppers...
     private int maxFrameSize = 100000; // frame size. If exceeds -> frames are automatically fragmented.
@@ -99,6 +101,8 @@ public abstract class WebSocket implements WebSocketConstants {
     private short closeCode;
     private byte[] closeData;
 
+    // owner (creation context
+    transient Object owner;
     // optional remote
     URI uri;
     // handshaking...
@@ -125,6 +129,21 @@ public abstract class WebSocket implements WebSocketConstants {
     public WebSocket(URI uri, WebSocketAddons addOns) {
         this.uri = uri;
         this.addOns = addOns;
+    }
+
+    /**
+     * set owner once!
+     *
+     * @param obj
+     */
+    public void owner(Object obj) {
+        if (owner == null && obj != null) {
+            owner = obj;
+        }
+    }
+
+    public <T> T owner() {
+        return (T) owner;
     }
 
     public WebSocketAddons getAddOns() {
@@ -161,7 +180,8 @@ public abstract class WebSocket implements WebSocketConstants {
             String origin,
             String[] proposedProtocols,
             String[] proposedExtensions,
-            Integer wsVersion
+            Integer wsVersion,
+            Map<String, String> httpHeaders
     ) throws IOException {
         client = true;
         handshake = new WebSocketHandshake(
@@ -172,7 +192,8 @@ public abstract class WebSocket implements WebSocketConstants {
                 origin,
                 proposedProtocols,
                 proposedExtensions,
-                wsVersion);
+                wsVersion,
+                httpHeaders);
         this.path = path;
     }
 
@@ -969,6 +990,12 @@ public abstract class WebSocket implements WebSocketConstants {
         if (initialized && getProcessor() == null) {
             setProcessor(createProcessor());
         }
+        for (WebSocketLifecycleListener l : getWSListeners()) {
+            try {
+                l.onInitialized(this);
+            } catch (Throwable th) {
+            }
+        }
     }
 
     public WebSocketProcessor createProcessor() {
@@ -1033,6 +1060,28 @@ public abstract class WebSocket implements WebSocketConstants {
      */
     public void setMaxFrameSize(int maxFrameSize) {
         this.maxFrameSize = maxFrameSize;
+    }
+
+    public void addWebSocketLifecycleListener(WebSocketLifecycleListener l) {
+        if (l != null && !wsListeners.contains(l)) {
+            synchronized (wsListeners) {
+                wsListeners.add(l);
+            }
+        }
+    }
+
+    public void removeWebSocketLifecycleListener(WebSocketLifecycleListener l) {
+        if (l != null && wsListeners.contains(l)) {
+            synchronized (wsListeners) {
+                wsListeners.remove(l);
+            }
+        }
+    }
+
+    public WebSocketLifecycleListener[] getWSListeners() {
+        synchronized (wsListeners) {
+            return wsListeners.toArray(new WebSocketLifecycleListener[wsListeners.size()]);
+        }
     }
 
     /**
@@ -1213,4 +1262,12 @@ public abstract class WebSocket implements WebSocketConstants {
         void onOutgoingFrame(WebSocket ws, WebSocketFrame frame, WebSocketExtension processedBy, ByteBuffer[] payload, Integer off);
     }
 
+    public static interface WebSocketLifecycleListener {
+
+        void onOpened(WebSocket ws, Object... parameters);
+
+        void onInitialized(WebSocket ws);
+
+        void onClosed(WebSocket ws, Object... parameters);
+    }
 }

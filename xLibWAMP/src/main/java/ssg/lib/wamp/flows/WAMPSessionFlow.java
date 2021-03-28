@@ -168,10 +168,26 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                                 for (String am : authMethods) {
                                     WAMPAuthProvider ap = authProviders.get(am);
                                     if (ap != null) {
-                                        WAMPMessage challenge = ap.challenge(session, msg);
-                                        if (challenge != null) {
-                                            session.send(challenge);
-                                            return WAMPFlowStatus.handled;
+                                        if (ap.needChallenge(session, msg)) {
+                                            WAMPMessage challenge = ap.challenge(session, msg);
+                                            if (challenge != null) {
+                                                session.send(challenge);
+                                                return WAMPFlowStatus.handled;
+                                            }
+                                        } else {
+                                            Map<String, Object> authInfo = ap.authenticated(session, msg);
+                                            if (authInfo != null) {
+                                                WAMPAuth auth = new WAMPAuth(authInfo);
+                                                session.getRealm().verifySession(session, auth);
+                                                // prepare and send WELCOME
+                                                Map<String, Object> details = prepareWelcomeDetails(session);
+                                                details.putAll(authInfo);
+                                                session.send(WAMPMessage.welcome(session.getId(), details));
+                                                // set WAMPAuth on router
+                                                session.setAuth(auth);
+                                                session.setState(WAMPSessionState.established);
+                                                return WAMPFlowStatus.handled;
+                                            }
                                         }
                                     }
                                 }
@@ -239,9 +255,23 @@ public class WAMPSessionFlow implements WAMPMessagesFlow {
                                             authMethod = s;
                                             ap = authProviders.get(authMethod);
                                             if (ap != null) {
-                                                WAMPMessage challenge = ap.challenge(session, session.helloMessage());
-                                                if (challenge != null) {
-                                                    session.send(challenge);
+                                                if (ap.needChallenge(session, msg)) {
+                                                    WAMPMessage challenge = ap.challenge(session, session.helloMessage());
+                                                    if (challenge != null) {
+                                                        session.send(challenge);
+                                                        return WAMPFlowStatus.handled;
+                                                    }
+                                                } else {
+                                                    authInfo = ap.authenticated(session, msg);
+                                                    WAMPAuth auth = new WAMPAuth(authInfo);
+                                                    session.getRealm().verifySession(session, auth);
+                                                    // prepare and send WELCOME
+                                                    Map<String, Object> details = prepareWelcomeDetails(session);
+                                                    details.putAll(authInfo);
+                                                    session.send(WAMPMessage.welcome(session.getId(), details));
+                                                    // set WAMPAuth on router
+                                                    session.setAuth(auth);
+                                                    session.setState(WAMPSessionState.established);
                                                     return WAMPFlowStatus.handled;
                                                 }
                                             }

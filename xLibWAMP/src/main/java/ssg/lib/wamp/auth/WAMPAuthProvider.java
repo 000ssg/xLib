@@ -55,6 +55,16 @@ public interface WAMPAuthProvider {
     String name();
 
     /**
+     * If does not need challenge, use authenticated() directly on hello message.
+     *
+     * @param session
+     * @param msg
+     * @return
+     * @throws WAMPException
+     */
+    boolean needChallenge(WAMPSession session, WAMPMessage msg) throws WAMPException;
+
+    /**
      * Produce challenge message (on router)
      *
      * @param session

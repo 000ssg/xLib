@@ -23,6 +23,7 @@
  */
 package ssg.lib.wamp;
 
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.stat.WAMPMessageStatistics;
@@ -33,6 +34,14 @@ import ssg.lib.wamp.stat.WAMPMessageStatistics;
  * @author 000ssg
  */
 public interface WAMPTransport {
+
+    /**
+     * Enable transport-level authentication info (to enable router-side session
+     * authentiction if no explicit request)
+     *
+     * @return
+     */
+    WAMPAuth getTransportAuth();
 
     void send(WAMPMessage message) throws WAMPException;
 
@@ -71,6 +80,11 @@ public interface WAMPTransport {
 
         public void setBase(WAMPTransport base) {
             this.base = base;
+        }
+
+        @Override
+        public WAMPAuth getTransportAuth() {
+            return base.getTransportAuth();
         }
 
         @Override

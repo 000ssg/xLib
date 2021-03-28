@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,6 +95,18 @@ public class WAMPTools {
 
     public static <V> List<V> createList(V... items) {
         if (items == null || items.length == 0) {
+            return createList((Consumer) null);
+        } else {
+            return createList((list) -> {
+                for (V v : items) {
+                    list.add(v);
+                }
+            });
+        }
+    }
+
+    public static <V> List<V> createList(Collection<V> items) {
+        if (items == null || items.size() == 0) {
             return createList((Consumer) null);
         } else {
             return createList((list) -> {

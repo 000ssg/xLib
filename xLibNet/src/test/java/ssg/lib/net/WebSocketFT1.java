@@ -140,7 +140,8 @@ public class WebSocketFT1 {
                     null,
                     null,
                     new String[]{"timestamp; keepOffset=true", "gzipped"},
-                    0);
+                    0,
+                    null);
             while (!wc.isInitialized()) {
                 wc.fetch();
                 NetTools.delay(1);

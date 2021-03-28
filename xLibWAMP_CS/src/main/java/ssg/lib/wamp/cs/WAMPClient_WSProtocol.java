@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.common.CommonTools;
+import ssg.lib.common.net.NetTools;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
 import ssg.lib.wamp.WAMP;
@@ -45,11 +46,15 @@ import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealmFactory;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.nodes.WAMPNode.WAMPNodeListener;
+import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
 import ssg.lib.wamp.util.LS;
+import ssg.lib.wamp.util.WAMPTransportList;
 import ssg.lib.websocket.WebSocket;
+import ssg.lib.websocket.WebSocket.WebSocketLifecycleListener;
 import ssg.lib.websocket.impl.DI_WS;
 import ssg.lib.websocket.impl.WebSocketProtocolHandler;
 
@@ -69,6 +74,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     private WAMPStatistics statistics = new WAMPStatistics("client");
     private int maxInputQueueSize = 100;
     LS<WAMPNodeListener> listeners = new LS<>(new WAMPNodeListener[0]);
+    // enable support of direct (no WS) router clients
+    Map<Channel, WAMPClient> directClients = WAMPTools.createSynchronizedMap(true);
+    Runnable directClientsHandler = null;
     //
     WAMPFeature[] defaultFeatures = new WAMPFeature[0];
     Map<WAMPFeature, WAMPFeatureProvider> wampFeatureProviders = WAMPTools.createMap(true);
@@ -174,6 +182,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
             } finally {
                 if (clients.containsKey(provider)) {
                     clients.remove(provider);
+                }
+                if (directClients.containsKey(provider)) {
+                    directClients.remove(provider);
                 }
             }
         }
@@ -288,6 +299,9 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
                             if (clients.containsKey(key)) {
                                 clients.remove(key);
                             }
+                            if (directClients.containsKey(key)) {
+                                directClients.remove(key);
+                            }
                         }
                     }
                 }
@@ -316,7 +330,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
      * @return
      * @throws IOException
      */
-    public WAMPClient connect(URI uri, String protocol, WAMPFeature[] features, String authid, String agent, String realm, WAMP.Role... roles) throws IOException {
+    public WAMPClient connect(URI uri, String protocol, Map<String, String> httpHeaders, WAMPFeature[] features, String authid, String agent, String realm, WAMP.Role... roles) throws IOException {
         WAMPClient client = new WAMPClient(authid)
                 .configure(realmFactory)
                 .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null))
@@ -336,6 +350,7 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
             }
         }
         onClientCreated(client);
+
         client.addWAMPNodeListener(listeners.get());
         if (tcph.isRegistered()) {
             SocketAddress wsSA = new InetSocketAddress(InetAddress.getByName(uri.getHost()), port);
@@ -351,7 +366,26 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
                         String version = (String) client.getProperties().get("version");
                         int wsVersion = 0;
                         String origin = null;
-                        ws.handshake(version, uri.getPath(), uri.getHost(), origin, protocols, extensions, wsVersion);
+                        ws.addWebSocketLifecycleListener(new WebSocketLifecycleListener() {
+                            @Override
+                            public void onOpened(WebSocket ws, Object... parameters) {
+                            }
+
+                            @Override
+                            public void onInitialized(WebSocket ws) {
+                            }
+
+                            @Override
+                            public void onClosed(WebSocket ws, Object... parameters) {
+                                delete(
+                                        parameters != null && parameters.length > 0 && parameters[0] instanceof Channel
+                                                ? (Channel) parameters[0]
+                                                : null,
+                                        ws
+                                );
+                            }
+                        });
+                        ws.handshake(version, uri.getPath(), uri.getHost(), origin, protocols, extensions, wsVersion, httpHeaders);
                     }
                 });
                 clients.put(provider, client);
@@ -363,12 +397,100 @@ public class WAMPClient_WSProtocol implements WebSocketProtocolHandler {
     }
 
     /**
+     * Direct router connection (bypassing WS/TCP transport.
+     *
+     * @param router
+     * @param authid
+     * @param agent
+     * @param realm
+     * @param roles
+     * @return
+     * @throws IOException
+     */
+    public WAMPClient connect(WAMPRouter router, WAMPAuth auth, WAMPFeature[] features, String authid, String agent, String realm, WAMP.Role... roles) throws IOException {
+        WAMPTransportList.WAMPTransportLoop crt = new WAMPTransportList.WAMPTransportLoop();
+        if (auth != null) {
+            crt.remote.configureAuth(auth);
+        }
+
+        WAMPClient client = new WAMPClient(authid)
+                .configure(realmFactory)
+                .configure((WAMPStatistics) ((statistics != null) ? statistics.createChild(null, agent) : null))
+                .configure(crt.local, WAMPFeature.mergeCopy(defaultFeatures, features), agent, realm, roles);
+        for (Entry<WAMPFeature, WAMPFeatureProvider> entry : getFeatureProviders().entrySet()) {
+            client.configure(entry.getKey(), entry.getValue());
+        }
+        Map<String, Object> props = client.getProperties();
+        props.put("version", "0.1");
+        props.put("router", router.getNodeId());
+        onClientCreated(client);
+        client.addWAMPNodeListener(listeners.get());
+
+        Channel ch = new Channel() {
+            boolean open = true;
+
+            @Override
+            public boolean isOpen() {
+                return open;
+            }
+
+            @Override
+            public void close() throws IOException {
+                open = false;
+            }
+        };
+        clients.put(ch, client);
+        directClients.put(ch, client);
+        onDirectClientCreated(client);
+
+        client.connect();
+        router.onNewTransport(crt.remote);
+
+        return client;
+    }
+
+    /**
      * Override to perform any client pre-configuration before connecting it...
      *
      * @param client
      * @throws IOException
      */
     public void onClientCreated(WAMPClient client) throws IOException {
+    }
+
+    public void onDirectClientCreated(WAMPClient client) throws IOException {
+        synchronized (directClients) {
+            if (directClientsHandler == null) {
+                final long id = System.identityHashCode(this);
+                directClientsHandler = new Runnable() {
+                    @Override
+                    public void run() {
+                        String old = Thread.currentThread().getName();
+                        Thread.currentThread().setName("WAMPClient_WSProtocol_direct-" + id);
+                        try {
+                            while (!directClients.isEmpty()) {
+                                Entry<Channel, WAMPClient>[] cls = null;
+                                synchronized (directClients) {
+                                    cls = directClients.entrySet().toArray(new Entry[directClients.size()]);
+                                }
+                                for (Entry<Channel, WAMPClient> cl : cls) {
+                                    try {
+                                        cl.getValue().runCycle();
+                                    } catch (Throwable th) {
+                                        th.printStackTrace();
+                                    }
+                                }
+                                NetTools.delay(1);
+                            }
+                        } finally {
+                            directClientsHandler = null;
+                            Thread.currentThread().setName(old);
+                        }
+                    }
+                };
+                cs.getScheduledExecutorService().execute(directClientsHandler);
+            }
+        }
     }
 
     public Collection<WAMPClient> getClients() {

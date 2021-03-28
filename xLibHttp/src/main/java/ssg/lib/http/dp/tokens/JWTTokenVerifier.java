@@ -45,7 +45,7 @@ import ssg.lib.http.dp.tokens.TokenVerifier;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class JWTTokenVerifier extends TokenVerifier implements TokenAuthenticator {
 

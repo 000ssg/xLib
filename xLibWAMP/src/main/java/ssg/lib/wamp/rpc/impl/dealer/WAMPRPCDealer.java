@@ -79,6 +79,8 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
 
     // RPC registrations
     WAMPRPCRegistrations registrations = new WAMPRPCRegistrations();
+    // flags
+    boolean forceDiscloseCaller = false;
 
     public WAMPRPCDealer() {
         getFeatures().add(WAMPFeature.registration_meta_api);
@@ -92,6 +94,11 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
     public void initFeatures(WAMP.Role[] roles, Map<WAMPFeature, WAMPFeatureProvider> featureProviders) {
         super.initFeatures(roles, featureProviders);
         registrations.registerFeatureMethods(getFeatures(), featureProviders);
+    }
+
+    public WAMPRPCDealer setForceDiscloseCalls(boolean force) {
+        this.forceDiscloseCaller = force;
+        return this;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -300,7 +307,14 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
                 }
 
                 // caller identification feature support
-                if (options.containsKey(RPC_CALLER_ID_DISCLOSE_ME) && (Boolean) options.get(RPC_CALLER_ID_DISCLOSE_ME) && session.supportsFeature(WAMPFeature.caller_identification)) {
+                if (forceDiscloseCaller) {
+                    call.details.put(
+                            RPC_CALLER_ID_KEY,
+                            session.supportsFeature(WAMP_FP_VirtualSession.virtual_session) && options.containsKey(RPC_CALLER_ID_KEY)
+                            ? options.get(RPC_CALLER_ID_KEY)
+                            : session.getId()
+                    );
+                } else if (options.containsKey(RPC_CALLER_ID_DISCLOSE_ME) && (Boolean) options.get(RPC_CALLER_ID_DISCLOSE_ME) && session.supportsFeature(WAMPFeature.caller_identification)) {
                     // on caller request
                     call.details.put(
                             RPC_CALLER_ID_KEY,
@@ -657,6 +671,7 @@ public class WAMPRPCDealer extends WAMPRPC implements WAMPDealer {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         sb.append("{");
+        sb.append("forceDiscloseCaller=" + this.forceDiscloseCaller);
         sb.append("\n  features=" + this.getFeatures());
         sb.append("\n  calls[" + calls.size() + "]=" + calls.keySet());
         sb.append("\n  meta=");

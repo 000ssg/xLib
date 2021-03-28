@@ -26,9 +26,12 @@ package ssg.lib.wamp.cs;
 import java.io.IOException;
 import java.nio.channels.Channel;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import ssg.lib.http.HttpSession;
+import ssg.lib.http.HttpUser;
 import ssg.lib.net.CS;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMP.Role;
@@ -40,6 +43,7 @@ import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
+import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.stat.WAMPStatistics;
@@ -165,6 +169,22 @@ public class WAMPRouter_WSProtocol implements WebSocketProtocolHandler {
             }
 
         });
+        if (ws.owner() instanceof HttpSession && ((HttpSession) ws.owner()).getUser() != null) {
+            HttpUser user = ((HttpSession) ws.owner()).getUser();
+            WAMPAuth auth = new WAMPAuth(
+                    "http", // method
+                    user.getId(), // authid
+                    (user.getRoles() != null && !user.getRoles().isEmpty() ? user.getRoles().get(0) : null), // String role
+                    new LinkedHashMap<>() //Map<String, Object> details
+            );
+            if (user.getProperties() != null) {
+                auth.getDetails().putAll(user.getProperties());
+            }
+            if (user.getRoles() != null && user.getRoles().size() > 1) {
+                auth.getDetails().put("http_roles", WAMPTools.createList(user.getRoles()));
+            }
+            transport.configureAuth(auth);
+        }
         wampTransports.put(ws, transport);
         wampRouter.onNewTransport(transport);
     }

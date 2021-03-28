@@ -57,7 +57,7 @@ public class HttpConnectionUpgradeHTTP2<P extends Channel> implements HttpConnec
             // already upgraded...
             return data;
         }
-        HttpWS httpws = new HttpWS(new WebSocketChannel((SocketChannel) provider, data.getHead()));
+        HttpWS httpws = new HttpWS(new WebSocketChannel((SocketChannel) provider, data.getHead()), data);
         return httpws;
     }
 

@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
+import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.http.HttpMatcher;
+import ssg.lib.http.HttpSession;
 import ssg.lib.http.base.HttpRequest;
 import ssg.lib.websocket.WebSocketProcessor;
 import ssg.lib.websocket.WebSocketProcessor.WebSocketMessageListener;
@@ -42,12 +44,13 @@ public class HttpWS extends HttpData {
 
     WebSocket ws;
     HttpMatcher matcher;
+    HttpSession session;
 
-    public HttpWS(WebSocket ws) {
-        this.ws = ws;
-        matcher = new HttpMatcher(ws.getPath());
-        setFlags(HF_SWITCHED);
-    }
+//    public HttpWS(WebSocket ws) {
+//        this.ws = ws;
+//        matcher = new HttpMatcher(ws.getPath());
+//        setFlags(HF_SWITCHED);
+//    }
 
     public HttpWS(WebSocket ws, HttpData http) throws IOException {
         super(http);
@@ -55,6 +58,8 @@ public class HttpWS extends HttpData {
         this.ws = ws;
         if (http instanceof HttpRequest) {
             matcher = new HttpMatcher(http.getHead().getProtocolInfo()[1]);
+            session = ((HttpRequest) http).getHttpSession();
+            ws.owner(session);
         }
         setFlags(HF_SWITCHED);
     }
@@ -70,11 +75,18 @@ public class HttpWS extends HttpData {
 
     @Override
     public List<ByteBuffer> get() throws IOException {
-        return ws.get();
+        List<ByteBuffer> r = ws.get();
+        if (session != null && BufferTools.hasRemaining(r)) {
+            session.touch(1000 * 60 * 15);
+        }
+        return r;
     }
 
     @Override
     public long add(Collection<ByteBuffer>... bufs) throws IOException {
+        if (session != null && BufferTools.hasRemaining(bufs)) {
+            session.touch(1000 * 60 * 15);
+        }
         return ws.add(bufs);
     }
 

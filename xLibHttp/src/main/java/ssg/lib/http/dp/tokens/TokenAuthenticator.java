@@ -27,7 +27,7 @@ import ssg.lib.http.base.HttpRequest;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public interface TokenAuthenticator {
 

@@ -269,7 +269,7 @@ public class WebSocketFT3 {
                                 ((WebSocketChannel) r).DUMP = true;
                             }
                             //r.setFrameMonitor(fm);
-                            r.handshake("0.1", "/ws", "localhost:" + wsPort, "local", null, null, 13);
+                            r.handshake("0.1", "/ws", "localhost:" + wsPort, "local", null, null, 13, null);
                         } catch (IOException ioex) {
                             try {
                                 provider.close();

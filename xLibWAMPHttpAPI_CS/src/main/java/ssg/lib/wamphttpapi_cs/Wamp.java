@@ -8,8 +8,10 @@ package ssg.lib.wamphttpapi_cs;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.Channel;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ScheduledFuture;
@@ -21,6 +23,8 @@ import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
 import ssg.lib.wamp.WAMPRealmFactory;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
+import ssg.lib.wamp.auth.WAMPAuth;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.cs.WAMPClient_WSProtocol;
 import ssg.lib.wamp.cs.WAMPRouter_WSProtocol;
 import ssg.lib.wamp.cs.WSCSCounters;
@@ -264,6 +268,7 @@ public class Wamp {
     public WAMPClient connect(
             URI uri,
             String api,
+            Map<String,String> httpHeaders,
             WAMPFeature[] features,
             String authid,
             String agent,
@@ -273,7 +278,35 @@ public class Wamp {
         //System.out.println("++++++++++++++++++ wamp.connect: realm="+realm+", authid="+authid);
         WAMPClient client = null;
         try {
-            client = clientCS.connect(uri, api, features, authid, agent, realm, roles);
+            client = clientCS.connect(uri, api, httpHeaders, features, authid, agent, realm, roles);
+            if (client != null) {
+                client.getProperties().put("api", api);
+            }
+            return client;
+        } catch (WAMPException wex) {
+            throw wex;
+        } catch (IOException ioex) {
+            throw new WAMPException(ioex);
+        }
+    }
+
+    public WAMPClient connect(
+            WAMPRouter router,
+            WAMPAuth transportAuth,
+            String api,
+            WAMPFeature[] features,
+            String authid,
+            String agent,
+            String realm,
+            WAMP.Role... roles
+    ) throws WAMPException {
+        //System.out.println("++++++++++++++++++ wamp.connect: realm="+realm+", authid="+authid);
+        WAMPClient client = null;
+        try {
+            client = clientCS.connect(router, transportAuth, features, authid, agent, realm, roles);
+            if (client != null) {
+                client.getProperties().put("api", api);
+            }
             return client;
         } catch (WAMPException wex) {
             throw wex;
