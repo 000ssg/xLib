@@ -213,11 +213,11 @@ public class Test_WAMPOrchestra {
         int jwtPort = 30040;
         String jwtRoot = "/common"; // HTTP application root
         String tokenAuth = "token"; // in-app tokens (APK + ...) authentication interface
-        String jwtSecret = "secretForJWTclients"; // secret for use by trusted clients
-        String apkSecret = "secretForAPKclients"; // secret for use by trusted clients
-        String apiSecret = "secretForAPIclients"; // secret for use by trusted clients
+        String jwtSecret = "secretForJWTclients"; // shared secret for use by trusted clients
+        String apkSecret = "secretForAPKclients"; // shared secret for use by trusted clients
+        String apiSecret = "secretForAPIclients"; // shared secret for use by trusted clients
 
-        // HTTP authenticator: 3 users with different set of roles
+        // HTTP authenticator: 3 users (with password authentication) with different set of roles
         Domain domain = new Domain(jwtRoot)
                 .configureUser("aaa", "bbb", null, new RAT().roles("admin", "jwt"))
                 .configureUser("bbb", "bbb", null, new RAT().roles("user", "jwt"))
@@ -289,9 +289,9 @@ public class Test_WAMPOrchestra {
         };
         final String wampCRASecret = "wampCRA_Secret1";
         final String wampTicketSecret = "wampTicket_Secret1";
-        WAMPAuthProvider wampAuthCRA = null;
-        WAMPAuthProvider wampAuthTicket = null;
-        WAMPAuthProvider wampAuthAny = new WAMPAuthAny();
+        WAMPAuthProvider wampAuthCRA = null; // trust authentication: just enable connection, nothing else
+        WAMPAuthProvider wampAuthTicket = null; // ticket authentication: eval user authenticity and details using TokenUserVerifiers
+        WAMPAuthProvider wampAuthAny = new WAMPAuthAny(); // use HTTP authenticated user if no other authentciation method succeeded
         {
             wampAuthCRA = new WAMPAuthCRA(wampCRASecret);
             final URL tvURL = new URL("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/verify");
@@ -348,8 +348,9 @@ public class Test_WAMPOrchestra {
 
             };
         }
+
         {
-            // HTTP auth
+            // HTTP auth: disable basic authentication, configure delegated auths via tokens
             Domain serviceDomain = new Domain(serviceRoot);
             serviceDomain.getUserStore().verifiers().add(new TokenUserVerifier(
                     new URL("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/verify"),
@@ -373,6 +374,7 @@ public class Test_WAMPOrchestra {
                     }
             ));
 
+            // enable realms and reated auth methods (ticket, cra, any) in the order
             CustomWAMPRealmFactory realmFactory = new CustomWAMPRealmFactory();
             for (final String[] ss : realmNames) {
                 realmFactory.configureRealms(ss[0]);
@@ -383,6 +385,7 @@ public class Test_WAMPOrchestra {
                         wampAuthAny);
             }
 
+            // create WAMP router embedded into HTTP application, embedded REST, and "Service" API in "demo" realm.
             all.service = new WAMPRunner(serviceDomain, new HttpApplication("Service", serviceRoot)
                     .configureDataProcessors(new Repository())
             )
@@ -398,7 +401,7 @@ public class Test_WAMPOrchestra {
                                     Service.class))
                             .configureContext(service)
                     );
-            // add "bridge" for in-router API publishing
+            // add "bridge" for in-router API publishing: not required, just to check flow
             all.service.configureBridgeWAMPAuth("demo", new WAMPAuth(
                     "bridge", //String method,
                     WAMPRunner.API_PUB_CLIENT_TITLE, // String authid,
@@ -420,6 +423,7 @@ public class Test_WAMPOrchestra {
                             .configure("test", "js", "jw", "wamp")
             );
 
+            // add WAMP messages listener for transport to follow WAMP protocol...
             if (TRACE_ROUTER_MESSAGES) {
                 all.service.configure(new WAMPTransportMessageListener() {
                     @Override
@@ -486,7 +490,7 @@ public class Test_WAMPOrchestra {
             all.start();
             Thread.sleep(1000 * 1);
 
-            // do test HTTP calls
+            // Prepare URIs
             URI authURI = new URI("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/authenticate");
             URI verifyURI = new URI("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/verify");
 //            URI restURI = new URI("http://localhost:" + jwtPort + jwtRoot + "/" + jwtREST);
@@ -495,7 +499,7 @@ public class Test_WAMPOrchestra {
 
             // prepare HTTP contexts
             // get login tokens for enumerated users
-            // pairs [user, GET path]. For unknown user ("aa") no token!
+            // pairs [user:pwd]. For unknown user ("aa") no token!
             caller.requestJwtTokens(
                     authURI,
                     true,
@@ -521,7 +525,8 @@ public class Test_WAMPOrchestra {
             );
 
             // try service calls with different user tokens
-            System.out.println("\n\n--------------------------------------------------------------------\n----- Verify API restrictions are effectively applied."
+            System.out.println("\n\n--------------------------------------------------------------------"
+                    + "\n----- Verify API restrictions are effectively applied."
                     + "\n-----  Users with 'a' (apk-a,api-a,aaa) have admin,user roles"
                     + "\n-----  Users with 'a' (apk-a,api-a,aaa) have user role "
                     + "\n-----  Users with 'a' (apk-c,api-c,ccc) have neither admin nor user role"
@@ -581,11 +586,18 @@ public class Test_WAMPOrchestra {
                 long est3 = client3.waitEstablished(2000L);
                 long est4 = client4.waitEstablished(2000L);
                 WAMPClient client5 = all.sites.get(0).connect(wrURI, "aaa:bbb", "test-agent", "demo", new WAMPFeature[]{WAMPFeature.caller_identification}, WAMP.Role.caller);
-                int a1 = 0;
-                a1 = 2;
-                a1 = 3;
-                a1 = 4;
                 long est5 = client5.waitEstablished(2000L);
+
+                System.out.println("\n-------------------------------------------------------------------------------------"
+                        + "\n-- WAMP clients status (<0 - not established/failed, >=0 waiting time (ms):"
+                        + "\n  1: " + est1
+                        + "\n  2: " + est2
+                        + "\n  3: " + est3
+                        + "\n  4: " + est4
+                        + "\n  5: " + est5
+                        + "\n-------------------------------------------------------------------------------------"
+                );
+
                 if (est1 >= 0) try {
                     client1.call("test.Service.addItems", WAMPTools.EMPTY_LIST, WAMPTools.createDict("items", new String[]{"aaaa1", "aaaa2", "aaaa3"}));
                 } catch (Throwable th) {

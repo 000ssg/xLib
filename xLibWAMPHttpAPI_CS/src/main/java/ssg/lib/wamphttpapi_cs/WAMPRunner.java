@@ -379,7 +379,8 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     /**
      * WAMP client only. URI represents default WAMP router (optional).
      *
-     * @param router
+     * @param router websocket URL
+     * @param multiHost if true, establishes connections to all IPs for the URI.
      * @return
      * @throws IOException
      */
@@ -399,8 +400,9 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
      * Embedded WAMP router.
      *
      * @param path
+     * @param needHttpAuth if true, requires authenticated HTTP connections only
      * @return
-     * @throws IOException
+     * @throws IOException 
      */
     public WAMPRunner configureWAMPRouter(String path, boolean needHttpAuth) throws IOException {
         if (wamp == null) {
@@ -489,15 +491,6 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                                             new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
                                             WAMP.Role.caller)
                             );
-//                            wampOverREST = new REST_WAMP_API_MethodsProvider(getAPIStatistics(null), wamp.connect(
-//                                    wsURI != null ? wsURI : wampRouterURI,
-//                                    "RoW-" + client.getRealm() + "-" + client.getAgent(),
-//                                    new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
-//                                    group.authid,
-//                                    "RoW-" + client.getRealm(),
-//                                    client.getRealm(),
-//                                    WAMP.Role.caller
-//                            ));
                         } catch (IOException ioex) {
                             ioex.printStackTrace();
                         }
@@ -513,14 +506,6 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                                                 client.getRealm(),
                                                 new WAMPFeature[]{WAMPFeature.shared_registration, WAMPFeature.caller_identification},
                                                 WAMP.Role.caller)
-                                //                                        wamp.connect(
-                                //                                        wsURI != null ? wsURI : wampRouterURI,
-                                //                                        "RoW-" + client.getRealm() + "-" + client.getAgent(),
-                                //                                        new WAMPFeature[]{WAMPFeature.shared_registration},
-                                //                                        group.authid,
-                                //                                        "RoW-" + client.getRealm(),
-                                //                                        client.getRealm(),
-                                //                                        WAMP.Role.caller)
                                 );
                             }
                         }
