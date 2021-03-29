@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.net.t1;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -46,8 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import ssg.lib.net.t1.Test_CC.RW.RWDebug;
-import ssg.lib.net.t1.Test_CC.RW.RWListener;
 
 /**
  * Network server/client prototyping.
@@ -82,8 +79,8 @@ public class Test_CC {
 
     public static void main(String... args) throws Exception {
         int serverRunners = 2;
-        int clientRunners= 2;
-        
+        int clientRunners = 2;
+
         Server server = new Server("server", rw -> {
             List<byte[]> data = rw.readIn();
             if (!data.isEmpty()) {
@@ -95,15 +92,15 @@ public class Test_CC {
                     }
                 }
             }
-        },serverRunners);
+        }, serverRunners);
         server.commonHandler = new RWDebug();
         server.start();
 
-        Client client = new Client("client",clientRunners);
+        Client client = new Client("client", clientRunners);
         client.commonHandler = new RWDebug();
         client.start();
 
-        long started=System.nanoTime();
+        long started = System.nanoTime();
         for (int i = 0; i < 100; i++) {
             if (i > 0 && i % 20 == 0) {
                 delay(10);
@@ -163,12 +160,12 @@ public class Test_CC {
             delay(100);
             System.out.println("still " + client.handlers.size() + " client handlers...");
         }
-        long duration=System.nanoTime()-started;
+        long duration = System.nanoTime() - started;
 
         if (!(System.currentTimeMillis() < timeout)) {
             System.out.println("TIMEOUT");
         }
-        System.out.println("Run summary   : duration="+(duration/1000000f)+"ms");
+        System.out.println("Run summary   : duration=" + (duration / 1000000f) + "ms");
         System.out.println("Client summary: all=" + client.channels.size() + ", pending=" + client.pending() + ", connected=" + client.connected() + ", not connected=" + client.notConnected());
 
         client.stop();
@@ -552,7 +549,7 @@ public class Test_CC {
         Server(String name, RWListener serverHandler, int runners) {
             this.name = name;
             this.serverHandler = serverHandler;
-            this.maxHandlers = runners>0 && runners<100 ? runners : 5;
+            this.maxHandlers = runners > 0 && runners < 100 ? runners : 5;
         }
 
         @Override
@@ -597,7 +594,7 @@ public class Test_CC {
 
         Client(String name, int runners) throws IOException {
             this.name = name;
-            this.maxHandlers = runners>0 && runners<100 ? runners : 1;
+            this.maxHandlers = runners > 0 && runners < 100 ? runners : 1;
         }
 
         SocketChannel connect(URI uri, RWListener handler) throws IOException {
@@ -782,35 +779,36 @@ public class Test_CC {
             }
         }
 
-        static interface RWListener {
+    }
 
-            default void onOpen(RW rw) {
-            }
+    static interface RWListener {
 
-            default void onClose(RW rw) {
-            }
-
-            void onRead(RW rw);
-
+        default void onOpen(RW rw) {
         }
 
-        static class RWDebug implements RWListener {
-
-            @Override
-            public void onOpen(RW rw) {
-                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onOpen (" + rw.name + "]");
-            }
-
-            @Override
-            public void onRead(RW rw) {
-                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onRead (" + rw.name + "]");
-            }
-
-            @Override
-            public void onClose(RW rw) {
-                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onClose(" + rw.name + "]");
-            }
-
+        default void onClose(RW rw) {
         }
+
+        void onRead(RW rw);
+
+    }
+
+    static class RWDebug implements RWListener {
+
+        @Override
+        public void onOpen(RW rw) {
+            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onOpen (" + rw.name + "]");
+        }
+
+        @Override
+        public void onRead(RW rw) {
+            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onRead (" + rw.name + "]");
+        }
+
+        @Override
+        public void onClose(RW rw) {
+            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].onClose(" + rw.name + "]");
+        }
+
     }
 }
