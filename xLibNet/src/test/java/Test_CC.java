@@ -226,9 +226,11 @@ public class Test_CC {
          */
         Selector nextDataSelector() {
             synchronized (this) {
-                if (dataHandlers == null) return null;
-                if(dataHandlers.length == 1) {
-                    return dataHandlers[0]!=null ? dataHandlers[0].selector : null;
+                if (dataHandlers == null || dataHandlers.length == 0) {
+                    return null;
+                }
+                if (dataHandlers.length == 1) {
+                    return dataHandlers[0] != null ? dataHandlers[0].selector : null;
                 }
                 int idx = nextHandlerIdx.getAndIncrement();
                 if (idx == dataHandlers.length - 1) {
