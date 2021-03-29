@@ -279,7 +279,7 @@ public class CS implements Runnable {
                             try {
                                 SelectableChannel sc = key.channel();
                                 if (key.attachment() instanceof Handler) {
-                                    SelectionKey[] newKeys = ((Handler) key.attachment()).onHandle(key);
+                                    SelectionKey[] newKeys = key.isValid() ? ((Handler) key.attachment()).onHandle(key) : null;
                                     if (newKeys != null && newKeys.length > 0) {
                                         // new channel -> initialize I/O timestamp
                                         for (SelectionKey sk : newKeys) {
@@ -288,7 +288,7 @@ public class CS implements Runnable {
                                     }
                                 } else if (key.attachment() instanceof DI) {
                                     DI<ByteBuffer, Channel> di = (DI<ByteBuffer, Channel>) key.attachment();
-                                    if (key.isReadable()) {
+                                    if (key.isValid() && key.isReadable()) {
                                         long c = 0;
                                         if (di.isReady(sc)) {
                                             ByteBuffer[] bbs = unread.remove(key);
@@ -319,7 +319,7 @@ public class CS implements Runnable {
                                             }
                                         }
                                     }
-                                    if (key.isWritable()) {
+                                    if (key.isValid() && key.isWritable()) {
                                         ByteBuffer[] bbs = unwritten.remove(key);
                                         long bbsSize = BufferTools.getRemaining(bbs);
                                         boolean processedNewData = false;
@@ -361,7 +361,7 @@ public class CS implements Runnable {
                                         }
                                     }
                                 } else {
-                                    if (key.isReadable()) {
+                                    if (key.isValid() && key.isReadable()) {
                                         lastIO.put(key, ts);
                                     }
                                 }

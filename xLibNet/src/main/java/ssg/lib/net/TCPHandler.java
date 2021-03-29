@@ -30,6 +30,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -46,6 +47,7 @@ public class TCPHandler implements Handler {
     Selector selector;
     Map<SocketAddress, ServerSocketChannel> sockets = new LinkedHashMap<>();
     private DI<ByteBuffer, SocketChannel> defaultHandler;
+    private Map<SocketChannel, DI<ByteBuffer, SocketChannel>> clientHandlers = new HashMap<>();
 
     public TCPHandler() {
     }
@@ -125,6 +127,10 @@ public class TCPHandler implements Handler {
         } else if (key.isConnectable()) {
             DI h = connect((SocketChannel) key.channel());
             if (h != null) {
+                SocketChannel sc = (SocketChannel) key.channel();
+                if (sc.isConnectionPending()) {
+                    sc.finishConnect();
+                }
                 r = new SelectionKey[]{((SocketChannel) key.channel()).register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, h)};
             }
         } else if (key.isReadable()) {
@@ -191,22 +197,31 @@ public class TCPHandler implements Handler {
     }
 
     public DI<ByteBuffer, SocketChannel> dataHandlerFor(SocketChannel sc, boolean asClient) throws IOException {
-        return getDefaultHandler();
+        DI<ByteBuffer, SocketChannel> r = null;
+        synchronized (clientHandlers) {
+            r = clientHandlers.remove(sc);
+        }
+        return r != null ? r : getDefaultHandler();
     }
 
     ////////////////////////////////////////////////////////////////////////////
     public SocketChannel connect(SocketAddress saddr, DI dl) throws IOException {
         SocketChannel sc = SocketChannel.open();
-        sc.connect(saddr);
-        return connect(sc, dl);
-    }
-
-    public SocketChannel connect(SocketChannel sc, DI dl) throws IOException {
         sc.configureBlocking(false);
-        sc.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, dl);
-        return sc;
+        synchronized (clientHandlers) {
+            clientHandlers.put(sc, dl);
+        }
+        SelectionKey key = sc.register(selector, SelectionKey.OP_CONNECT, this);// SelectionKey.OP_READ | SelectionKey.OP_WRITE, dl);
+        sc.connect(saddr);
+        return sc;//connect(sc, dl);
     }
 
+//    public SocketChannel connect(SocketChannel sc, DI dl) throws IOException {
+//        sc.configureBlocking(false);
+//        clientHandlers.put(sc, dl);
+//        SelectionKey key=sc.register(selector, SelectionKey.OP_CONNECT, this);// SelectionKey.OP_READ | SelectionKey.OP_WRITE, dl);
+//        return sc;
+//    }
     /**
      * @return the defaultHandler
      */
