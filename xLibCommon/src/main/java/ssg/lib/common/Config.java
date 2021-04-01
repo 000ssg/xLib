@@ -26,8 +26,13 @@ package ssg.lib.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,6 +61,27 @@ import ssg.lib.common.Refl.ReflImpl;
  * @author 000ssg
  */
 public class Config {
+
+    @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+    @Retention(RetentionPolicy.RUNTIME)
+    public static @interface Description {
+
+        /**
+         * Describes the annotated item.
+         *
+         * @return item description
+         */
+        String value();
+
+        /**
+         * Describes expected value format.
+         *
+         * Use ";" to separate fields, use "," to separate values.
+         *
+         * @return
+         */
+        String pattern() default "";
+    }
 
     static Refl refl = new ReflImpl();
     private String base;
@@ -108,7 +134,7 @@ public class Config {
         return r;
     }
 
-    public static void load(Config config, String... args) {
+    public static <T extends Config> T load(Config config, String... args) {
         String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
         Field[] fs = config.getClass().getFields();
         Map<String, Field> fm = new HashMap<>();
@@ -251,5 +277,71 @@ public class Config {
                 }
             }
         }
+        return (T) config;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("base=" + base + (other != null && !other.isEmpty() ? ", other=" + other.size() : "") + ", sysPropsLoaded=" + sysPropsLoaded);
+        Field[] fs = getClass().getFields();
+        sb.append(", items=" + fs.length);
+        for (boolean staticOnly : new boolean[]{true, false}) {
+            for (Field f : fs) {
+                if (staticOnly == Modifier.isStatic(f.getModifiers()))
+            try {
+                    sb.append("\n  ");
+                    sb.append(f.getName());
+                    sb.append(": ");
+                    Description d = f.getAnnotation(Description.class);
+                    if (d != null) {
+                        if (d.value() != null) {
+                            sb.append(d.value().replace("\n", "\n  "));
+                        }
+                        if (d.pattern() != null && !d.pattern().isEmpty()) {
+                            sb.append("; pattern=" + d.pattern());
+                        }
+                    }
+                    sb.append("\n    ");
+                    sb.append("=");
+                    Object o = (staticOnly ? f.get(null) : f.get(this));
+                    if (o == null) {
+                        sb.append("<none>");
+                    } else if (o instanceof Collection) {
+                        sb.append(o.getClass().getName() + "[" + ((Collection) o).size() + "]");
+                        for (Object oi : (Collection) o) {
+                            sb.append("\n      " + ("" + oi).replace("\n", "\n      "));
+                        }
+                    } else if (o.getClass().isArray()) {
+                        sb.append(o.getClass().getName() + "[" + Array.getLength(o) + "]");
+                        for (int i = 0; i < Array.getLength(o); i++) {
+                            Object oi = Array.get(o, i);
+                            sb.append("\n      " + ("" + oi).replace("\n", "\n      "));
+                        }
+                    } else if (o instanceof Map) {
+                        sb.append(o.getClass().getName() + "[" + ((Map) o).size() + "]");
+                        for (Entry e : ((Map<?, ?>) o).entrySet()) {
+                            sb.append("\n      " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n      "));
+                        }
+                    } else {
+                        sb.append(("" + o).replace("\n", "\n    "));
+                    }
+                } catch (Throwable th) {
+                    sb.append("\n  ERROR: " + ("" + th).replace("\n", "\n  "));
+                }
+            }
+        }
+        if (this.other != null && !this.other.isEmpty()) {
+            sb.append("\n  other configs[" + other.size());
+            for (Entry<String, Object> e : other.entrySet()) {
+                sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+            }
+        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
+    }
+
 }

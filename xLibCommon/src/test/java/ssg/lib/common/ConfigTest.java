@@ -106,21 +106,18 @@ public class ConfigTest {
         Config.load(config, args);
         System.out.println("User config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
-        config = new Config("java");
-        Config.load(config, args);
+        config = Config.load(new Config("java"), args);
         System.out.println("Java config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
-        config = new Config("os");
-        Config.load(config, args);
+        config = Config.load(new Config("os"), args);
         System.out.println("OS config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
 
-        config = new Config("a") {
+        config = Config.load(new Config("a") {
             public String aa;
             public String[] bb;
             public List<String> cc;
-        };
-        Config.load(config, new String[]{
+        }, new String[]{
             "a.aa=A",
             "a.aa=B",
             "a.bb=A",
@@ -134,11 +131,10 @@ public class ConfigTest {
         });
         System.out.println("AA config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
-        String[] ss= config.get("bb");
-        System.out.println("  bb -> "+Arrays.asList(ss).toString());
+        String[] ss = config.get("bb");
+        System.out.println("  bb -> " + Arrays.asList(ss).toString());
 
-        config = new Config("");
-        Config.load(config, args);
+        config = Config.load(new Config(""), args);
         System.out.println("Any config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
     }

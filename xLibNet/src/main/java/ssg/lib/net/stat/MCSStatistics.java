@@ -1,0 +1,79 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2021 sesidoro.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package ssg.lib.net.stat;
+
+import ssg.lib.stat.Statistics;
+import ssg.lib.stat.StatisticsBase;
+import ssg.lib.stat.StatisticsBase.StatisticsListener;
+import ssg.lib.stat.StatisticsGroup;
+
+/**
+ *
+ * @author 000ssg
+ */
+public class MCSStatistics extends StatisticsGroup implements StatisticsListener {
+
+    private RunnerStatistics runnerStatistics;
+
+    public MCSStatistics(String name, Statistics... groups) {
+        super(name, groups);
+        init(null);
+    }
+
+    @Override
+    public void setGroups(Statistics... groups) {
+        super.setGroups(groups);
+        if (getGroups() != null) {
+            for (Statistics group : getGroups()) {
+                if (group instanceof StatisticsBase) {
+                    ((StatisticsBase) group).setStatisticsListener(this);
+                }
+                if (group instanceof RunnerStatistics) {
+                    runnerStatistics = (RunnerStatistics) group;
+                    runnerStatistics.setParent(this);
+                }
+            }
+        }
+    }
+
+    /**
+     * @return the callStatistics
+     */
+    public RunnerStatistics getRunnerStatistics() {
+        return runnerStatistics;
+    }
+
+    public RunnerStatistics createChildRunnerStatistics(String name) {
+        if (getRunnerStatistics() != null) {
+            return getRunnerStatistics().createChild(null, name);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public void onTouched(Statistics stat) {
+        touch();
+    }
+}

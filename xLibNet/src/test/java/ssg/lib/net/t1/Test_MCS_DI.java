@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2021 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,19 +24,22 @@
 package ssg.lib.net.t1;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import javax.net.ssl.SSLContext;
+import ssg.lib.common.CommonTools;
 import ssg.lib.common.TaskExecutor.TaskExecutorSimple;
 import ssg.lib.common.TaskProvider;
 import ssg.lib.common.buffers.BufferTools;
+import ssg.lib.common.net.NetTools;
 import ssg.lib.di.DI;
 import ssg.lib.di.base.BaseDI;
 import ssg.lib.di.base.SSL_DF;
@@ -50,117 +53,95 @@ import ssg.lib.http.dp.HttpStaticDataProcessor;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
 import ssg.lib.http.rest.XMethodsProvider;
-import ssg.lib.http.rest.annotations.XMethod;
-import ssg.lib.http.rest.annotations.XParameter;
-import ssg.lib.http.rest.annotations.XType;
 import ssg.lib.net.CS;
+import ssg.lib.net.CSListener.DebuggingCSListener;
+import ssg.lib.net.MCS;
+import ssg.lib.net.MCS.RunnerIO;
 import ssg.lib.net.TCPHandler;
 import ssg.lib.net.TestSSLTools;
 import ssg.lib.net.WebSocketFT2;
+import ssg.lib.net.stat.MCSStatistics;
+import ssg.lib.net.stat.RunnerStatisticsImpl;
 import ssg.lib.service.DF_Service;
 import ssg.lib.service.Repository;
 import ssg.lib.ssl.SSLTools;
-import ssg.lib.ssl.SSL_IO;
 
 /**
  *
  * @author 000ssg
  */
-@XType
-public class DemoApp_1 {
+public class Test_MCS_DI {
 
-    static long started = System.currentTimeMillis();
-    boolean stopped = false;
+    public static void main(String... args) throws Exception {
+        //System.getProperties().put("javax.net.debug", "SSL,handshake");
+        //System.getProperties().put("javax.net.debug", "all");
+        //SSL_IO.DEBUG = true;
+        //SSL_IO.DEBUG_UNWRAP = true;
+        //SSL_IO.DEBUG_WRAP = true;
+        final boolean MCS_DEBUG = false;
 
-    @XMethod
-    public long upTime() {
-        return System.currentTimeMillis() - started;
-    }
+        System.out.println("... configure MCS");
+        CS mcs = new CS(1, 1) {
+            @Override
+            public RunnerIO onConnected(MCS.Runner runner, SocketChannel ch, RunnerIO attachment) {
+                return MCS_DEBUG ? new Test_MCS.MCSMonitor(ch, runner, super.onConnected(runner, ch, attachment)) {
+                    @Override
+                    public void info(String method, byte[] text) {
+                        System.out.println("C:" + ch + ":" + method + ":" + (text != null ? text.length : "<none>"));
+                    }
+                }.configureBin(true) : attachment;
+            }
 
-    @XMethod(name = "names")
-    public String[] getPropertyNames() {
-        return ((Collection<String>) Collections.list(System.getProperties().propertyNames())).toArray(new String[System.getProperties().size()]);
-    }
-
-    @XMethod(name = "names")
-    public String[] getPropertyNames(@XParameter(name = "mask") String mask) {
-        String[] ns = getPropertyNames();
-        int c = 0;
-        for (int i = 0; i < ns.length; i++) {
-            if (mask != null && !ns[i].contains(mask)) {
-                ns[i] = null;
-            } else {
-                c++;
+            @Override
+            public RunnerIO onAccepted(MCS.Runner runner, SocketChannel ch, RunnerIO attachment) {
+                return MCS_DEBUG ? new Test_MCS.MCSMonitor(ch, runner, super.onConnected(runner, ch, attachment)) {
+                    @Override
+                    public void info(String method, byte[] text) {
+                        System.out.println("S:" + ch + ":" + method + ":" + (text != null ? text.length : "<none>"));
+                    }
+                }.configureBin(true) : attachment;
             }
         }
-        if (c < ns.length) {
-            if (c == 0) {
-                return new String[0];
-            }
-            int off = 0;
-            for (int i = 0; i < ns.length; i++) {
-                if (ns[i] == null) {
-                } else {
-                    ns[off++] = ns[i];
+                .configureName("test-cs")
+                .configureStatistics(new MCSStatistics("mcs_di", new RunnerStatisticsImpl()));
+
+        System.out.println("... start MCS");
+        mcs.start();
+
+        if (1 == 0) {
+            Thread th = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        NetTools.delay(1000);
+                        URL url = new URL("https://localhost:18124/sys/names");
+                        InputStream is = url.openStream();
+                        byte[] buf = CommonTools.loadInputStream(is);
+                        is.close();
+                        int a = 0;
+                    } catch (Throwable th) {
+                        th.printStackTrace();
+                    }
                 }
-            }
+            };
+            th.setDaemon(true);
+            th.start();
         }
-        if (c < ns.length) {
-            return Arrays.copyOf(ns, c);
-        } else {
-            return ns;
-        }
+
+        mcs.addListener(new DebuggingCSListener(DebuggingCSListener.DO_ALL));
+        run(mcs);
+
+        System.out.println("... sleep main");
+        NetTools.delay(1000);
+
+        System.out.println("... stop MCS");
+        mcs.stop();
+        System.out.println(mcs);
     }
 
-    @XMethod(name = "property")
-    public String getProperty(@XParameter(name = "name") String name) {
-        return System.getProperty(name);
-    }
-
-    @XMethod(name = "properties")
-    public String[][] getProperties(@XParameter(name = "mask") String mask, @XParameter(name = "valueMask", optional = true) String valueMask, @XParameter(name = "skipEmpties", optional = true) Boolean skipEmpties) {
-        String[] ns = getPropertyNames(mask);
-        if (skipEmpties == null) {
-            skipEmpties = false;
-        }
-        if (ns.length > 0) {
-            String[][] result = new String[ns.length][2];
-            int off = 0;
-            for (int i = 0; i < result.length; i++) {
-                String v = System.getProperty(ns[i]);
-                if (v != null && valueMask != null && !v.contains(valueMask)) {
-                    v = null;
-                }
-                if (v == null && skipEmpties) {
-                    continue;
-                }
-                result[off][0] = ns[i];
-                result[off++][1] = v;
-            }
-            if (off < result.length) {
-                result = Arrays.copyOf(result, off);
-            }
-            return result;
-        } else {
-            return new String[0][0];
-        }
-    }
-
-    @XMethod(name = "stop")
-    public void stop() {
-        stopped = true;
-        System.exit(0);
-    }
-
-    public boolean isStopped() {
-        return stopped;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////// HTTP runner
-    ////////////////////////////////////////////////////////////////////////////
     public static void run(CS cs) throws Exception {
         int httpPort = 18123;
+        //httpPort++;
         TCPHandler tcpl = new TCPHandler();
 
         // add SSL support
@@ -179,6 +160,7 @@ public class DemoApp_1 {
                         "passw0rd"
                 );
                 sslCtx = sslh_abc.createSSLContext("TLS", true);
+                //SSLContext.setDefault(sslCtx);
             } catch (Throwable th) {
                 sslCtx = TestSSLTools.getSSLContext();
             }
@@ -221,7 +203,7 @@ public class DemoApp_1 {
                 super.onServiceError(provider, pd, error);
             }
         };
-        
+
         DF_Service<SocketChannel> service = new DF_Service<>(new TaskExecutorSimple());
 
         service.filter(ssl_df_server);
@@ -234,7 +216,7 @@ public class DemoApp_1 {
 
             @Override
             public void consume(SocketChannel provider, Collection<ByteBuffer>... data) throws IOException {
-                if (BufferTools.hasRemaining(data)) {
+                if (data != null && BufferTools.hasRemaining(data)) {
                     throw new UnsupportedOperationException("Not supported: service MUST handle all data without producing unhandled bytes.");
                 }
             }
@@ -274,22 +256,6 @@ public class DemoApp_1 {
         while (!app.isStopped()) {
             Thread.sleep(10);
         }
-    }
-
-    public static void main(String... args) throws Exception {
-        //System.getProperties().put("javax.net.debug", "SSL,handshake");
-        
-        SSL_IO.DEBUG=true;
-        SSL_IO.DEBUG_UNWRAP=true;
-        SSL_IO.DEBUG_WRAP=true;
-        
-
-        CS cs = new CS();
-        cs.start();
-
-        run(cs);
-
-        cs.stop();
     }
 
 }

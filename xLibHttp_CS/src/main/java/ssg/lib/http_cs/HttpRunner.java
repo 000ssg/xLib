@@ -27,6 +27,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpDataProcessor;
@@ -36,6 +43,7 @@ import ssg.lib.http.dp.HttpDataProcessorFavIcon;
 import ssg.lib.http.dp.HttpResourceBytes;
 import ssg.lib.http.dp.HttpStaticDataProcessor;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
+import ssg.lib.http.rest.StubRESTHttpContext;
 import ssg.lib.http.rest.StubVirtualData;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
@@ -63,6 +71,8 @@ public class HttpRunner extends CS {
     URI restURI;
     StubVirtualData<?> stub;
     HttpStaticDataProcessor stubDP;
+    Map<String, Object> contexts = new LinkedHashMap<>();
+    transient Map<Class, Object> pendingRESTs = new LinkedHashMap<>();
 
     // embedding CS support: nested (indirect) calls to start/stop are safe
     private transient Boolean starting = false;
@@ -103,6 +113,87 @@ public class HttpRunner extends CS {
         this.app = app;
         http = new Http(auth);
         http.configureApp(app);
+    }
+
+    /**
+     * Apply configurations if applicable.
+     *
+     * @param configs
+     * @return
+     * @throws IOException
+     */
+    @Override
+    public HttpRunner configuration(Config... configs) throws IOException {
+        super.configuration(configs);
+        if (configs != null) {
+            for (Config config : configs) {
+                applyConfig(config);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Use Config instance to set compatible configuration parameters.
+     *
+     * @param config
+     * @throws IOException
+     */
+    public void applyConfig(Config config) throws IOException {
+        if (config instanceof HttpConfig) {
+            HttpConfig hc = (HttpConfig) config;
+            if (hc.httpPort != null) {
+                configureHttp(hc.httpPort);
+            }
+            if (hc.rest != null) {
+                configureREST(hc.rest);
+            }
+            if (hc.stub != null) {
+                String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
+                String[] groups = hc.stub;
+                Collection<String> types = new LinkedHashSet<>();
+                for (String group : groups) {
+                    String[] ss = group.split(",");
+                    if (ss.length > 1) {
+                        for (int i = 1; i < ss.length; i++) {
+                            types.add(ss[i].trim());
+                        }
+                    }
+                }
+                StubVirtualData svd = new StubVirtualData(router_root.substring(0, router_root.length() - 1), null, getREST(), types.toArray(new String[types.size()]))
+                        .configure(new StubRESTHttpContext(null, null, true));
+                for (String group : groups) {
+                    String[] ss = group.split(",");
+                    svd.configure(ss[0], Arrays.copyOfRange(ss, 1, ss.length));
+                }
+                configureStub(svd);
+            }
+            if (hc.context != null) {
+                for (String c : hc.context) {
+                    String[] cc = c.split("=");
+                    Object instance = this.createContext(cc.length > 1 ? cc[1] : cc[0]);
+                    this.contexts.put(cc[0], instance);
+                }
+            }
+            if (hc.publish != null) {
+                for (String c : hc.publish) {
+                    String[] cc = c.split("=");
+                    Class type = contextClass(cc[0]);
+                    Object context = createContext(cc.length > 1 ? cc[1] : cc[0]);
+                    if (type == null || context == null) {
+                        // ignored config
+                    } else {
+                        if (getREST() != null) {
+                            getREST().registerProviders(null, type != null ? type : context);
+                        } else {
+                            this.pendingRESTs.put(type, context);
+                        }
+                    }
+
+                }
+            }
+            Map<String, Object> aliases = new HashMap<>();
+        }
     }
 
     public void configUpdated(String key, Object oldValue, Object newValue) {
@@ -191,6 +282,44 @@ public class HttpRunner extends CS {
         return stub;
     }
 
+    public Class contextClass(String context) throws IOException {
+        try {
+            Class cl = Class.forName(context);
+            return cl;
+        } catch (Throwable th) {
+            if (th instanceof IOException) {
+                throw (IOException) th;
+            } else {
+                if (contexts.containsKey(context)) {
+                    Object o = contexts.get(context);
+                    if (o instanceof Class) {
+                        return (Class) o;
+                    } else {
+                        return o.getClass();
+                    }
+                }
+                throw new IOException(th);
+            }
+        }
+    }
+
+    public <T> T getContext(String context) throws IOException {
+        return (T) contexts.get(context);
+    }
+
+    public <T> T createContext(Object context) throws IOException {
+        try {
+            Class cl = context instanceof Class ? (Class) context : context instanceof String ? contextClass((String) context) : null;
+            return (T) (cl != null ? cl.newInstance() : context);
+        } catch (Throwable th) {
+            if (th instanceof IOException) {
+                throw (IOException) th;
+            } else {
+                throw new IOException(th);
+            }
+        }
+    }
+
     public void onStarted() throws IOException {
         if (httpPort != null) {
             if (http == null) {
@@ -252,5 +381,25 @@ public class HttpRunner extends CS {
         sb.append('\n');
         sb.append('}');
         return sb.toString();
+    }
+
+    public static class HttpConfig extends Config {
+
+        public static final String DEFAULT_BASE = "app.http";
+
+        @Description("Default HTTP service port, int")
+        public Integer httpPort;
+        @Description("REST path. Absolute (starts with '/') or relative (within application)")
+        public String rest;
+        @Description(value = "REST code stub (generated code for client use)", pattern = "group=realm,stub type[,stub type]")
+        public String[] stub;
+        @Description(value = "Class aliases", pattern = "[name=]class name")
+        public String[] context;
+        @Description(value = "Interface or class to publish in REST", pattern = "[class name=]context or class name")
+        public String[] publish;
+
+        public HttpConfig(String base, String... args) {
+            super(base != null ? base : DEFAULT_BASE, args);
+        }
     }
 }

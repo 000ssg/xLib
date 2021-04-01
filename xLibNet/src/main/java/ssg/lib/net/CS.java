@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2021 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,93 +25,64 @@ package ssg.lib.net;
 
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.channels.ByteChannel;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.Channel;
-import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ClosedSelectorException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import ssg.lib.common.buffers.BufferTools;
+import ssg.lib.common.Config;
 import ssg.lib.common.net.NetTools;
-import ssg.lib.di.DI;
-import ssg.lib.di.DM;
+import ssg.lib.net.CSListener.CSListenerX;
+import ssg.lib.net.stat.MCSStatistics;
+import ssg.lib.net.stat.RunnerStatistics;
 
 /**
+ * CS represents Handler/CSGroup adaptation of MCS.
  *
  * @author 000ssg
  */
-public class CS implements Runnable {
+public class CS extends MCS {
 
-    public static int scheduledPoolSize = 5;
-
-    private static final CSListener[] noListeners = new CSListener[0];
-    private ScheduledExecutorService scheduler;
-    private boolean ownedScheduler = false;
-    String title;
-    Selector selector;
-    ScheduledFuture<?> executor;
-    private boolean executorIsActive = false;
-    List<CSListener> listeners = new ArrayList<>();
     List<CSGroup> groups = new ArrayList<>();
     Map<Handler, Boolean> registered = Collections.synchronizedMap(new HashMap<>());
-    Map<Object, ByteBuffer[]> unread = new ConcurrentHashMap<>();
-    Map<Object, ByteBuffer[]> unwritten = new ConcurrentHashMap<>();
-    long inactivityTimeout = 1000 * 60 * 5;
+
+    // listeners
+    CSListener[] cslisteners = new CSListener[0];
+    CSListenerX[] xcslisteners = new CSListenerX[0];
 
     public CS() {
     }
 
-    public CS(String title) {
-        this.title = title;
+    public CS(int acceptors, int dataHandlers) {
+        super(acceptors, dataHandlers);
     }
 
-    public CS(String title, ScheduledExecutorService scheduler) {
-        this.title = title;
-        this.scheduler = scheduler;
-        ownedScheduler = false;
+    @Override
+    public CS configureHandlers(int acceptors, int dataHandlers) {
+        return (CS) super.configureHandlers(acceptors, dataHandlers);
     }
 
-    public synchronized void start() throws IOException {
-        if (scheduler == null) {
-            scheduler = Executors.newScheduledThreadPool(scheduledPoolSize);
-            ownedScheduler = true;
-        }
-        selector = Selector.open();
-        executor = scheduler.schedule(this, 1, TimeUnit.NANOSECONDS);
+    @Override
+    public CS configureStatistics(MCSStatistics stat) {
+        return (CS) super.configureStatistics(stat);
     }
 
-    public boolean isRunning() {
-        return executor != null && selector != null;
+    @Override
+    public CS configureName(String name) {
+        return (CS) super.configureName(name);
     }
 
-    public void onStopped(Throwable error) {
-        if (error != null) {
-            error.printStackTrace();
-        }
+    @Override
+    public CS configuration(Config... configs) throws IOException {
+        super.configuration(configs);
+        return this;
     }
 
-    public synchronized void stop() throws IOException {
+    @Override
+    public void stop() throws IOException {
         for (CSGroup l : groups) {
             try {
                 l.onStop(this);
@@ -119,418 +90,144 @@ public class CS implements Runnable {
                 th.printStackTrace();
             }
         }
-        if (executor != null) {
-            executor.cancel(false);
-        }
-        executor = null;
         if (!registered.isEmpty()) {
             for (Entry<Handler, Boolean> h : registered.entrySet()) {
                 if (h.getValue()) {
                     h.setValue(Boolean.FALSE);
-                    h.getKey().unregister(selector);
+                    //h.getKey().unregister(selector);
                 }
             }
         }
-        if (selector != null) {
-            selector.close();
-        }
-        selector = null;
-        for (CSListener l : listeners()) {
+        super.stop();
+        for (CSListener l : cslisteners) {
             l.onStopped(this);
         }
-    }
-
-    public <Z extends CS> Z addCSListener(CSListener... ls) {
-        if (ls != null && ls.length > 0) {
-            for (CSListener l : ls) {
-                if (l == null || listeners.contains(l)) {
-                    continue;
-                }
-                listeners.add(l);
-            }
+        long timeout = System.currentTimeMillis() + 500;
+        while (isRunning() && System.currentTimeMillis() < timeout) {
+            NetTools.delay(1);
         }
-        return (Z) this;
-    }
-
-    public void removeCSListener(CSListener... ls) {
-        if (ls != null && ls.length > 0) {
-            for (CSListener l : ls) {
-                if (l != null && listeners.contains(l)) {
-                    listeners.remove(l);
-                }
-            }
-        }
-    }
-
-    public <Z extends CS> Z addCSGroup(CSGroup... ls) {
-        if (ls != null && ls.length > 0) {
-            for (CSGroup l : ls) {
-                if (l == null || groups.contains(l)) {
-                    continue;
-                }
-                groups.add(l);
-                if (isRunning()) {
-                    l.onStarted(this);
-                }
-            }
-        }
-        return (Z) this;
-    }
-
-    public void removeCSGroup(CSGroup... ls) {
-        if (ls != null && ls.length > 0) {
-            for (CSGroup l : ls) {
-                if (l != null && groups.contains(l)) {
-                    groups.remove(l);
-                    l.onStop(this);
-                }
-            }
-        }
-    }
-
-    public ScheduledExecutorService getScheduledExecutorService() {
-        return scheduler;
-    }
-
-    CSListener[] listeners() {
-        return (listeners.isEmpty()) ? noListeners : listeners.toArray(new CSListener[listeners.size()]);
     }
 
     @Override
-    public void run() {
-        if (executorIsActive) {
-            throw new RuntimeException("Failed to re-run already active " + getClass().getName());
-        }
+    public void start() throws IOException {
+        super.start(); //To change body of generated methods, choose Tools | Templates.
+    }
 
-        executorIsActive = true;
-
-        String oldName = Thread.currentThread().getName();
-        Thread.currentThread().setName("CS: " + ((title != null) ? title : System.identityHashCode(this)));
-
-        Throwable error = null;
-        try {
-            for (CSGroup l : groups) {
-                l.onStarted(this);
-            }
-            for (CSListener l : listeners()) {
-                l.onStarted(this);
-            }
-
-            Handler handler = null;
-            try {
-                if (!registered.isEmpty()) {
-                    for (Entry<Handler, Boolean> h : registered.entrySet()) {
-                        handler = h.getKey();
-                        if (!h.getValue()) {
-                            // TODO: check why it might be registered before!
-                            if (!handler.isRegistered()) {
-                                handler.register(selector);
-                            }
-                            h.setValue(Boolean.TRUE);
-                        }
-                    }
+    @Override
+    public boolean tryKeyHandling(Runner runner, SelectionKey key, RunnerStatistics stat) throws Exception {
+        if (key.attachment() instanceof Handler && !(key.attachment() instanceof ConnectionIO)) {
+            if (stat != null) {
+                if (key.isAcceptable()) {
+                    stat.onAccept();
+                } else if (key.isConnectable()) {
+                    stat.onConnectable();
                 }
-            } catch (Throwable th) {
-                onError("Failed to register some handler(s): " + handler, th);
             }
-
-            /////////////////////////////////////// cyclic channel verification
-            // timestamps for last channel non-idle activity
-            Map<SelectionKey, Long> lastIO = new HashMap<>();
-            // new keys recognition support: if accept connection -> pre/post keys mismatch
-            Set<SelectionKey> preKeys = new HashSet();
-            // timestampe for next check,1st check on 1st run
-            long nextCheck = System.currentTimeMillis();
-            long nextHealthCheck = nextCheck - (long) (inactivityTimeout / 2.3);
-
-            while (true) {
-                long ts = System.currentTimeMillis();
+            ((Handler) key.attachment()).onHandle(key);
+            for (CSListenerX l : xcslisteners) {
                 try {
-                    if (selector == null) {
-                        break;
-                    }
-                    // NOTE: need to invoke selectNow to prepare selected keys
-                    int readyChannels = selector.selectNow();
-                    if (readyChannels == 0) {
-                        // no activities for registered channels... -> release 1ms...
-                        try {
-                            Thread.sleep(1);
-                        } catch (Throwable th) {
-                            break;
-                        }
-                    } else {
-                        Set<SelectionKey> skeys = null;
-                        Iterator<SelectionKey> keys = null;
-                        try {
-                            synchronized (selector) {
-                                if (selector != null) {
-                                    skeys = selector.selectedKeys();
-                                    keys = skeys.iterator();
-                                } else {
-                                    break;
-                                }
-                            }
-                        } catch (NullPointerException npex) {
-                            // ignore since selector may be nulled asynchronously on stop
-                            break;
-                        }
-                        while (keys.hasNext()) {
-                            SelectionKey key = keys.next();
-                            try {
-                                SelectableChannel sc = key.channel();
-                                if (key.attachment() instanceof Handler) {
-                                    SelectionKey[] newKeys = key.isValid() ? ((Handler) key.attachment()).onHandle(key) : null;
-                                    if (newKeys != null && newKeys.length > 0) {
-                                        // new channel -> initialize I/O timestamp
-                                        for (SelectionKey sk : newKeys) {
-                                            lastIO.put(sk, ts);
-                                        }
-                                    }
-                                } else if (key.attachment() instanceof DI) {
-                                    DI<ByteBuffer, Channel> di = (DI<ByteBuffer, Channel>) key.attachment();
-                                    if (key.isValid() && key.isReadable()) {
-                                        long c = 0;
-                                        if (di.isReady(sc)) {
-                                            ByteBuffer[] bbs = unread.remove(key);
-                                            ByteBuffer buf = read(sc);
-                                            if (bbs != null && BufferTools.hasRemaining(bbs)) {
-                                                bbs = Arrays.copyOf(bbs, bbs.length + 1);
-                                                bbs[bbs.length - 1] = buf;
-                                            } else {
-                                                bbs = new ByteBuffer[]{buf};
-                                            }
-
-                                            if (bbs != null && BufferTools.hasRemaining(bbs)) {
-                                                lastIO.put(key, ts);
-                                                for (CSListener l : listeners()) {
-                                                    l.onRead(this, key, buf);
-                                                }
-                                                c += di.write(sc, Arrays.asList(bbs));
-                                                if (BufferTools.hasRemaining(bbs)) {
-                                                    bbs = BufferTools.getNonEmpties(bbs);
-                                                    unread.put(key, bbs);
-                                                }
-                                            } else if (buf == null) {
-                                                di.onProviderEvent(sc, DM.PN_INPUT_CLOSED);
-                                                // EOF -> close?
-                                                int a = 0;
-                                            } else {
-                                                lastIO.put(key, ts);
-                                            }
-                                        }
-                                    }
-                                    if (key.isValid() && key.isWritable()) {
-                                        ByteBuffer[] bbs = unwritten.remove(key);
-                                        long bbsSize = BufferTools.getRemaining(bbs);
-                                        boolean processedNewData = false;
-                                        boolean addedUnwritten = false;
-                                        boolean actualWrite = false;
-                                        while (!(processedNewData || addedUnwritten)) {
-                                            if (bbsSize > 0) {
-                                                bbsSize = 0;
-                                            } else {
-                                                processedNewData = true;
-                                                List<ByteBuffer> bufs = di.read(sc);
-                                                if (bufs != null && !bufs.isEmpty()) {
-                                                    for (CSListener l : listeners()) {
-                                                        l.onWrite(this, key, bufs);
-                                                    }
-                                                    bbs = bufs.toArray(new ByteBuffer[bufs.size()]);
-                                                }
-                                            }
-
-                                            if (bbs != null && bbs.length > 0 && bbs[0] != null) {
-                                                long c0 = BufferTools.getRemaining(bbs);
-                                                long c = write(key.channel(), bbs);
-
-                                                if (c < c0) {
-                                                    // keep unwritten output for next write session...
-                                                    addedUnwritten = true;
-                                                    int len = bbs.length;
-                                                    bbs = BufferTools.getNonEmpties(bbs);
-                                                    unwritten.put(key, bbs);
-                                                    //System.out.println("DO        UNREAD[" + System.identityHashCode(sc) + "]: " + BufferTools.getRemaining(bbs) + " [" + c + "/" + c0 + "; " + bbs.length + "/" + len + "]");
-                                                }
-                                                if (c > 0 || c0 > 0) {
-                                                    actualWrite = true;
-                                                }
-                                            }
-                                        }
-                                        if (actualWrite) {
-                                            lastIO.put(key, ts);
-                                        }
-                                    }
-                                } else {
-                                    if (key.isValid() && key.isReadable()) {
-                                        lastIO.put(key, ts);
-                                    }
-                                }
-                                if (!key.isValid()) {
-                                    for (CSListener l : listeners()) {
-                                        l.onInvalid(this, key);
-                                    }
-                                    key.cancel();
-                                    if (unwritten.containsKey(key)) {
-                                        unwritten.remove(key);
-                                    }
-                                }
-                            } catch (IOException ioex) {
-                                //ioex.printStackTrace();
-                                if (key.attachment() instanceof DM) {
-                                    ((DM) key.attachment()).delete(key.channel());
-                                }
-                                try {
-                                    lastIO.remove(key);
-                                    key.channel().close();
-                                } catch (Throwable th) {
-                                    // just ensure it is closed
-                                }
-                                if (unwritten.containsKey(key)) {
-                                    unwritten.remove(key);
-                                }
-                            } catch (Throwable th) {
-                                if (th instanceof CancelledKeyException) {
-                                    // do not dump cancelled keys: no extra
-                                } else {
-                                    th.printStackTrace();
-                                }
-                                try {
-                                    //System.err.println(getClass().getSimpleName() + ".run: trying to delete/close " + key.channel() + ", " + key.attachment() + " beacaue of " + th);
-                                    if (key.attachment() instanceof DM) {
-                                        ((DM) key.attachment()).delete(key.channel());
-                                    }
-                                    try {
-                                        key.channel().close();
-                                        lastIO.remove(key);
-                                    } catch (Throwable th1) {
-                                    }
-                                    if (unwritten.containsKey(key)) {
-                                        unwritten.remove(key);
-                                    }
-                                } catch (Throwable th1) {
-                                }
-
-                            } finally {
-                                keys.remove();
-                            }
-                        }
-                        if (executor == null || executor.isCancelled()) {
-                            break;
-                        }
-                    }
-                } catch (ClosedSelectorException csex) {
-                    break;
-                } catch (ConcurrentModificationException cmex) {
-                    break;
+                    l.onHandled(this, key, (Handler) key.attachment());
                 } catch (Throwable th) {
-                    if (th instanceof ClosedByInterruptException) {
-                        int a = 0;
-                    } else {
-                        error = th;
-                        //th.printStackTrace();
-                    }
-                    break;
-                }
-
-                if (ts >= nextHealthCheck) {
-                    for (SelectionKey key : selector.keys()) {
-                        if (key.attachment() instanceof DM) {
-                            try {
-                                ((DM) key.attachment()).healthCheck(key.channel());
-                                lastIO.put(key, ts);
-                            } catch (Throwable th) {
-                                try {
-                                    ((DM) key.attachment()).delete(key.channel());
-                                } catch (Throwable th1) {
-                                }
-                                try {
-                                    lastIO.remove(key);
-                                    key.channel().close();
-                                } catch (Throwable th1) {
-                                    // just ensure it is closed
-                                }
-                                if (unwritten.containsKey(key)) {
-                                    unwritten.remove(key);
-                                }
-                            }
-                        }
-                    }
-                    nextHealthCheck = nextCheck + 1;
-                }
-                if (ts >= nextCheck) {
-                    if (lastIO.isEmpty()) {
-                        nextCheck = ts + inactivityTimeout / 2;
-                        nextHealthCheck = nextCheck - inactivityTimeout / 3;
-                    } else {
-                        try {
-                            // force close channels with no activity
-                            Set<SelectionKey> close = new HashSet<>();
-                            // drop missing
-                            Set<SelectionKey> postKeys = selector.keys();
-                            for (SelectionKey sk : lastIO.keySet().toArray(new SelectionKey[lastIO.size()])) {
-                                if (!postKeys.contains(sk)) {
-                                    lastIO.remove(sk);
-                                }
-                            }
-                            // check timeouts
-                            for (Entry<SelectionKey, Long> ske : lastIO.entrySet()) {
-                                if ((ts - ske.getValue()) >= inactivityTimeout) {
-                                    close.add(ske.getKey());
-                                }
-                            }
-                            if (!close.isEmpty()) {
-                                for (SelectionKey key : close) {
-                                    lastIO.remove(key);
-                                    try {
-                                        try {
-                                            if (key.attachment() instanceof DM) {
-                                                ((DM) key.attachment()).delete(key.channel());
-                                            }
-                                        } catch (Throwable th1) {
-                                        }
-                                        key.channel().close();
-                                    } catch (Throwable th2) {
-                                        // just ensure closing error does not prevent subsequent close operations.
-                                    }
-                                }
-                            }
-                        } catch (Throwable th) {
-                            th.printStackTrace();
-                        } finally {
-                            nextCheck = ts + inactivityTimeout;
-                            nextHealthCheck = nextCheck - (long) (inactivityTimeout / 2.3);
-                        }
-                    }
-                }
-                if (Thread.currentThread().isInterrupted()) {
-                    break;
                 }
             }
-        } finally {
-            try {
-                onStopped(error);
-            } finally {
-                executorIsActive = false;
-                Thread.currentThread().setName(oldName);
-                if (scheduler != null && ownedScheduler) {
-                    // do we need graceful shutdown?
-                    scheduler.shutdownNow();
-                    scheduler = null;
+            return true;
+        } else {
+            return super.tryKeyHandling(runner, key, stat);
+        }
+    }
+
+    //////////////////////////////////////////////////////// CSListener
+    @Override
+    public void addListener(MCSListener l) {
+        super.addListener(l);
+        if (l != null) {
+            synchronized (cslisteners) {
+                if (l instanceof CSListener) {
+                    synchronized (cslisteners) {
+                        boolean ok = true;
+                        for (CSListener li : cslisteners) {
+                            if (l.equals(li)) {
+                                ok = false;
+                                break;
+                            }
+                        }
+                        if (ok) {
+                            cslisteners = Arrays.copyOf(cslisteners, cslisteners.length + 1);
+                            cslisteners[cslisteners.length - 1] = (CSListener) l;
+                        }
+                    }
+                }
+                if (l instanceof CSListenerX) {
+                    synchronized (xcslisteners) {
+                        boolean ok = true;
+                        for (CSListenerX li : xcslisteners) {
+                            if (l.equals(li)) {
+                                ok = false;
+                                break;
+                            }
+                        }
+                        if (ok) {
+                            xcslisteners = Arrays.copyOf(xcslisteners, xcslisteners.length + 1);
+                            xcslisteners[xcslisteners.length - 1] = (CSListenerX) l;
+                        }
+                    }
                 }
             }
         }
     }
 
+    @Override
+    public void removeListener(MCSListener l) {
+        super.removeListener(l);
+        if (l != null) {
+            if (l instanceof CSListener) {
+                synchronized (cslisteners) {
+                    int idx = -1;
+                    for (int i = 0; i < cslisteners.length; i++) {
+                        if (l.equals(cslisteners[i])) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    if (idx != -1) {
+                        for (int i = idx; i < cslisteners.length - 1; i++) {
+                            cslisteners[i] = cslisteners[i + 1];
+                        }
+                        cslisteners = Arrays.copyOf(cslisteners, cslisteners.length - 1);
+                    }
+                }
+            }
+            if (l instanceof CSListenerX) {
+                synchronized (xcslisteners) {
+                    int idx = -1;
+                    for (int i = 0; i < xcslisteners.length; i++) {
+                        if (l.equals(xcslisteners[i])) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    if (idx != -1) {
+                        for (int i = idx; i < xcslisteners.length - 1; i++) {
+                            xcslisteners[i] = xcslisteners[i + 1];
+                        }
+                        xcslisteners = Arrays.copyOf(xcslisteners, xcslisteners.length - 1);
+                    }
+                }
+            }
+        }
+    }
+    ///////////////////////////////////////////////////////// Handlers
+
     public void add(Handler handler) throws IOException {
         if (handler != null) {
-            if (selector != null) {
-                handler.register(selector);
+            if (isRunning()) {
+                handler.register(this);
                 registered.put(handler, true);
             } else {
                 registered.put(handler, false);
             }
         }
-        for (CSListener l : listeners()) {
+        for (CSListener l : cslisteners) {
             l.onAdded(this, handler);
         }
     }
@@ -540,9 +237,9 @@ public class CS implements Runnable {
             if (registered.containsKey(handler)) {
                 registered.remove(handler);
             }
-            handler.unregister(selector);
+            handler.unregister(this);
         }
-        for (CSListener l : listeners()) {
+        for (CSListener l : cslisteners) {
             l.onRemoved(this, handler);
         }
     }
@@ -583,87 +280,36 @@ public class CS implements Runnable {
         return false;
     }
 
-    ByteBuffer readBuf = null;
-
-    public synchronized ByteBuffer read(Channel sc) throws IOException {
-        ByteBuffer buf = null;
-        if (readBuf != null) {
-            buf = readBuf;
-            readBuf = null;
-        } else {
-            buf = ByteBuffer.allocateDirect(1024 * 16);
+    ///////////////////////////////////////////////////////// CSGroups
+    public <Z extends MCS> Z addCSGroup(CSGroup... gs) {
+        if (gs != null && gs.length > 0) {
+            for (CSGroup g : gs) {
+                if (g == null || groups.contains(g)) {
+                    continue;
+                }
+                groups.add(g);
+                for (CSListener l : cslisteners) {
+                    l.onGroupAdded(this, g);
+                }
+                if (isRunning()) {
+                    g.onStarted(this);
+                }
+            }
         }
-        int c = (sc instanceof ByteChannel)
-                ? ((ByteChannel) sc).read(buf)
-                : readNotByteChannel(sc, buf);
-        if (c == -1) {
-            readBuf = buf;
-            return null;
-        }
-        if (c > 0) {
-            ((Buffer) buf).flip();
-        }
-        return buf;
+        return (Z) this;
     }
 
-    /**
-     * Channel reader to enable non-ByteChannel channels. by default throws
-     * exception.
-     *
-     * @param sc
-     * @param buf
-     * @return
-     * @throws IOException
-     */
-    public int readNotByteChannel(Channel sc, ByteBuffer buf) throws IOException {
-        throw new IOException("Unsupported channel: " + sc + ". Need to return ByteBuffer on read operation.");
-    }
-
-    public long write(Channel sc, ByteBuffer... bbs) throws IOException {
-        return ((SocketChannel) sc).write(bbs);
-    }
-
-    public void onError(String message, Throwable th) {
-        System.err.println(message);
-        if (th != null) {
-            th.printStackTrace();
+    public void removeCSGroup(CSGroup... gs) {
+        if (gs != null && gs.length > 0) {
+            for (CSGroup g : gs) {
+                if (g != null && groups.contains(g)) {
+                    groups.remove(g);
+                    for (CSListener l : cslisteners) {
+                        l.onGroupRemoved(this, g);
+                    }
+                    g.onStop(this);
+                }
+            }
         }
     }
-
-    public Selector selector() {
-        return selector;
-    }
-
-    public String getInfo() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
-        sb.append("{");
-        sb.append("\n  scheduler=" + scheduler);
-        if (scheduler != null) {
-            sb.append(", ownedScheduler=" + ownedScheduler);
-        }
-        sb.append("\n  title=" + title);
-        sb.append("\n  selector=" + selector);
-        sb.append("\n  executor=" + executor);
-        sb.append("\n  executorIsActive=" + executorIsActive);
-        sb.append("\n  listeners=" + listeners.size());
-        for (CSListener l : listeners) {
-            sb.append("\n    " + l.toString().replace("\n", "\n    "));
-        }
-        sb.append("\n  groups=" + groups.size());
-        for (CSGroup l : groups) {
-            sb.append("\n    " + l.toString().replace("\n", "\n    "));
-        }
-        sb.append("\n  registered=" + registered.size());
-        for (Handler h : registered.keySet()) {
-            sb.append("\n   ");
-            sb.append(registered.get(h) ? "+" : "-");
-            sb.append(h.toString().replace("\n", "\n    "));
-        }
-        sb.append("\n  unwritten=" + unwritten.size());
-        sb.append("\n  inactivityTimeout=" + inactivityTimeout);
-        sb.append('}');
-        return sb.toString();
-    }
-
 }

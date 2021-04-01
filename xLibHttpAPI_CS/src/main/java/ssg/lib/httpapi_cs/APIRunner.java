@@ -11,10 +11,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
+import ssg.lib.api.util.Reflective_API_Builder;
+import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.rest.MethodsProvider;
@@ -190,6 +193,19 @@ public class APIRunner<T> extends HttpRunner {
     }
 
     @Override
+    public APIRunner configuration(Config... configs) throws IOException {
+        super.configuration(configs);
+        if (configs != null) {
+            for (Config cfg : configs) {
+                if (cfg instanceof APIConfig) {
+                    initAPI((APIConfig) cfg);
+                }
+            }
+        }
+        return this;
+    }
+
+    @Override
     public void onStarted() throws IOException {
         super.onStarted();
         if (!apis.isEmpty()) {
@@ -225,6 +241,98 @@ public class APIRunner<T> extends HttpRunner {
      */
     public T initClient(URI uri, APIGroup group, String title) {
         return null;
+    }
+
+    public void initAPI(APIConfig config) throws IOException {
+        if (config.api != null && !config.api.isEmpty()) try {
+            for (String api : config.api) {
+                if (api == null || api.isEmpty()) {
+                    continue;
+                }
+                String[] ss = api.split(";");
+                String uri = null;
+                String realm = null;
+                String name = null;
+                String authid = null;
+                String type = "reflection";
+                String clazz = null;
+                boolean prefixed = false;
+                for (String s : ss) {
+                    if (s.contains("=")) {
+                        int idx = s.indexOf("=");
+                        String n = s.substring(0, idx);
+                        String v = s.substring(idx + 1);
+                        if ("uri".equals(n)) {
+                            uri = v;
+                        } else if ("realm".equals(n)) {
+                            realm = v;
+                        } else if ("type".equals(n)) {
+                            type = v;
+                        } else if ("name".equals(n)) {
+                            name = v;
+                        } else if ("authid".equals(n)) {
+                            authid = v;
+                        } else if ("class".equals(n)) {
+                            clazz = v;
+                        }
+                    } else {
+                        if ("prefixed".equals(s.trim())) {
+                            prefixed = true;
+                        }
+                    }
+                }
+                if (realm == null || clazz == null || name == null) {
+                    break;
+                }
+                URI apiURI = null;
+                if (uri != null) try {
+                    apiURI = new URI(uri);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                String[] realms = realm.split(",");
+                String[] types = type.split(",");
+                String[] classes = clazz.split(",");
+                for (String r : realms) {
+                    for (String t : types) {
+                        initAPI(apiURI, r, name, authid, prefixed, t, classes);
+                    }
+                }
+            }
+        } catch (IOException ioex) {
+            ioex.printStackTrace();
+        }
+    }
+
+    void initAPI(URI uri, String realm, String name, String authid, boolean prefixed, String type, String... clazz) throws IOException {
+        Class cl = null;
+        Throwable error = null;
+        try {
+            Map<Class, Object> cls = new LinkedHashMap<>();
+            for (String clz : clazz) {
+                cl = this.contextClass(clz);
+                Object obj = getContext(clz);
+                if (obj == null) {
+                    obj = createContext(clz);
+                }
+                cls.put(cl, obj);
+            }
+            configureAPI(realm, name, new API_Publisher()
+                    .configure(Reflective_API_Builder.buildAPI(name, null, cls.keySet().toArray(new Class[cls.size()])))
+                    .configureContext(cls.values()),
+                    uri,
+                    authid,
+                    prefixed ? APIGroup.O_COMPACT : null
+            );
+        } catch (Throwable th) {
+            error = th;
+            if (th instanceof IOException) {
+                throw (IOException) th;
+            }
+            throw new IOException(th);
+        } finally {
+            System.out.println("API: " + realm + ":" + type + ":" + Arrays.asList(clazz) + " (" + (cl != null ? cl.getName() : "<no class>") + ")" + (error != null ? ", error: " + error : ""));
+        }
     }
 
     /**
@@ -347,5 +455,18 @@ public class APIRunner<T> extends HttpRunner {
             group.apiStat = apiStat.createChild(null, group.realm + "/" + (group.authid != null ? group.authid : "<no-auth>"));
         }
         return group != null ? group.apiStat : apiStat;
+    }
+
+    public static class APIConfig extends Config {
+
+        public APIConfig() {
+            super("app.api");
+        }
+
+        public APIConfig(String base, String... args) {
+            super(base, args);
+        }
+
+        public List<String> api;
     }
 }

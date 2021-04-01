@@ -24,151 +24,104 @@
 package ssg.lib.net;
 
 import java.io.PrintStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.util.List;
 
 /**
  *
  * @author 000ssg
  */
-public interface CSListener {
+public interface CSListener extends MCSListener {
 
-    void onStarted(CS cs);
+    default void onAdded(CS cs, Handler handler) {
+    }
 
-    void onStopped(CS cs);
+    default void onRemoved(CS cs, Handler handler) {
+    }
 
-    void onAdded(CS cs, Handler handler);
+    default void onGroupAdded(CS cs, CSGroup group) {
+    }
 
-    void onRemoved(CS cs, Handler handler);
+    default void onGroupRemoved(CS cs, CSGroup group) {
+    }
 
-    void onHandled(CS cs, SelectionKey sk, Handler h);
+    public static interface CSListenerX extends CSListener {
 
-    void onRead(CS cs, SelectionKey sk, ByteBuffer buf);
+        default void onHandled(CS cs, SelectionKey sk, Handler h) {
+        }
+    }
 
-    void onWrite(CS cs, SelectionKey sk, List<ByteBuffer> buf);
+    public static class DebuggingCSListener extends DebuggingMCSListener implements CSListenerX {
 
-    void onInvalid(CS cs, SelectionKey key);
-
-    void onError(CS cs, Throwable th);
-
-    public static class DebuggingCSListener implements CSListener {
-
-        public static final long DO_STARTED = 0x0001;
-        public static final long DO_STOPPED = 0x0002;
         public static final long DO_ADDED = 0x0004;
         public static final long DO_REMOVED = 0x0008;
-        public static final long DO_HANDLED = 0x0010;
-        public static final long DO_READ = 0x0020;
-        public static final long DO_WRITTEN = 0x0040;
-        public static final long DO_INVALID = 0x0080;
-        public static final long DO_ERROR = 0x0100;
+        public static final long DO_GROUP_ADDED = 0x0100;
+        public static final long DO_GROUP_REMOVED = 0x0200;
+        public static final long DO_HANDLED = 0x0400;
+        public static final long DO_ALL_CS
+                = DO_ADDED
+                | DO_REMOVED
+                | DO_GROUP_ADDED
+                | DO_GROUP_REMOVED
+                | DO_HANDLED;
+        public static final long DO_STRUCTURAL_CS
+                = DO_ADDED
+                | DO_REMOVED
+                | DO_GROUP_ADDED
+                | DO_GROUP_REMOVED;
         public static final long DO_ALL
-                = DO_STARTED
-                | DO_STOPPED
-                | DO_ADDED
-                | DO_REMOVED
-                | DO_HANDLED
-                | DO_READ
-                | DO_WRITTEN
-                | DO_INVALID
-                | DO_ERROR;
+                = MCSListener.DebuggingMCSListener.DO_ALL
+                | DO_ALL_CS;
         public static final long DO_STRUCTURAL
-                = DO_STARTED
-                | DO_STOPPED
-                | DO_ADDED
-                | DO_REMOVED
-                | DO_ERROR;
-
-        PrintStream out = System.out;
-        long filter = DO_ALL;
+                = MCSListener.DebuggingMCSListener.DO_STRUCTURAL
+                | DO_STRUCTURAL_CS;
 
         public DebuggingCSListener() {
         }
 
         public DebuggingCSListener(long filter) {
-            this.filter = filter;
+            super(filter);
         }
 
         public DebuggingCSListener(PrintStream out) {
-            this.out = out;
+            super(out);
         }
 
         public DebuggingCSListener(PrintStream out, long filter) {
-            this.out = out;
-            this.filter = filter;
-        }
-
-        public boolean isAllowedOption(long option) {
-            return (filter & option) == option;
-        }
-
-        @Override
-        public void onStarted(CS cs) {
-            if (isAllowedOption(DO_STARTED) && out != null) {
-                out.println("CS:STARTED    " + cs);
-            }
-        }
-
-        @Override
-        public void onStopped(CS cs) {
-            if (isAllowedOption(DO_STOPPED) && out != null) {
-                out.println("CS:STOPPED   " + cs);
-            }
+            super(out, filter);
         }
 
         @Override
         public void onAdded(CS cs, Handler handler) {
             if (isAllowedOption(DO_ADDED) && out != null) {
-                out.println("CS:ADDED     " + cs + "\n  handler: " + handler);
+                out.println("CS:ADDED     " + mcsInfo(cs) + "\n  handler: " + handler);
             }
         }
 
         @Override
         public void onRemoved(CS cs, Handler handler) {
             if (isAllowedOption(DO_REMOVED) && out != null) {
-                out.println("CS:REMOVED   " + cs + "\n  handler: " + handler);
+                out.println("CS:REMOVED   " + mcsInfo(cs) + "\n  handler: " + handler);
+            }
+        }
+
+        @Override
+        public void onGroupAdded(CS cs, CSGroup group) {
+            if (isAllowedOption(DO_GROUP_ADDED) && out != null) {
+                out.println("CS:GROUP_ADDED     " + mcsInfo(cs) + "\n  group: " + group);
+            }
+        }
+
+        @Override
+        public void onGroupRemoved(CS cs, CSGroup group) {
+            if (isAllowedOption(DO_GROUP_REMOVED) && out != null) {
+                out.println("CS:GROUP_REMOVED   " + mcsInfo(cs) + "\n  group: " + group);
             }
         }
 
         @Override
         public void onHandled(CS cs, SelectionKey sk, Handler h) {
             if (isAllowedOption(DO_HANDLED) && out != null) {
-                out.println("CS:HANDLED   " + cs + "\n  key: " + sk + "\n  handler: " + h);
-            }
-        }
-
-        @Override
-        public void onRead(CS cs, SelectionKey sk, ByteBuffer buf) {
-            if (isAllowedOption(DO_READ) && out != null) {
-                out.println("CS:READ      " + cs + "  len=" + buf.remaining() + "  key=" + sk);
-            }
-        }
-
-        @Override
-        public void onWrite(CS cs, SelectionKey sk, List<ByteBuffer> buf) {
-            if (isAllowedOption(DO_WRITTEN) && out != null) {
-                long c = 0;
-                for (ByteBuffer bb : buf) {
-                    if (bb != null && bb.hasRemaining()) {
-                        c += bb.remaining();
-                    }
-                }
-                out.println("CS:WRITTEN   " + cs + "  len=" + c + "  key=" + sk);
-            }
-        }
-
-        @Override
-        public void onInvalid(CS cs, SelectionKey key) {
-            if (isAllowedOption(DO_INVALID) && out != null) {
-                out.println("CS:INVALID   " + cs + "\n  key: " + key);
-            }
-        }
-
-        @Override
-        public void onError(CS cs, Throwable th) {
-            if (isAllowedOption(DO_ERROR) && out != null) {
-                out.println("CS:ERROR     " + cs + "\n  err: " + th);
+                out.println("CS:HANDLED   " + mcsInfo(cs) + "\n  key: " + sk + "\n  handler: " + h);
             }
         }
 

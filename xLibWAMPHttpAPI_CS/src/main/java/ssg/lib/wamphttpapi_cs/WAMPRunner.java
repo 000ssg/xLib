@@ -55,6 +55,7 @@ import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIParameter;
 import ssg.lib.api.APIProcedure;
 import ssg.lib.api.API_Publisher;
+import ssg.lib.common.Config;
 import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
@@ -216,6 +217,17 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     @Override
     public WAMPRunner configureStub(StubVirtualData<?> stub) {
         super.configureStub(stub);
+        return this;
+    }
+
+    @Override
+    public WAMPRunner configuration(Config... configs) throws IOException {
+        super.configuration(configs);
+        if (configs != null) {
+            for (Config cfg : configs) {
+                // TODO: utilize WAMP configuration parameters...
+            }
+        }
         return this;
     }
 
@@ -402,7 +414,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
      * @param path
      * @param needHttpAuth if true, requires authenticated HTTP connections only
      * @return
-     * @throws IOException 
+     * @throws IOException
      */
     public WAMPRunner configureWAMPRouter(String path, boolean needHttpAuth) throws IOException {
         if (wamp == null) {
@@ -872,4 +884,23 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         }
     }
 
+    public static class WAMPConfig extends Config {
+
+        public WAMPConfig() {
+            super("app.wamp");
+        }
+
+        public WAMPConfig(String base, String... args) {
+            super(base, args);
+        }
+
+        @Description("Define port for WAMP router. If set, Standalon WAMP router is run.")
+        public Integer routerPort;
+        @Description("Define router path. If set, then embedded WAMP router is used (if HTTP Application is used and relative path - relative to application.")
+        public String routerPath;
+        @Description(value = "Defines allowed realms.", pattern = "Comma-separated or single realm name. Multiple entries allowed.")
+        public List<String> realm;
+        @Description(value = "WAMP authentications configuration. Multiple entries allowed.", pattern = "complex definitions...")
+        public List<String> auth;
+    }
 }

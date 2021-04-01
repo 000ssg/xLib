@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2021 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,55 +21,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.net;
+package ssg.lib.net.t1;
 
-import java.io.IOException;
-import java.nio.channels.SelectionKey;
+import java.nio.ByteBuffer;
 
 /**
  *
  * @author 000ssg
  */
-public interface Handler {
+public class Test_ByteBuffer {
 
-    /**
-     * Is handler registered for selector.
-     *
-     * @return
-     */
-    boolean isRegistered();
+    public static void main(String... args) throws Exception {
+        ByteBuffer bb = ByteBuffer.allocate(100);
+        byte[] buf=new byte[200];
+        ByteBuffer out=ByteBuffer.wrap(buf);
+        
+        String s1="Test";
+        String s2="Testd";
+        
+        bb.put(s1.getBytes());
+        bb.flip();
+        
+        out.put(bb.get());
+        out.put(bb.get());
 
-    /**
-     * Register handler for selector.
-     *
-     * @param selector
-     * @throws IOException
-     */
-    void register(MCSSelector selector) throws IOException;
-
-    /**
-     * Unregister handler from selector.
-     *
-     * @param selector
-     * @throws IOException
-     */
-    void unregister(MCSSelector selector) throws IOException;
-
-    /**
-     * Processes selection key operation(s) and returns new SelectionKey
-     * instances if created during processing. E.g. used when handling
-     * accept/connect operations.
-     *
-     * @param key
-     * @return
-     * @throws IOException
-     */
-    SelectionKey[] onHandle(SelectionKey key) throws IOException;
-
-    public static interface DataHandlerListener {
-
-        void onAssociated(Handler handler);
-
-        void onUnassociated(Handler handler);
+        bb.compact();
+        bb.put(s2.getBytes());
+        bb.flip();
+        
+        while(bb.hasRemaining()) out.put(bb.get());
+        
+        System.out.println("Result: "+new String(buf,0,out.position()));
     }
 }

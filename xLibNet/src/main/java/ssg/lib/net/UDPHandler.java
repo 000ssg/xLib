@@ -35,7 +35,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.MembershipKey;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -49,7 +48,7 @@ import ssg.lib.di.DI;
  */
 public class UDPHandler implements Handler {
 
-    Selector selector;
+    MCSSelector selector;
     //
     SocketAddress sAddr;
     NetworkInterface ni;
@@ -86,11 +85,11 @@ public class UDPHandler implements Handler {
 
     @Override
     public boolean isRegistered() {
-        return selector != null && selector.isOpen();
+        return selector != null;// && selector.isOpen();
     }
 
     @Override
-    public void register(Selector selector) throws IOException {
+    public void register(MCSSelector selector) throws IOException {
         this.selector = selector;
         try {
             try {
@@ -132,7 +131,7 @@ public class UDPHandler implements Handler {
             }
 
             if (selector != null) {
-                sSocket.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, this);
+                sSocket.register(selector.selector(SelectionKey.OP_READ | SelectionKey.OP_WRITE), SelectionKey.OP_READ | SelectionKey.OP_WRITE, this);
             }
         } catch (Throwable th) {
             th.printStackTrace();
@@ -140,7 +139,7 @@ public class UDPHandler implements Handler {
     }
 
     @Override
-    public void unregister(Selector selector) throws IOException {
+    public void unregister(MCSSelector selector) throws IOException {
         if (this.selector == null) {
             return;
         }

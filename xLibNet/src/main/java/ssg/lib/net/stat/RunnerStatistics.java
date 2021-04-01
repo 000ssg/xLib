@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+ * Copyright 2021 sesidoro.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,55 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ssg.lib.net;
+package ssg.lib.net.stat;
 
-import java.io.IOException;
-import java.nio.channels.SelectionKey;
+import ssg.lib.stat.TimingStatistics;
 
 /**
  *
  * @author 000ssg
  */
-public interface Handler {
-
-    /**
-     * Is handler registered for selector.
-     *
-     * @return
-     */
-    boolean isRegistered();
-
-    /**
-     * Register handler for selector.
-     *
-     * @param selector
-     * @throws IOException
-     */
-    void register(MCSSelector selector) throws IOException;
-
-    /**
-     * Unregister handler from selector.
-     *
-     * @param selector
-     * @throws IOException
-     */
-    void unregister(MCSSelector selector) throws IOException;
-
-    /**
-     * Processes selection key operation(s) and returns new SelectionKey
-     * instances if created during processing. E.g. used when handling
-     * accept/connect operations.
-     *
-     * @param key
-     * @return
-     * @throws IOException
-     */
-    SelectionKey[] onHandle(SelectionKey key) throws IOException;
-
-    public static interface DataHandlerListener {
-
-        void onAssociated(Handler handler);
-
-        void onUnassociated(Handler handler);
-    }
+public interface RunnerStatistics extends TimingStatistics {
+    long onAccept();
+    long onConnect();
+    long onConnectable();
+    long onConnected();
+    long onRead();
+    long onWrite();
+    long onClose();
+    long onCheck();
 }

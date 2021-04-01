@@ -27,24 +27,28 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.di.DI;
 import ssg.lib.di.DM;
+import ssg.lib.net.MCS.ConnectionIO;
+import ssg.lib.net.MCS.RunnerIO;
 
 /**
  *
  * @author 000ssg
  */
-public class TCPHandler implements Handler {
+public class TCPHandler implements Handler, ConnectionIO {
 
-    Selector selector;
+    MCSSelector selector;
     Map<SocketAddress, ServerSocketChannel> sockets = new LinkedHashMap<>();
     private DI<ByteBuffer, SocketChannel> defaultHandler;
     private Map<SocketChannel, DI<ByteBuffer, SocketChannel>> clientHandlers = new HashMap<>();
@@ -69,11 +73,11 @@ public class TCPHandler implements Handler {
 
     @Override
     public boolean isRegistered() {
-        return selector != null && selector.isOpen();
+        return selector != null;// && selector.isOpen();
     }
 
     @Override
-    public void register(Selector selector) throws IOException {
+    public void register(MCSSelector selector) throws IOException {
         if (selector != null && this.selector == null) {
             this.selector = selector;
         }
@@ -89,15 +93,15 @@ public class TCPHandler implements Handler {
                 ssc.bind(sa);
                 ssc.configureBlocking(false);
                 sockets.put(sa, ssc);
-                ssc.register(selector, SelectionKey.OP_ACCEPT, this);
+                ssc.register(selector.selector(SelectionKey.OP_ACCEPT), SelectionKey.OP_ACCEPT, this);
             } else if (ssc.isOpen() && !ssc.isRegistered()) {
-                ssc.register(selector, SelectionKey.OP_ACCEPT, this);
+                ssc.register(selector.selector(SelectionKey.OP_ACCEPT), SelectionKey.OP_ACCEPT, this);
             }
         }
     }
 
     @Override
-    public void unregister(Selector selector) throws IOException {
+    public void unregister(MCSSelector selector) throws IOException {
         if (this.selector == null) {
             return; //throw new IOException("Valid selector is needed at least once.");
         }
@@ -122,7 +126,7 @@ public class TCPHandler implements Handler {
             sc.configureBlocking(false);
             DI h = accept(sc);
             if (h != null) {
-                r = new SelectionKey[]{sc.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, h)};
+                r = new SelectionKey[]{sc.register(selector.selector(SelectionKey.OP_READ | SelectionKey.OP_WRITE), SelectionKey.OP_READ | SelectionKey.OP_WRITE, h)};
             }
         } else if (key.isConnectable()) {
             DI h = connect((SocketChannel) key.channel());
@@ -131,7 +135,7 @@ public class TCPHandler implements Handler {
                 if (sc.isConnectionPending()) {
                     sc.finishConnect();
                 }
-                r = new SelectionKey[]{((SocketChannel) key.channel()).register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, h)};
+                r = new SelectionKey[]{((SocketChannel) key.channel()).register(selector.selector(SelectionKey.OP_READ | SelectionKey.OP_WRITE), SelectionKey.OP_READ | SelectionKey.OP_WRITE, h)};
             }
         } else if (key.isReadable()) {
             onRead((SocketChannel) key.channel());
@@ -204,6 +208,57 @@ public class TCPHandler implements Handler {
         return r != null ? r : getDefaultHandler();
     }
 
+    //////////////////////////////////////////////////////////////// ConnectorIO
+    @Override
+    public MCS.RunnerIO onConnected(SocketChannel sc, boolean client) throws IOException {
+        final DI<ByteBuffer, SocketChannel> di = client ? connect(sc) : accept(sc);
+        return new RunnerIO() {
+            private SocketChannel channel;
+            List<ByteBuffer> output = new ArrayList<>();
+
+            @Override
+            public void onOpen(SocketChannel sc) throws IOException {
+                channel = sc;
+                RunnerIO.super.onOpen(sc);
+            }
+
+            @Override
+            public void onClose(SocketChannel sc, Throwable th) throws IOException {
+                try {
+                    di.delete(sc);
+                    channel = null;
+                } finally {
+                    RunnerIO.super.onClose(sc, th);
+                }
+            }
+
+            @Override
+            public boolean isActive() {
+                return channel != null && channel.isConnected();
+            }
+
+            @Override
+            public long onRead(ByteBuffer buf) throws IOException {
+                return di.write(channel, Collections.singletonList(buf));
+            }
+
+            @Override
+            public ByteBuffer onWrite(SocketChannel sc) throws IOException {
+                if (output.isEmpty()) {
+                    List<ByteBuffer> bufs = di.read(sc);
+                    if (bufs != null && !bufs.isEmpty()) {
+                        output.addAll(bufs);
+                    }
+                }
+                if (output.isEmpty()) {
+                    return null;
+                } else {
+                    return output.remove(0);
+                }
+            }
+        };
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     public SocketChannel connect(SocketAddress saddr, DI dl) throws IOException {
         SocketChannel sc = SocketChannel.open();
@@ -211,7 +266,7 @@ public class TCPHandler implements Handler {
         synchronized (clientHandlers) {
             clientHandlers.put(sc, dl);
         }
-        SelectionKey key = sc.register(selector, SelectionKey.OP_CONNECT, this);// SelectionKey.OP_READ | SelectionKey.OP_WRITE, dl);
+        SelectionKey key = sc.register(selector.selector(SelectionKey.OP_CONNECT), SelectionKey.OP_CONNECT, this);// SelectionKey.OP_READ | SelectionKey.OP_WRITE, dl);
         sc.connect(saddr);
         return sc;//connect(sc, dl);
     }
@@ -246,7 +301,7 @@ public class TCPHandler implements Handler {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().getSimpleName() + "{");
-        sb.append("\n  selector=" + selector);
+        sb.append("\n  selector=" + (selector != null ? selector.getClass().getName() : "<none>"));
         sb.append("\n  sockets=" + sockets.size());
         for (Entry<SocketAddress, ServerSocketChannel> ent : sockets.entrySet()) {
             sb.append("\n    " + ent.getKey() + " -> " + ent.getValue());

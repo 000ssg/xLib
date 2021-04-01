@@ -93,7 +93,7 @@ public class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, H
         if (http != null) {
             HttpContext ctx = http.getContext();
             HttpMatcher parent = null;
-            if (!matcher.absolutePath && ctx instanceof HttpSession && ((HttpSession) ctx).getApplication() != null) {
+            if (matcher!=null && !matcher.absolutePath && ctx instanceof HttpSession && ((HttpSession) ctx).getApplication() != null) {
                 parent = ((HttpSession) ctx).getApplication().getMatcher();
             }
             if (matcher == null) {
