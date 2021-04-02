@@ -93,6 +93,11 @@ public class Config {
         load(this, args);
     }
 
+    public <T extends Config> T noSysProperties() {
+        sysPropsLoaded = true;
+        return (T) this;
+    }
+
     public String getBase() {
         return base;
     }

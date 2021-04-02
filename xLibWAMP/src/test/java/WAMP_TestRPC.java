@@ -94,10 +94,12 @@ public class WAMP_TestRPC implements Runnable {
 
     public void stop() {
         if (clients != null) {
-            for (WAMPClient c : clients) {
-                try {
-                    c.disconnect("OK");
-                } catch (Throwable th) {
+            synchronized (clients) {
+                for (WAMPClient c : clients) {
+                    try {
+                        c.disconnect("OK");
+                    } catch (Throwable th) {
+                    }
                 }
             }
         }

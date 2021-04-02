@@ -58,7 +58,8 @@ public class Test_HttpRunner_Configs {
                 pfx + "stub=cc,js",
                 pfx + "context=A=" + H1.class.getName(),
                 pfx + "context=B=" + H1.class.getName(),
-                pfx + "publish=A",
+                //pfx + "publish=item=A",
+                pfx + "publish=item=A;name=aaa/bbb",
                 pfx + "dfgh=a"
         );
         HttpRunner r = new HttpRunner(new HttpApplication("A", "/a")).configuration(c);

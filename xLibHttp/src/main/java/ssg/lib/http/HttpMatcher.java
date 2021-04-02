@@ -40,7 +40,7 @@ import ssg.lib.common.buffers.BufferTools;
  *
  * Empty path represents root -> "/"
  */
-public class HttpMatcher {
+public class HttpMatcher implements Cloneable {
 
     String scheme;
     String path;
@@ -61,6 +61,69 @@ public class HttpMatcher {
     transient ThreadLocal<HttpMatcher> parent = new ThreadLocal<>();
 
     public HttpMatcher() {
+    }
+
+    /**
+     * Returns copy of this HttpMatcher with all paths appended and terminator
+     * as in appended matcher.
+     *
+     * Note: only path/wildcard info is taken from base item, all other info -
+     * from child.
+     *
+     * @param child
+     * @return
+     */
+    public HttpMatcher append(HttpMatcher child) {
+        HttpMatcher r = child.copy();
+        r.absolutePath = this.absolutePath;
+        r.path=(path!=null ? path : "")+(r.path.startsWith("/") || path!=null && path.endsWith("/") ? "" : "/")+r.path;
+        if (paths != null) {
+            r.paths = new String[r.paths.length + paths.length];
+            for (int i = 0; i < paths.length; i++) {
+                r.paths[i] = paths[i];
+            }
+            int off = paths.length;
+            for (int i = 0; i < child.paths.length; i++) {
+                r.paths[i + off] = child.paths[i];
+            }
+            if (r.wildcards != null || wildcards != null) {
+                r.wildcards = new WildcardMatcher[r.paths.length + paths.length];
+
+                if (wildcards != null) {
+                    for (int i = 0; i < wildcards.length; i++) {
+                        r.wildcards[i] = wildcards[i];
+                    }
+                }
+                if (child.wildcards != null) {
+                    for (int i = 0; i < child.wildcards.length; i++) {
+                        r.wildcards[i + off] = child.wildcards[i];
+                    }
+                }
+            }
+        }
+
+        return r;
+    }
+
+    public HttpMatcher copy() {
+        try {
+            HttpMatcher copy = (HttpMatcher) this.clone();
+            if (paths != null) {
+                copy.paths = Arrays.copyOf(paths, paths.length);
+            }
+            if (wildcards != null) {
+                copy.wildcards = Arrays.copyOf(wildcards, wildcards.length);
+            }
+            if (qpm != null) {
+                copy.qpm = Arrays.copyOf(qpm, qpm.length);
+            }
+            if (methods != null) {
+                copy.methods = Arrays.copyOf(methods, methods.length);
+            }
+            return copy;
+        } catch (CloneNotSupportedException cnsex) {
+            return null;
+        }
     }
 
     public HttpMatcher(String path, String... methods) {

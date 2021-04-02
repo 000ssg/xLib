@@ -7,6 +7,7 @@ package ssg.lib.httpapi_cs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
-import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
@@ -37,12 +37,13 @@ public class APIRunner<T> extends HttpRunner {
 
     // API support
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
-    Collection<String> registeredRESTAPIs = new HashSet<>();
+    //Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
+    APIAdapter adapter;
 
     /**
-     * API group enables defining multiple APIs for same context, that is realm,
-     * authid, and uri.
+     * API group enables defining multiple APIs for same context, that is
+     * namespace, authid, and uri.
      *
      * authid and uri are optional.
      *
@@ -58,7 +59,7 @@ public class APIRunner<T> extends HttpRunner {
         public URI uri;
         public String authid;
         public String agent;
-        public String realm;
+        public String namespace;
         public long options = O_NONE;
         public API_Publisher.API_Publishers apis = new API_Publisher.API_Publishers();
         public Map<URI, T> clients = new LinkedHashMap<>();
@@ -74,7 +75,7 @@ public class APIRunner<T> extends HttpRunner {
 
         @Override
         public String toString() {
-            return "APIGroup{" + "uri=" + uri + ", authid=" + authid + ", agent=" + agent + ", realm=" + realm + ", apis=" + apis + ", clients=" + clients.keySet() + '}';
+            return "APIGroup{" + "uri=" + uri + ", authid=" + authid + ", agent=" + agent + ", namespace=" + namespace + ", apis=" + apis + ", clients=" + clients.keySet() + '}';
         }
 
     }
@@ -116,48 +117,48 @@ public class APIRunner<T> extends HttpRunner {
     }
 
     /**
-     * Add API to realm (WAMP client functionality and/or REST)
+     * Add API to namespace (WAMP client functionality and/or REST)
      *
-     * @param realm
+     * @param namespace
      * @param name
      * @param api
      * @return
      */
-    public APIRunner configureAPI(String realm, String name, API_Publisher api) {
-        return this.configureAPI(realm, name, api, null, null);
+    public APIRunner configureAPI(String namespace, String name, API_Publisher api) {
+        return this.configureAPI(namespace, name, api, null, null);
     }
 
     /**
-     * Add API to realm (WAMP client functionality and/or REST)
+     * Add API to namespace (WAMP client functionality and/or REST)
      *
-     * @param realm
+     * @param namespace
      * @param name
      * @param api
      * @param uri
      * @return
      */
-    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri) {
-        return this.configureAPI(realm, name, api, uri, null);
+    public APIRunner configureAPI(String namespace, String name, API_Publisher api, URI uri) {
+        return this.configureAPI(namespace, name, api, uri, null);
     }
 
     /**
-     * Add API to realm (WAMP client functionality and/or REST)
+     * Add API to namespace (WAMP client functionality and/or REST)
      *
-     * @param realm
+     * @param namespace
      * @param name
      * @param api
      * @param uri
      * @param authid
      * @return
      */
-    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid) {
-        return this.configureAPI(realm, name, api, uri, authid, null);
+    public APIRunner configureAPI(String namespace, String name, API_Publisher api, URI uri, String authid) {
+        return this.configureAPI(namespace, name, api, uri, authid, null);
     }
 
     /**
-     * Add API to realm (WAMP client functionality and/or REST)
+     * Add API to namespace (WAMP client functionality and/or REST)
      *
-     * @param realm
+     * @param namespace
      * @param name
      * @param api
      * @param uri
@@ -165,18 +166,18 @@ public class APIRunner<T> extends HttpRunner {
      * @param options
      * @return
      */
-    public APIRunner configureAPI(String realm, String name, API_Publisher api, URI uri, String authid, Long options) {
-        Map<String, APIGroup> groups = apis.get(realm);
+    public APIRunner configureAPI(String namespace, String name, API_Publisher api, URI uri, String authid, Long options) {
+        Map<String, APIGroup> groups = apis.get(namespace);
         if (groups == null) {
             groups = new LinkedHashMap<>();
-            apis.put(realm, groups);
+            apis.put(namespace, groups);
         }
         APIGroup group = groups.get(authid != null ? authid : "");
         if (group == null) {
             group = new APIGroup();
             group.uri = uri;
             group.authid = authid;
-            group.realm = realm;
+            group.namespace = namespace;
             groups.put(authid != null ? authid : "", group);
             if (options != null) {
                 group.options = options;
@@ -189,6 +190,11 @@ public class APIRunner<T> extends HttpRunner {
 
     public APIRunner configureStub(StubVirtualData<?> stub) {
         super.configureStub(stub);
+        return this;
+    }
+
+    public APIRunner configureAPIAdapter(APIAdapter adapter) {
+        this.adapter = adapter;
         return this;
     }
 
@@ -243,95 +249,34 @@ public class APIRunner<T> extends HttpRunner {
         return null;
     }
 
+    /**
+     * Initialize APIRunner-specifics from APIConf, especially conf.api entries
+     * for building API groups.
+     *
+     * @param config
+     * @throws IOException
+     */
     public void initAPI(APIConfig config) throws IOException {
         if (config.api != null && !config.api.isEmpty()) try {
+
             for (String api : config.api) {
                 if (api == null || api.isEmpty()) {
                     continue;
                 }
-                String[] ss = api.split(";");
-                String uri = null;
-                String realm = null;
-                String name = null;
-                String authid = null;
-                String type = "reflection";
-                String clazz = null;
-                boolean prefixed = false;
-                for (String s : ss) {
-                    if (s.contains("=")) {
-                        int idx = s.indexOf("=");
-                        String n = s.substring(0, idx);
-                        String v = s.substring(idx + 1);
-                        if ("uri".equals(n)) {
-                            uri = v;
-                        } else if ("realm".equals(n)) {
-                            realm = v;
-                        } else if ("type".equals(n)) {
-                            type = v;
-                        } else if ("name".equals(n)) {
-                            name = v;
-                        } else if ("authid".equals(n)) {
-                            authid = v;
-                        } else if ("class".equals(n)) {
-                            clazz = v;
-                        }
-                    } else {
-                        if ("prefixed".equals(s.trim())) {
-                            prefixed = true;
-                        }
-                    }
-                }
-                if (realm == null || clazz == null || name == null) {
-                    break;
-                }
-                URI apiURI = null;
-                if (uri != null) try {
-                    apiURI = new URI(uri);
-                } catch (Throwable th) {
-                    th.printStackTrace();
-                }
-                String[] realms = realm.split(",");
-                String[] types = type.split(",");
-                String[] classes = clazz.split(",");
-                for (String r : realms) {
-                    for (String t : types) {
-                        initAPI(apiURI, r, name, authid, prefixed, t, classes);
-                    }
-                }
+
+                APIAdapter.APIAdapterConf apiConf = adapter.createAPIAdapterConf(api);
+                configureAPI(apiConf.namespace, apiConf.name, new API_Publisher()
+                        .configureContext((Collection) adapter.getContexts(apiConf))
+                        .configure(adapter.createAPI(apiConf)),
+                        apiConf.uri != null ? new URI(apiConf.uri) : null,
+                        apiConf.authid,
+                        apiConf.prefixed ? APIGroup.O_COMPACT : null
+                );
             }
+        } catch (URISyntaxException usex) {
+            usex.printStackTrace();
         } catch (IOException ioex) {
             ioex.printStackTrace();
-        }
-    }
-
-    void initAPI(URI uri, String realm, String name, String authid, boolean prefixed, String type, String... clazz) throws IOException {
-        Class cl = null;
-        Throwable error = null;
-        try {
-            Map<Class, Object> cls = new LinkedHashMap<>();
-            for (String clz : clazz) {
-                cl = this.contextClass(clz);
-                Object obj = getContext(clz);
-                if (obj == null) {
-                    obj = createContext(clz);
-                }
-                cls.put(cl, obj);
-            }
-            configureAPI(realm, name, new API_Publisher()
-                    .configure(Reflective_API_Builder.buildAPI(name, null, cls.keySet().toArray(new Class[cls.size()])))
-                    .configureContext(cls.values()),
-                    uri,
-                    authid,
-                    prefixed ? APIGroup.O_COMPACT : null
-            );
-        } catch (Throwable th) {
-            error = th;
-            if (th instanceof IOException) {
-                throw (IOException) th;
-            }
-            throw new IOException(th);
-        } finally {
-            System.out.println("API: " + realm + ":" + type + ":" + Arrays.asList(clazz) + " (" + (cl != null ? cl.getName() : "<no class>") + ")" + (error != null ? ", error: " + error : ""));
         }
     }
 
@@ -367,7 +312,7 @@ public class APIRunner<T> extends HttpRunner {
         onBeforePublishAPI(wsURI, group, names);
 
         try {
-            final String realm = group.realm;
+            final String namespace = group.namespace;
             API_Publishers apis = group.apis;
             final Collection<String> apiNames = names != null ? names : group.apis.getAPINames();
             if (apiNames == null || apiNames.isEmpty()) {
@@ -452,9 +397,42 @@ public class APIRunner<T> extends HttpRunner {
 
     public APIStatistics getAPIStatistics(APIGroup group) {
         if (apiStat != null && group != null && group.apiStat == null) {
-            group.apiStat = apiStat.createChild(null, group.realm + "/" + (group.authid != null ? group.authid : "<no-auth>"));
+            group.apiStat = apiStat.createChild(null, group.namespace + "/" + (group.authid != null ? group.authid : "<no-auth>"));
         }
         return group != null ? group.apiStat : apiStat;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString());
+        sb.delete(sb.length() - 2, sb.length());
+        if (adapter != null) {
+            sb.append("\n  adapter=" + adapter.toString().replace("\n", "\n  "));
+        }
+        sb.append("\n  apis=" + apis.size());
+        for (Entry<String, Map<String, APIGroup>> e : apis.entrySet()) {
+            sb.append("\n    " + e.getKey() + "[" + e.getValue().size() + "]");
+            for (Entry<String, APIGroup> e2 : e.getValue().entrySet()) {
+                sb.append("\n      " + e2.getKey() + ": " + e2.getValue().toString().replace("\n", "\n      "));
+            }
+        }
+//        sb.append("\n  registeredRESTAPIs[" + registeredRESTAPIs.size()+"]");
+//        int off = 0;
+//        for (String s : registeredRESTAPIs) {
+//            if (off % 4 == 0) {
+//                sb.append("\n    ");
+//            } else {
+//                sb.append(", ");
+//            }
+//            sb.append(s);
+//        }
+        if (apiStat != null) {
+            sb.append("\n  apiStat=" + apiStat.toString().replace("\n", "\n  "));
+        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
     }
 
     public static class APIConfig extends Config {

@@ -30,21 +30,23 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpDataProcessor;
+import ssg.lib.http.HttpMatcher;
 import ssg.lib.http.HttpService;
 import ssg.lib.http.base.HttpData;
 import ssg.lib.http.dp.HttpDataProcessorFavIcon;
 import ssg.lib.http.dp.HttpResourceBytes;
 import ssg.lib.http.dp.HttpStaticDataProcessor;
+import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
 import ssg.lib.http.rest.StubRESTHttpContext;
 import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.http_cs.RESTAdapter.RESTAdapterConf;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
 import ssg.lib.service.Repository;
@@ -71,8 +73,11 @@ public class HttpRunner extends CS {
     URI restURI;
     StubVirtualData<?> stub;
     HttpStaticDataProcessor stubDP;
-    Map<String, Object> contexts = new LinkedHashMap<>();
-    transient Map<Class, Object> pendingRESTs = new LinkedHashMap<>();
+    //
+    RESTAdapter restAdapter = new RESTAdapter();
+    //Map<String, Object> contexts = new LinkedHashMap<>();
+    //transient Map<Class, Object> pendingRESTs = new LinkedHashMap<>();
+    transient Collection<RESTAdapterConf> pendingRESTDefs = new LinkedHashSet<>();
 
     // embedding CS support: nested (indirect) calls to start/stop are safe
     private transient Boolean starting = false;
@@ -169,27 +174,29 @@ public class HttpRunner extends CS {
                 configureStub(svd);
             }
             if (hc.context != null) {
-                for (String c : hc.context) {
+                for (String c : hc.context) try {
                     String[] cc = c.split("=");
-                    Object instance = this.createContext(cc.length > 1 ? cc[1] : cc[0]);
-                    this.contexts.put(cc[0], instance);
+                    Class cl = Class.forName(cc.length > 1 ? cc[1] : cc[0]);
+                    Object instance = cl.newInstance();
+                    restAdapter.configureContext(cc[0], instance);
+                } catch (Throwable th) {
+                    th.printStackTrace();
                 }
             }
             if (hc.publish != null) {
                 for (String c : hc.publish) {
-                    String[] cc = c.split("=");
-                    Class type = contextClass(cc[0]);
-                    Object context = createContext(cc.length > 1 ? cc[1] : cc[0]);
-                    if (type == null || context == null) {
-                        // ignored config
-                    } else {
+                    RESTAdapterConf conf = restAdapter.createRESTAdapterConf(c);
+                    MethodsProvider[] methodProviders = restAdapter.getMethodProviders(conf);
+                    Object[] contexts = restAdapter.getProviders(conf);
+                    if (contexts != null && contexts.length > 0 && contexts[0] != null) {
                         if (getREST() != null) {
-                            getREST().registerProviders(null, type != null ? type : context);
+                            getREST().registerProviders(conf.name != null ? new HttpMatcher(conf.name) : null, methodProviders, contexts);
+//                            getREST().registerProviders(null, type != null ? type : context);
                         } else {
-                            this.pendingRESTs.put(type, context);
+//                            this.pendingRESTs.put(type, context);
+                            pendingRESTDefs.add(conf);
                         }
                     }
-
                 }
             }
             Map<String, Object> aliases = new HashMap<>();
@@ -282,44 +289,6 @@ public class HttpRunner extends CS {
         return stub;
     }
 
-    public Class contextClass(String context) throws IOException {
-        try {
-            Class cl = Class.forName(context);
-            return cl;
-        } catch (Throwable th) {
-            if (th instanceof IOException) {
-                throw (IOException) th;
-            } else {
-                if (contexts.containsKey(context)) {
-                    Object o = contexts.get(context);
-                    if (o instanceof Class) {
-                        return (Class) o;
-                    } else {
-                        return o.getClass();
-                    }
-                }
-                throw new IOException(th);
-            }
-        }
-    }
-
-    public <T> T getContext(String context) throws IOException {
-        return (T) contexts.get(context);
-    }
-
-    public <T> T createContext(Object context) throws IOException {
-        try {
-            Class cl = context instanceof Class ? (Class) context : context instanceof String ? contextClass((String) context) : null;
-            return (T) (cl != null ? cl.newInstance() : context);
-        } catch (Throwable th) {
-            if (th instanceof IOException) {
-                throw (IOException) th;
-            } else {
-                throw new IOException(th);
-            }
-        }
-    }
-
     public void onStarted() throws IOException {
         if (httpPort != null) {
             if (http == null) {
@@ -335,6 +304,18 @@ public class HttpRunner extends CS {
                 try {
                     restURI = new URI("http://localhost:" + httpPort + path);
                 } catch (Throwable th) {
+                }
+                if (!pendingRESTDefs.isEmpty()) {
+                    synchronized (pendingRESTDefs) {
+                        for (RESTAdapterConf conf : pendingRESTDefs) {
+                            MethodsProvider[] methodProviders = restAdapter.getMethodProviders(conf);
+                            Object[] contexts = restAdapter.getProviders(conf);
+                            if (contexts != null && contexts.length > 0 && contexts[0] != null) {
+                                getREST().registerProviders(conf.name != null ? new HttpMatcher(conf.name) : null, methodProviders, contexts);
+                            }
+                        }
+                        pendingRESTDefs.clear();
+                    }
                 }
             }
         }
@@ -395,7 +376,7 @@ public class HttpRunner extends CS {
         public String[] stub;
         @Description(value = "Class aliases", pattern = "[name=]class name")
         public String[] context;
-        @Description(value = "Interface or class to publish in REST", pattern = "[class name=]context or class name")
+        @Description(value = "Interface or class to publish in REST", pattern = "[name=pre-path;]item=class or alias name[;type=x,wsdl,springboot,reflection or class name (implementing MethodsProvider)]")
         public String[] publish;
 
         public HttpConfig(String base, String... args) {

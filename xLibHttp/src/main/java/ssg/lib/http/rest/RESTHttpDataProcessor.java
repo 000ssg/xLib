@@ -86,6 +86,10 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
      * @return
      */
     public Collection<HttpMatcher> registerProviders(MethodsProvider[] methodsProviders, Object... providers) {
+        return this.registerProviders(null, methodsProviders, providers);
+    }
+
+    public Collection<HttpMatcher> registerProviders(HttpMatcher base, MethodsProvider[] methodsProviders, Object... providers) {
         Collection<HttpMatcher> result = new ArrayList<HttpMatcher>();
 
         if (methodsProviders == null) {
@@ -112,7 +116,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                             Map<String, List<RESTMethod>> mpcs = mp.findMethods(p);
                             //System.out.println("MPcs size=" + mpcs.size());
                             for (Collection<RESTMethod> rms : mpcs.values()) {
-                                registerMethods(p, result, rms);
+                                registerMethods(base, p, result, rms);
                             }
                         }
                     }
@@ -125,13 +129,21 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     }
 
     public RESTHttpDataProcessor registerMethods(Object provider, Collection<HttpMatcher> paths, RESTMethod... methods) {
+        return registerMethods(null, provider, paths, methods);
+    }
+
+    public RESTHttpDataProcessor registerMethods(HttpMatcher base, Object provider, Collection<HttpMatcher> paths, RESTMethod... methods) {
         if (methods != null && methods.length > 0) {
-            return registerMethods(provider, paths, Arrays.asList(methods));
+            return registerMethods(base, provider, paths, Arrays.asList(methods));
         }
         return this;
     }
 
     public RESTHttpDataProcessor registerMethods(Object provider, Collection<HttpMatcher> paths, Collection<RESTMethod>... methods) {
+        return this.registerMethods(null, provider, paths, methods);
+    }
+
+    public RESTHttpDataProcessor registerMethods(HttpMatcher base, Object provider, Collection<HttpMatcher> paths, Collection<RESTMethod>... methods) {
         if (methods != null) {
             for (Collection<RESTMethod> ms : methods) {
                 if (ms == null || ms.isEmpty()) {
@@ -149,7 +161,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                         rms = Arrays.copyOf(rms, rms.length + 1);
                         rms[rms.length - 1] = m;
                     }
-                    this.methods.put(rm, rms);
+                    this.methods.put(base != null ? base.append(rm) : rm, rms);
                     serviceProviders.put(m, provider);
                     //System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
                     System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + (m.getReturnType() != null ? " -> " + m.getReturnType().getName() : ""));
