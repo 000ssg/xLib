@@ -123,6 +123,20 @@ public class HttpRunner extends CS {
         http.configureApp(app);
     }
 
+    public HttpRunner configureRESTAdapter(RESTAdapter restAdapter) {
+        if (restAdapter != null) {
+            this.restAdapter = restAdapter;
+        }
+        return this;
+    }
+
+    public HttpRunner configureAuthAdapter(AuthAdapter authAdapter) {
+        if (authAdapter != null) {
+            this.authAdapter = authAdapter;
+        }
+        return this;
+    }
+
     /**
      * Apply configurations if applicable.
      *

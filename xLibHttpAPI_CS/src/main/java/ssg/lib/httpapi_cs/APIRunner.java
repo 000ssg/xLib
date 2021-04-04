@@ -10,7 +10,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,13 +21,16 @@ import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.http_cs.AuthAdapter;
 import ssg.lib.http_cs.HttpRunner;
+import ssg.lib.http_cs.RESTAdapter;
 
 /**
  * API runner defines WAMP/REST publishing and WAMP routing functionality to
  * enable simple mechanism of API exposure.
  *
  * @author 000ssg
+ * @param <T>
  */
 public class APIRunner<T> extends HttpRunner {
 
@@ -39,7 +41,7 @@ public class APIRunner<T> extends HttpRunner {
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     //Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
-    APIAdapter adapter;
+    APIAdapter apiAdapter;
 
     /**
      * API group enables defining multiple APIs for same context, that is
@@ -116,6 +118,25 @@ public class APIRunner<T> extends HttpRunner {
         return (APIRunner) super.configureHttp(httpPort);
     }
 
+    @Override
+    public APIRunner configureAuthAdapter(AuthAdapter authAdapter) {
+        super.configureAuthAdapter(authAdapter);
+        return this;
+    }
+
+    @Override
+    public APIRunner configureRESTAdapter(RESTAdapter restAdapter) {
+        super.configureRESTAdapter(restAdapter);
+        return this;
+    }
+
+    public APIRunner configureAPIAdapter(APIAdapter apiAdapter) {
+        if (apiAdapter != null) {
+            this.apiAdapter = apiAdapter;
+        }
+        return this;
+    }
+
     /**
      * Add API to namespace (WAMP client functionality and/or REST)
      *
@@ -188,13 +209,9 @@ public class APIRunner<T> extends HttpRunner {
         return this;
     }
 
+    @Override
     public APIRunner configureStub(StubVirtualData<?> stub) {
         super.configureStub(stub);
-        return this;
-    }
-
-    public APIRunner configureAPIAdapter(APIAdapter adapter) {
-        this.adapter = adapter;
         return this;
     }
 
@@ -264,10 +281,10 @@ public class APIRunner<T> extends HttpRunner {
                     continue;
                 }
 
-                APIAdapter.APIAdapterConf apiConf = adapter.createAPIAdapterConf(api);
+                APIAdapter.APIAdapterConf apiConf = apiAdapter.createAPIAdapterConf(api);
                 configureAPI(apiConf.namespace, apiConf.name, new API_Publisher()
-                        .configureContext((Collection) adapter.getContexts(apiConf))
-                        .configure(adapter.createAPI(apiConf)),
+                        .configureContext((Collection) apiAdapter.getContexts(apiConf))
+                        .configure(apiAdapter.createAPI(apiConf)),
                         apiConf.uri != null ? new URI(apiConf.uri) : null,
                         apiConf.authid,
                         apiConf.prefixed ? APIGroup.O_COMPACT : null
@@ -407,8 +424,8 @@ public class APIRunner<T> extends HttpRunner {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString());
         sb.delete(sb.length() - 2, sb.length());
-        if (adapter != null) {
-            sb.append("\n  adapter=" + adapter.toString().replace("\n", "\n  "));
+        if (apiAdapter != null) {
+            sb.append("\n  adapter=" + apiAdapter.toString().replace("\n", "\n  "));
         }
         sb.append("\n  apis=" + apis.size());
         for (Entry<String, Map<String, APIGroup>> e : apis.entrySet()) {

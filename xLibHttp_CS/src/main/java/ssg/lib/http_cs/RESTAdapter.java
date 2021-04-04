@@ -34,7 +34,7 @@ import ssg.lib.http.rest.XMethodsProvider;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class RESTAdapter {
 

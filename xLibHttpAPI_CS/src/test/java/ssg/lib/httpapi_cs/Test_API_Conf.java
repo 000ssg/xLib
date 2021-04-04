@@ -30,7 +30,7 @@ import ssg.lib.net.MCS.MCSConfig;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class Test_API_Conf {
 

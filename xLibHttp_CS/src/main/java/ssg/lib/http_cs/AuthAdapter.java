@@ -30,7 +30,7 @@ import ssg.lib.http.dp.tokens.TokenUserVerifier;
 
 /**
  *
- * @author sesidoro
+ * @author 000ssg
  */
 public class AuthAdapter {
     

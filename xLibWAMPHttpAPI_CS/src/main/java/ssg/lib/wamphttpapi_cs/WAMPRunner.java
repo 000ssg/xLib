@@ -62,6 +62,9 @@ import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpConnectionUpgrade;
 import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.http_cs.AuthAdapter;
+import ssg.lib.http_cs.RESTAdapter;
+import ssg.lib.httpapi_cs.APIAdapter;
 import ssg.lib.httpapi_cs.APIRunner;
 import ssg.lib.httpapi_cs.APIStatistics;
 import ssg.lib.httpapi_cs.API_MethodsProvider;
@@ -227,6 +230,24 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     }
 
     @Override
+    public WAMPRunner configureAPIAdapter(APIAdapter apiAdapter) {
+        super.configureAPIAdapter(apiAdapter);
+        return this;
+    }
+
+    @Override
+    public WAMPRunner configureRESTAdapter(RESTAdapter restAdapter) {
+        super.configureRESTAdapter(restAdapter);
+        return this;
+    }
+
+    @Override
+    public WAMPRunner configureAuthAdapter(AuthAdapter authAdapter) {
+        super.configureAuthAdapter(authAdapter);
+        return this;
+    }
+
+    @Override
     public WAMPRunner configuration(Config... configs) throws IOException {
         super.configuration(configs);
         if (configs != null) {
@@ -249,8 +270,8 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
         }
         return this;
     }
-    
-    void _configAuth(WAMPConfig config){
+
+    void _configAuth(WAMPConfig config) {
         if (config.auth != null) try {
             for (String auth : config.auth) {
                 if (auth == null || auth.isEmpty()) {
