@@ -58,11 +58,15 @@ public class Test_HttpRunner_Configs {
                 pfx + "stub=cc,js",
                 pfx + "context=A=" + H1.class.getName(),
                 pfx + "context=B=" + H1.class.getName(),
-                //pfx + "publish=item=A",
+                pfx + "publish=item=A",
                 pfx + "publish=item=A;name=aaa/bbb",
-                pfx + "dfgh=a"
+                pfx + "dfgh=a",
+                pfx + "authDomain",
+                pfx + "tokenDelegate=type=jwt;secret=JWTSecret1;uri=http://localhost:22222/verifier",
+                pfx + "tokenDelegate={'type':'token', 'secret':'TKNSecret1', 'uri':'http://localhost:22222/verifier', 'prefix': 'apk.'}"
         );
         HttpRunner r = new HttpRunner(new HttpApplication("A", "/a")).configuration(c);
         System.out.println("CONFIG:\n  " + c.toString().replace("\n", "\n  ") + "\n  " + r.toString().replace("\n", "\n  "));
+        int a=0;
     }
 }

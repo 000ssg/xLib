@@ -29,12 +29,13 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
+import ssg.lib.http.HttpAuthenticator.Domain;
+import ssg.lib.http.HttpAuthenticator.HttpSimpleAuth;
+import ssg.lib.http.HttpAuthenticator.UserVerifier;
 import ssg.lib.http.HttpDataProcessor;
 import ssg.lib.http.HttpMatcher;
 import ssg.lib.http.HttpService;
@@ -46,6 +47,7 @@ import ssg.lib.http.rest.MethodsProvider;
 import ssg.lib.http.rest.RESTHttpDataProcessor;
 import ssg.lib.http.rest.StubRESTHttpContext;
 import ssg.lib.http.rest.StubVirtualData;
+import ssg.lib.http_cs.AuthAdapter.AuthAdapterConf;
 import ssg.lib.http_cs.RESTAdapter.RESTAdapterConf;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
@@ -74,6 +76,7 @@ public class HttpRunner extends CS {
     StubVirtualData<?> stub;
     HttpStaticDataProcessor stubDP;
     //
+    AuthAdapter authAdapter = new AuthAdapter();
     RESTAdapter restAdapter = new RESTAdapter();
     //Map<String, Object> contexts = new LinkedHashMap<>();
     //transient Map<Class, Object> pendingRESTs = new LinkedHashMap<>();
@@ -132,7 +135,9 @@ public class HttpRunner extends CS {
         super.configuration(configs);
         if (configs != null) {
             for (Config config : configs) {
-                applyConfig(config);
+                if (config instanceof HttpConfig) {
+                    applyConfig((HttpConfig) config);
+                }
             }
         }
         return this;
@@ -144,62 +149,87 @@ public class HttpRunner extends CS {
      * @param config
      * @throws IOException
      */
-    public void applyConfig(Config config) throws IOException {
-        if (config instanceof HttpConfig) {
-            HttpConfig hc = (HttpConfig) config;
-            if (hc.httpPort != null) {
-                configureHttp(hc.httpPort);
-            }
-            if (hc.rest != null) {
-                configureREST(hc.rest);
-            }
-            if (hc.stub != null) {
-                String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
-                String[] groups = hc.stub;
-                Collection<String> types = new LinkedHashSet<>();
-                for (String group : groups) {
-                    String[] ss = group.split(",");
-                    if (ss.length > 1) {
-                        for (int i = 1; i < ss.length; i++) {
-                            types.add(ss[i].trim());
-                        }
-                    }
-                }
-                StubVirtualData svd = new StubVirtualData(router_root.substring(0, router_root.length() - 1), null, getREST(), types.toArray(new String[types.size()]))
-                        .configure(new StubRESTHttpContext(null, null, true));
-                for (String group : groups) {
-                    String[] ss = group.split(",");
-                    svd.configure(ss[0], Arrays.copyOfRange(ss, 1, ss.length));
-                }
-                configureStub(svd);
-            }
-            if (hc.context != null) {
-                for (String c : hc.context) try {
-                    String[] cc = c.split("=");
-                    Class cl = Class.forName(cc.length > 1 ? cc[1] : cc[0]);
-                    Object instance = cl.newInstance();
-                    restAdapter.configureContext(cc[0], instance);
-                } catch (Throwable th) {
-                    th.printStackTrace();
+    public void applyConfig(HttpConfig config) throws IOException {
+        // http/rest
+        initHttp();
+        HttpConfig hc = (HttpConfig) config;
+        if (hc.httpPort != null) {
+            configureHttp(hc.httpPort);
+        }
+        if (hc.rest != null) {
+            configureREST(hc.rest);
+        }
+        // authentication
+        String domainName = getApp() != null ? getApp().getRoot() : "/";
+        if (hc.authDomain != null || hc.tokenDelegate != null) {
+            if (getService().getAuthenticator() instanceof HttpSimpleAuth) {
+                if (((HttpSimpleAuth) getService().getAuthenticator()).domain(domainName) == null) {
+                    Domain domain = new Domain(domainName);
+                    ((HttpSimpleAuth) getService().getAuthenticator()).configureDomain(domain);
                 }
             }
-            if (hc.publish != null) {
-                for (String c : hc.publish) {
-                    RESTAdapterConf conf = restAdapter.createRESTAdapterConf(c);
-                    MethodsProvider[] methodProviders = restAdapter.getMethodProviders(conf);
-                    Object[] contexts = restAdapter.getProviders(conf);
-                    if (contexts != null && contexts.length > 0 && contexts[0] != null) {
-                        if (getREST() != null) {
-                            getREST().registerProviders(conf.name != null ? new HttpMatcher(conf.name) : null, methodProviders, contexts);
-//                            getREST().registerProviders(null, type != null ? type : context);
-                        } else {
-//                            this.pendingRESTs.put(type, context);
-                            pendingRESTDefs.add(conf);
+        }
+        if (hc.basicAuth != null && getApp() != null) {
+            getApp().configureBasicAuthentication(hc.basicAuth);
+        }
+        if (hc.tokenDelegate != null && hc.tokenDelegate.length > 0) {
+            for (String td : hc.tokenDelegate) {
+                for (String s : hc.tokenDelegate) {
+                    AuthAdapterConf aac = authAdapter.createAuthadapterConf(s);
+                    UserVerifier uv = authAdapter.createUserVerifier(aac);
+                    if (uv != null) {
+                        if (getService().getAuthenticator() instanceof HttpSimpleAuth) {
+                            ((HttpSimpleAuth) getService().getAuthenticator()).domain(domainName)
+                                    .getUserStore().verifiers().add(uv);
                         }
                     }
                 }
             }
-            Map<String, Object> aliases = new HashMap<>();
+        }
+        // rest publishing/stubs
+        if (hc.stub != null) {
+            String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
+            String[] groups = hc.stub;
+            Collection<String> types = new LinkedHashSet<>();
+            for (String group : groups) {
+                String[] ss = group.split(",");
+                if (ss.length > 1) {
+                    for (int i = 1; i < ss.length; i++) {
+                        types.add(ss[i].trim());
+                    }
+                }
+            }
+            StubVirtualData svd = new StubVirtualData(router_root.substring(0, router_root.length() - 1), null, getREST(), types.toArray(new String[types.size()]))
+                    .configure(new StubRESTHttpContext(null, null, true));
+            for (String group : groups) {
+                String[] ss = group.split(",");
+                svd.configure(ss[0], Arrays.copyOfRange(ss, 1, ss.length));
+            }
+            configureStub(svd);
+        }
+        if (hc.context != null) {
+            for (String c : hc.context) try {
+                String[] cc = c.split("=");
+                Class cl = Class.forName(cc.length > 1 ? cc[1] : cc[0]);
+                Object instance = cl.newInstance();
+                restAdapter.configureContext(cc[0], instance);
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
+        }
+        if (hc.publish != null) {
+            for (String c : hc.publish) {
+                RESTAdapterConf conf = restAdapter.createRESTAdapterConf(c);
+                MethodsProvider[] methodProviders = restAdapter.getMethodProviders(conf);
+                Object[] contexts = restAdapter.getProviders(conf);
+                if (contexts != null && contexts.length > 0 && contexts[0] != null) {
+                    if (getREST() != null) {
+                        getREST().registerProviders(conf.name != null ? new HttpMatcher(conf.name) : null, methodProviders, contexts);
+                    } else {
+                        pendingRESTDefs.add(conf);
+                    }
+                }
+            }
         }
     }
 
@@ -378,6 +408,14 @@ public class HttpRunner extends CS {
         public String[] context;
         @Description(value = "Interface or class to publish in REST", pattern = "[name=pre-path;]item=class or alias name[;type=x,wsdl,springboot,reflection or class name (implementing MethodsProvider)]")
         public String[] publish;
+        @Description("Defines domain name for authentication. If empty string - application root is the domain (if any)")
+        public String authDomain;
+        @Description("Enable/disable basic authentication.")
+        public Boolean basicAuth;
+        @Description(
+                value = "Delegated token authentication support implemented with AuthAdapter.",
+                pattern = "type=(jwt|token)[;uri=(verificator URI)][;secret=(secret key)][;secretHeader=(header name for secret)][;tokenPrefix=(token prefix to select this verifier)]))")
+        public String[] tokenDelegate;
 
         public HttpConfig(String base, String... args) {
             super(base != null ? base : DEFAULT_BASE, args);

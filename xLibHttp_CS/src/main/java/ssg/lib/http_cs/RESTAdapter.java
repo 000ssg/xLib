@@ -45,8 +45,12 @@ public class RESTAdapter {
         return this;
     }
 
-    public RESTAdapterConf createRESTAdapterConf(String rest) {
-        return new RESTAdapterConf("", rest.split(";"));
+    public RESTAdapterConf createRESTAdapterConf(String text) {
+        if (text.startsWith("{") || text.startsWith("[")) {
+            return new RESTAdapterConf(text);
+        } else {
+            return new RESTAdapterConf(text.split(";"));
+        }
     }
 
     public MethodsProvider[] getMethodProviders(RESTAdapterConf conf) {
@@ -91,7 +95,7 @@ public class RESTAdapter {
                     if (o == null) {
                         Class cl = Class.forName(conf.item[i]);
                         o = contexts.get(cl);
-                        if (o == null && !(cl.isInterface() )) {
+                        if (o == null && !(cl.isInterface())) {
                             o = cl.newInstance();
                         }
                     }
@@ -114,9 +118,10 @@ public class RESTAdapter {
 
         }
 
-        public RESTAdapterConf(String base, String... args) {
-            super(base, args);
+        public RESTAdapterConf(String... args) {
+            super("");
             noSysProperties();
+            Config.load(this, args);
         }
 
         @Description("REST methods provider: x,wsdl,springboot,reflection or class name (implementing MethodsProvider)")

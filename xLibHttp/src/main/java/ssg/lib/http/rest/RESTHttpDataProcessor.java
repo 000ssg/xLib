@@ -153,19 +153,37 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
                     if (m == null) {
                         continue;
                     }
+                    boolean unique = true;
                     HttpMatcher rm = prepareMethod(m);
                     RESTMethod[] rms = this.methods.get(rm);
                     if (rms == null) {
                         rms = new RESTMethod[]{m};
                     } else {
-                        rms = Arrays.copyOf(rms, rms.length + 1);
-                        rms[rms.length - 1] = m;
+                        // check if not duplicate
+                        for (RESTMethod mi : rms) {
+                            if (mi.getMethod() != null && mi.getMethod().equals(m.getMethod())) {
+                                unique = false;
+                                break;
+                            } else if (mi.getParams().toString().equals(m.getParams().toString())) {
+                                unique = false;
+                                break;
+                            }
+                        }
+                        if (unique) {
+                            rms = Arrays.copyOf(rms, rms.length + 1);
+                            rms[rms.length - 1] = m;
+                        }
                     }
-                    this.methods.put(base != null ? base.append(rm) : rm, rms);
-                    serviceProviders.put(m, provider);
-                    //System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
-                    System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + (m.getReturnType() != null ? " -> " + m.getReturnType().getName() : ""));
-                    paths.add(rm);
+
+                    if (unique) {
+                        this.methods.put(base != null ? base.append(rm) : rm, rms);
+                        serviceProviders.put(m, provider);
+                        //System.out.println(getClass().getSimpleName() + ": " + root + "/" + m.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + " -> " + m.getReturnType().getName());
+                        System.out.println(getClass().getSimpleName() + ": " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + (m.getReturnType() != null ? " -> " + m.getReturnType().getName() : ""));
+                        paths.add(rm);
+                    } else {
+                        System.out.println(getClass().getSimpleName() + ": IGNORED DUPLICATE: " + rm.getPath() + ": " + getRESTHelper().getDefaultAPIType().generateAPIMethodSignature(getRESTHelper(), m, true).replace(",done)", ")").replace("(done)", "()") + (m.getReturnType() != null ? " -> " + m.getReturnType().getName() : ""));
+                    }
                 }
             }
         }

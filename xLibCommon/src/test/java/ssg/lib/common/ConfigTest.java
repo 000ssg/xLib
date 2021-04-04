@@ -23,6 +23,7 @@
  */
 package ssg.lib.common;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.After;
@@ -139,4 +140,51 @@ public class ConfigTest {
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));
     }
 
+    @Test
+    public void testLoad1() {
+        System.out.println("load1");
+
+        Config conf = new Config("") {
+            public V1 v1;
+            public List<V2> v2;
+
+            @Override
+            public String toString() {
+                return "{" 
+                        + "\n  v1=" + v1 
+                        + "\n  v2=" + v2 
+                        + '}';
+            }
+
+        };
+
+        conf = Config.load(conf, new String[]{
+            "v1={'a':'aaa', 'ii': [1,2,3], 'll':[4,7], 'lv2': [{'ss':['aa','bb']},{'ss':['cc','dd'], 'uri':['http://aaa','http://bbb']}]}"
+        });
+        System.out.println(conf);
+    }
+
+    public static class V1 {
+
+        public String a;
+        public List<Integer> ii;
+        public Long[] ll;
+        public List<V2> lv2;
+
+        @Override
+        public String toString() {
+            return "V1{" + "a=" + a + ", ii=" + ii + ", ll=" + (ll != null ? Arrays.asList(ll) : "<none>") + ", lv2=" + lv2 + '}';
+        }
+    }
+
+    public static class V2 {
+
+        public String[] ss;
+        public List<URI> uri;
+
+        @Override
+        public String toString() {
+            return "V2{" + "ss=" + (ss != null ? Arrays.asList(ss) : "<none>") +", uri="+uri+ '}';
+        }
+    }
 }

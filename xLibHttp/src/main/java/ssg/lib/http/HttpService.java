@@ -44,6 +44,7 @@ import ssg.lib.common.Matcher;
 import ssg.lib.common.TaskProvider;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.di.DI;
+import ssg.lib.http.HttpAuthenticator.Domain;
 import ssg.lib.service.DataProcessor;
 import ssg.lib.service.Repository;
 import ssg.lib.service.Repository.CombinedRepository;

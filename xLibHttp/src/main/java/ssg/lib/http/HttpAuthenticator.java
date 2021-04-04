@@ -90,13 +90,18 @@ public interface HttpAuthenticator<P> {
             load(new InputStreamReader(is));
         }
 
-        public void addDomain(Domain domain) {
+        public HttpSimpleAuth<P> configureDomain(Domain domain) {
             if (domain != null && domain.name != null) {
                 if (domains.isEmpty()) {
                     defaultDomain = domain;
                 }
                 domains.put(domain.name, domain);
             }
+            return this;
+        }
+
+        public Domain domain(String name) {
+            return domains.get(name);
         }
 
         public void removeDomain(String name) {

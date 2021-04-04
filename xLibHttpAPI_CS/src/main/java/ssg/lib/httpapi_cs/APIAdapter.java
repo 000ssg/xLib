@@ -76,8 +76,8 @@ public class APIAdapter {
      * @param api
      * @return
      */
-    public APIAdapterConf createAPIAdapterConf(String api) {
-        return new APIAdapterConf(api);
+    public APIAdapterConf createAPIAdapterConf(String text) {
+        return new APIAdapterConf(text.startsWith("{") || text.startsWith("[") ? new String[]{text} : text.split(";"));
     }
 
     /**
@@ -239,18 +239,10 @@ public class APIAdapter {
             this.noSysProperties();
         }
 
-        public APIAdapterConf(String api) {
+        public APIAdapterConf(String... api) {
             super("");
             this.noSysProperties();
-            fromString(api);
-        }
-
-        public APIAdapterConf fromString(String api) {
-            if (api != null) {
-                String[] ss = api.split(";");
-                Config.load(this, ss);
-            }
-            return this;
+            Config.load(this,api);
         }
 
         public String toText() {

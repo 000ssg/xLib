@@ -480,6 +480,20 @@ public interface Refl {
                             set(o, pn, m.get(pn));
                         }
                         return (T) o;
+                    } else {
+                        // single argument class constructor initiation (if applicable)
+                        try {
+                            Constructor[] cs = type.getConstructors();
+                            if (cs != null) {
+                                for (Constructor c : cs) {
+                                    if (c.getParameterCount() == 1 && c.getParameterTypes()[0].isAssignableFrom(obj.getClass())) {
+                                        obj = c.newInstance(obj);
+                                    }
+                                }
+                            }
+                        } catch (Throwable th) {
+                            int a=0;
+                        }
                     }
                 } catch (InstantiationException ex) {
                     throw new IOException(ex);

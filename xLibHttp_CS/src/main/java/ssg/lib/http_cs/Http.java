@@ -27,6 +27,8 @@ import ssg.lib.common.TaskExecutor;
 import ssg.lib.di.DI;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
+import ssg.lib.http.HttpAuthenticator.Domain;
+import ssg.lib.http.HttpAuthenticator.HttpSimpleAuth;
 import ssg.lib.http.HttpService;
 import ssg.lib.service.DF_Service;
 
@@ -40,7 +42,7 @@ import ssg.lib.service.DF_Service;
  * @author 000ssg
  */
 public class Http {
-
+    
     DI di;
     DF_Service service;
     HttpService httpService;
@@ -161,7 +163,7 @@ public class Http {
      * @return
      */
     public HttpService buildHttpService(HttpAuthenticator auth) {
-        return new HttpService(auth);
+        return new HttpService(auth instanceof Domain ? new HttpSimpleAuth().configureDomain((Domain) auth) : auth);
     }
 
     /**

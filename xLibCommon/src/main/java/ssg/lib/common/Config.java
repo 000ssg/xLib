@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import ssg.lib.common.Refl.ReflImpl;
 
 /**
  * Retrieves configuration parameters from system properties and (overriding
@@ -61,7 +60,7 @@ import ssg.lib.common.Refl.ReflImpl;
  * @author 000ssg
  */
 public class Config {
-
+    
     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
     @Retention(RetentionPolicy.RUNTIME)
     public static @interface Description {
@@ -82,26 +81,28 @@ public class Config {
          */
         String pattern() default "";
     }
-
-    static Refl refl = new ReflImpl();
+    
+    static Refl refl = new Refl.ReflJSON();
+    static JSON.Decoder jd = new JSON.Decoder(refl);
+    static JSON.Encoder je = new JSON.Encoder(refl);
     private String base;
     private Map<String, Object> other;
     private boolean sysPropsLoaded = false;
-
+    
     public Config(String base, String... args) {
         this.base = base != null ? base : getClass().isAnonymousClass() ? getClass().getSuperclass().getName() : getClass().getSimpleName();
         load(this, args);
     }
-
+    
     public <T extends Config> T noSysProperties() {
         sysPropsLoaded = true;
         return (T) this;
     }
-
+    
     public String getBase() {
         return base;
     }
-
+    
     public <T> T get(String name) {
         Object obj = null;
         for (Field f : getClass().getFields()) {
@@ -115,11 +116,11 @@ public class Config {
         }
         return other != null ? (T) other.get(name) : null;
     }
-
+    
     public Map<String, Object> other() {
         return other != null ? other : Collections.emptyMap();
     }
-
+    
     public Map<String, Object> toMap(boolean includeAll) {
         Map<String, Object> r = new LinkedHashMap<>();
         Field[] fs = getClass().getFields();
@@ -138,14 +139,31 @@ public class Config {
         }
         return r;
     }
-
+    
     public static <T extends Config> T load(Config config, String... args) {
         String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
+        
         Field[] fs = config.getClass().getFields();
+        
+        if (base.isEmpty() && args != null && args.length == 1 && args[0].startsWith("{")) try {
+            Config ref = (Config) jd.readObject(args[0], config.getClass());
+            for (Field f : fs) {
+                if (Modifier.isStatic(f.getModifiers())) {
+                    continue;
+                }
+                f.set(config, f.get(ref));
+            }
+            return (T) config;
+        } catch (Throwable th) {
+            th.printStackTrace();
+            return (T) config;
+        }
+        
         Map<String, Field> fm = new HashMap<>();
         for (Field f : fs) {
             fm.put(f.getName(), f);
         }
+        
         Map<String, List> props = new HashMap<>();
         if (!config.sysPropsLoaded) {
             Collection<URL> configSources = new ArrayList<>();
@@ -245,7 +263,32 @@ public class Config {
                         Field f = fm.get(fn);
                         List vl = props.get(pn);
                         for (Object vli : vl) {
-                            Object v = refl.enrich(vli, f.getType());
+                            Object v = null;
+                            if (vli instanceof String
+                                    && ((String) vli).length() > 1
+                                    && !(String.class.equals(f.getType())
+                                    || f.getType().isArray() && String.class.equals(f.getType().getComponentType()))
+                                    || Collections.class.isAssignableFrom(f.getType()) && String.class.equals(f.getType().getComponentType())) {
+                                if (((String) vli).charAt(0) == '{') {
+                                    // decode JSON object as generic type or as target type
+                                    v = jd.readObject(
+                                            (String) vli,
+                                            f.getType().isArray()
+                                            ? f.getType().componentType()
+                                            : Collection.class.isAssignableFrom(f.getType())
+                                            ? Map.class
+                                            : f.getType()
+                                    );
+                                    v = refl.enrich(v, f.getType());
+                                } else if (((String) vli).charAt(0) == '[') {
+                                    v = jd.readObject((String) vli, List.class);
+                                    v = refl.enrich(v, f.getType());
+                                } else {
+                                    v = refl.enrich(vli, f.getType());
+                                }
+                            } else {
+                                v = refl.enrich(vli, f.getType());
+                            }
                             if (f.getType().isArray()) {
                                 if (f.get(config) == null) {
                                     f.set(config, v);
@@ -284,7 +327,7 @@ public class Config {
         }
         return (T) config;
     }
-
+    
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -300,8 +343,10 @@ public class Config {
                     sb.append("\n  ");
                     sb.append(f.getName());
                     sb.append(": ");
-                    Description d = f.getAnnotation(Description.class);
-                    if (d != null) {
+                    Description d = f.getAnnotation(Description.class
+                    );
+                    if (d
+                            != null) {
                         if (d.value() != null) {
                             sb.append(d.value().replace("\n", "\n  "));
                         }
@@ -309,17 +354,22 @@ public class Config {
                             sb.append("; pattern=" + d.pattern());
                         }
                     }
-                    sb.append("\n    ");
-                    sb.append("=");
+                    
+                    sb.append(
+                            "\n    ");
+                    sb.append(
+                            "=");
                     Object o = (staticOnly ? f.get(null) : f.get(this));
-                    if (o == null) {
+                    if (o
+                            == null) {
                         sb.append("<none>");
                     } else if (o instanceof Collection) {
                         sb.append(o.getClass().getName() + "[" + ((Collection) o).size() + "]");
                         for (Object oi : (Collection) o) {
                             sb.append("\n      " + ("" + oi).replace("\n", "\n      "));
                         }
-                    } else if (o.getClass().isArray()) {
+                    } else if (o.getClass()
+                            .isArray()) {
                         sb.append(o.getClass().getName() + "[" + Array.getLength(o) + "]");
                         for (int i = 0; i < Array.getLength(o); i++) {
                             Object oi = Array.get(o, i);
@@ -348,5 +398,5 @@ public class Config {
         sb.append('}');
         return sb.toString();
     }
-
+    
 }
