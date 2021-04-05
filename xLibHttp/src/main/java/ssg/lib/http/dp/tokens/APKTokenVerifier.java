@@ -23,8 +23,6 @@
  */
 package ssg.lib.http.dp.tokens;
 
-import ssg.lib.http.dp.tokens.TokenVerifier;
-
 /**
  *
  * @author 000ssg
@@ -48,5 +46,15 @@ public class APKTokenVerifier extends TokenVerifier {
     @Override
     public String type() {
         return "apk";
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("prefix=" + prefix);
+        sb.append('}');
+        return sb.toString();
     }
 }

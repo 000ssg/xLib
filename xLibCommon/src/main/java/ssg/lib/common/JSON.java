@@ -106,6 +106,7 @@ public class JSON implements Cloneable {
     public static class Decoder extends JSON {
 
         public boolean TRACE = false;
+        public boolean ALLOW_UNQUOTED_NAMES = true;
         Stack<Object> path = new Stack<>();
         StringBuilder sb = new StringBuilder();
         String name;
@@ -705,7 +706,11 @@ public class JSON implements Cloneable {
                                         break;
                                     case VALUE_SEPARATOR:
                                         if (sb.length() > 0) {
-                                            throw new IOException("Unexpected text before value separator. '" + sb + "'");
+                                            if (ALLOW_UNQUOTED_NAMES) {
+                                                putValue(getValue(true));
+                                            } else {
+                                                throw new IOException("Unexpected text before value separator. '" + sb + "'");
+                                            }
                                         }
                                         switch (state) {
                                             case value_separator:

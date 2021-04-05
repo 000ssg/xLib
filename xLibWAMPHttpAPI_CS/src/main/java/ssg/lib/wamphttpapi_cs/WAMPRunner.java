@@ -124,6 +124,9 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     API_MethodsProvider wampOverREST;
     Collection<String> registeredRESTAPIs = new HashSet<>();
     WAMPAdapter wampAdapter = new WAMPAdapter();
+    // asynchronous WAMP registrations -> REST updates support
+    transient private Collection<WAMPRealm> urQueue = new HashSet<>();
+    transient private AtomicInteger lockUrQueue = new AtomicInteger();
 
     public WAMPRunner() {
     }
@@ -258,7 +261,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 if (cfg instanceof WAMPConfig) {
                     WAMPConfig config = (WAMPConfig) cfg;
                     // TODO: utilize WAMP configuration parameters...
-                    if (config.routerPort!=null && config.routerPort > 0) try {
+                    if (config.routerPort != null && config.routerPort > 0) try {
                         configureWAMPRouter(config.routerPort);
                     } catch (IOException ioex) {
                         ioex.printStackTrace();
@@ -388,9 +391,6 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             lockUrQueue.getAndIncrement();
         }
     }
-
-    transient private Collection<WAMPRealm> urQueue = new HashSet<>();
-    transient private AtomicInteger lockUrQueue = new AtomicInteger();
 
     public void update_REST_WAMP(WAMPRealm realm) {
         if (realm != null) {
@@ -901,6 +901,32 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     public WAMPAuth getWAMPAuth(URI uri, String authid, String agent, String realm, WAMPFeature[] features, WAMP.Role... roles) {
         Map<String, WAMPAuth> auths = this.wampTransportAuths.get(realm != null ? realm : "");
         return auths != null ? auths.get(authid != null ? authid : agent != null ? agent : null) : null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString());
+        sb.delete(sb.length() - 2, sb.length());
+        if (routerPort != null) {
+            sb.append("\n  routerPort=" + routerPort);
+        } else {
+            sb.append("\n  wampRouterURI=" + wampRouterURI);
+            sb.append("\n  multiHost=" + multiHost);
+        }
+        sb.append("\n  wamp=" + (wamp!=null ? wamp.toString().replace("\n", "\n  "):""));
+        sb.append("\n  ws_wamp_connection_upgrade=" + ws_wamp_connection_upgrade);
+        sb.append("\n  wampTransportHeaders=" + wampTransportHeaders);
+        sb.append("\n  wampTransportAuths=" + wampTransportAuths);
+        sb.append("\n  wampAsREST=" + wampAsREST);
+        sb.append("\n  wampOverREST=" + wampOverREST);
+        sb.append("\n  registeredRESTAPIs=" + registeredRESTAPIs);
+        sb.append("\n  wampAdapter=" + wampAdapter);
+        sb.append("\n  urQueue=" + urQueue);
+        sb.append("\n  lockUrQueue=" + lockUrQueue);
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
     }
 
     public static class WAMPAPIAuth implements APIAuthContext {
