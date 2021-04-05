@@ -119,6 +119,12 @@ public class APIRunner<T> extends HttpRunner {
     }
 
     @Override
+    public APIRunner configureDomain(HttpAuthenticator.Domain domain) throws IOException {
+        super.configureDomain(domain);
+        return this;
+    }
+
+    @Override
     public APIRunner configureAuthAdapter(AuthAdapter authAdapter) {
         super.configureAuthAdapter(authAdapter);
         return this;
@@ -226,6 +232,10 @@ public class APIRunner<T> extends HttpRunner {
             }
         }
         return this;
+    }
+
+    public APIAdapter apiAdapter() {
+        return apiAdapter;
     }
 
     @Override

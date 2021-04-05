@@ -40,8 +40,6 @@ import ssg.lib.common.Refl;
 import ssg.lib.http.HttpSession;
 import ssg.lib.http.HttpUser;
 import ssg.lib.http.base.HttpRequest;
-import ssg.lib.http.dp.tokens.TokenAuthenticator;
-import ssg.lib.http.dp.tokens.TokenVerifier;
 
 /**
  *
@@ -258,6 +256,11 @@ public class JWTTokenVerifier extends TokenVerifier implements TokenAuthenticato
     @Override
     public String authHeaderName() {
         return AUTH_HEADER;
+    }
+
+    @Override
+    public String toString() {
+        return "JWTTokenVerifier{" + "sub=" + sub + ", iss=" + iss + ", exp=" + exp + ", secureRandom=" + secureRandom + ", keyPair=" + keyPair + ", header=" + header + '}';
     }
 
     public static class JWTToken extends Token {

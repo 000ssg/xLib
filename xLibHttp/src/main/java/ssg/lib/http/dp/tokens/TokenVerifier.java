@@ -26,6 +26,10 @@ import java.util.UUID;
  */
 public abstract class TokenVerifier {
 
+    public static String secret2text(String key) {
+        return key != null ? key.substring(0, Math.min(4, key.length())) + "***" + key.substring(Math.max(key.length() - 4, 4)) : "<none>";
+    }
+
     public static enum TokenState {
         valid,
         expired,

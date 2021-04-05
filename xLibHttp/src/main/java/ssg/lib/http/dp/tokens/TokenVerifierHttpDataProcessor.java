@@ -26,6 +26,7 @@ package ssg.lib.http.dp.tokens;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.http.HttpDataProcessor;
 import ssg.lib.http.HttpSession;
 import ssg.lib.http.base.HttpData;
@@ -143,4 +144,19 @@ public class TokenVerifierHttpDataProcessor extends HttpDataProcessor {
             throw new IOException(th);
         }
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
+        sb.append('{');
+        sb.append("verifiers=" + verifiers.size());
+        for (Entry<String, TokenVerifier> e : verifiers.entrySet()) {
+            sb.append("\n  " + TokenVerifier.secret2text(e.getKey()) + ": " + e.getValue().toString().replace("\n", "\n    "));
+        }
+        sb.append('\n');
+        sb.append('}');
+        return sb.toString();
+    }
+
 }

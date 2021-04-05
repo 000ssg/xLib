@@ -33,6 +33,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,7 +61,7 @@ import java.util.Properties;
  * @author 000ssg
  */
 public class Config {
-    
+
     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
     @Retention(RetentionPolicy.RUNTIME)
     public static @interface Description {
@@ -81,28 +82,28 @@ public class Config {
          */
         String pattern() default "";
     }
-    
+
     static Refl refl = new Refl.ReflJSON();
     static JSON.Decoder jd = new JSON.Decoder(refl);
     static JSON.Encoder je = new JSON.Encoder(refl);
     private String base;
     private Map<String, Object> other;
     private boolean sysPropsLoaded = false;
-    
+
     public Config(String base, String... args) {
         this.base = base != null ? base : getClass().isAnonymousClass() ? getClass().getSuperclass().getName() : getClass().getSimpleName();
         load(this, args);
     }
-    
+
     public <T extends Config> T noSysProperties() {
         sysPropsLoaded = true;
         return (T) this;
     }
-    
+
     public String getBase() {
         return base;
     }
-    
+
     public <T> T get(String name) {
         Object obj = null;
         for (Field f : getClass().getFields()) {
@@ -116,11 +117,11 @@ public class Config {
         }
         return other != null ? (T) other.get(name) : null;
     }
-    
+
     public Map<String, Object> other() {
         return other != null ? other : Collections.emptyMap();
     }
-    
+
     public Map<String, Object> toMap(boolean includeAll) {
         Map<String, Object> r = new LinkedHashMap<>();
         Field[] fs = getClass().getFields();
@@ -139,12 +140,12 @@ public class Config {
         }
         return r;
     }
-    
+
     public static <T extends Config> T load(Config config, String... args) {
         String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
-        
+
         Field[] fs = config.getClass().getFields();
-        
+
         if (base.isEmpty() && args != null && args.length == 1 && args[0].startsWith("{")) try {
             Config ref = (Config) jd.readObject(args[0], config.getClass());
             for (Field f : fs) {
@@ -158,12 +159,12 @@ public class Config {
             th.printStackTrace();
             return (T) config;
         }
-        
+
         Map<String, Field> fm = new HashMap<>();
         for (Field f : fs) {
             fm.put(f.getName(), f);
         }
-        
+
         Map<String, List> props = new HashMap<>();
         if (!config.sysPropsLoaded) {
             Collection<URL> configSources = new ArrayList<>();
@@ -267,8 +268,10 @@ public class Config {
                             if (vli instanceof String
                                     && ((String) vli).length() > 1
                                     && !(String.class.equals(f.getType())
-                                    || f.getType().isArray() && String.class.equals(f.getType().getComponentType()))
-                                    || Collections.class.isAssignableFrom(f.getType()) && String.class.equals(f.getType().getComponentType())) {
+                                    && f.getType().isArray() && String.class.equals(f.getType().getComponentType())
+                                    || (Collections.class.isAssignableFrom(f.getType())
+                                    || f.getGenericType() instanceof ParameterizedType
+                                    && String.class.equals(((ParameterizedType) f.getGenericType()).getActualTypeArguments()[0])))) {
                                 if (((String) vli).charAt(0) == '{') {
                                     // decode JSON object as generic type or as target type
                                     v = jd.readObject(
@@ -327,7 +330,7 @@ public class Config {
         }
         return (T) config;
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -354,7 +357,7 @@ public class Config {
                             sb.append("; pattern=" + d.pattern());
                         }
                     }
-                    
+
                     sb.append(
                             "\n    ");
                     sb.append(
@@ -398,5 +401,5 @@ public class Config {
         sb.append('}');
         return sb.toString();
     }
-    
+
 }

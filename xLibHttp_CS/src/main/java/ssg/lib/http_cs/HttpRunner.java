@@ -138,6 +138,22 @@ public class HttpRunner extends CS {
     }
 
     /**
+     * Add or replace HTTP authentication domain.
+     *
+     * @param domain
+     * @return
+     * @throws IOException
+     */
+    public HttpRunner configureDomain(Domain domain) throws IOException {
+        if (getService().getAuthenticator() instanceof HttpSimpleAuth) {
+            ((HttpSimpleAuth) getService().getAuthenticator()).configureDomain(domain);
+        } else {
+            getService().configureAuthentication(domain);
+        }
+        return this;
+    }
+
+    /**
      * Apply configurations if applicable.
      *
      * @param configs
@@ -248,6 +264,14 @@ public class HttpRunner extends CS {
     }
 
     public void configUpdated(String key, Object oldValue, Object newValue) {
+    }
+
+    public AuthAdapter authAdapter() {
+        return authAdapter;
+    }
+
+    public RESTAdapter restAdapter() {
+        return restAdapter;
     }
 
     public void initHttp() {

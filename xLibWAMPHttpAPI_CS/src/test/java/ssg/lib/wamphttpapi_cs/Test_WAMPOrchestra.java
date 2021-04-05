@@ -51,13 +51,13 @@ import ssg.lib.httpapi_cs.API_MethodsProvider_AccessHelper;
 import ssg.lib.service.Repository;
 import ssg.lib.wamp.WAMP;
 import ssg.lib.wamp.WAMPFeature;
-import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPTransport;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
 import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_PROVIDER;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.auth.impl.WAMPAuthAny;
 import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
@@ -68,7 +68,6 @@ import ssg.lib.wamp.features.WAMP_FP_VirtualSession;
 import ssg.lib.wamp.messages.WAMPMessage;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPNode;
-import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
 import ssg.lib.wamp.util.WAMPTransportList;
 
@@ -295,58 +294,54 @@ public class Test_WAMPOrchestra {
         {
             wampAuthCRA = new WAMPAuthCRA(wampCRASecret);
             final URL tvURL = new URL("http://localhost:" + jwtPort + jwtRoot + "/" + tokenAuth + "/verify");
-            wampAuthTicket = new WAMPAuthTicket(wampTicketSecret) {
-                List<TokenUserVerifier> tvs = new ArrayList<TokenUserVerifier>() {
-                    {
-                        add(new TokenUserVerifier(
-                                tvURL,
-                                jwtSecret,
-                                id -> {
-                                    return id != null && id.split("\\.").length == 3;
-                                }
-                        ));
-                        add(new TokenUserVerifier(
-                                tvURL,
-                                apkSecret,
-                                id -> {
-                                    return id != null && id.startsWith("apk.");
-                                }
-                        ));
-                        add(new TokenUserVerifier(
-                                tvURL,
-                                apiSecret,
-                                id -> {
-                                    return id != null && id.startsWith("api-key-");
-                                }
-                        ));
-                    }
-                };
-
-                @Override
-                public Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException {
-                    for (TokenUserVerifier tv : tvs) {
-                        if (tv.canVerify("Bearer " + authid)) try {
-                            VerificationResult vr = tv.verify("Bearer " + authid);
-                            if (vr != null) {
-                                Map<String, Object> r = new LinkedHashMap<>();
-                                r.put(K_AUTH_METHOD, "ticket");
-                                r.put(K_AUTH_ID, vr.userId);
-                                r.put(K_AUTH_PROVIDER, vr.userDomain != null ? vr.userDomain : "http");
-                                if (vr.userRoles != null && vr.userRoles.length > 0) {
-                                    r.put(K_AUTH_ROLE, vr.userRoles[0]);
-                                } else {
-                                    r.put(K_AUTH_ROLE, "guest");
-                                }
-                                return r;
+            final List<TokenUserVerifier> tvs = new ArrayList<TokenUserVerifier>() {
+                {
+                    add(new TokenUserVerifier(
+                            tvURL,
+                            jwtSecret,
+                            id -> {
+                                return id != null && id.split("\\.").length == 3;
                             }
-                        } catch (IOException ioex) {
-                            ioex.printStackTrace();
-                        }
-                    }
-                    return null;
+                    ));
+                    add(new TokenUserVerifier(
+                            tvURL,
+                            apkSecret,
+                            id -> {
+                                return id != null && id.startsWith("apk.");
+                            }
+                    ));
+                    add(new TokenUserVerifier(
+                            tvURL,
+                            apiSecret,
+                            id -> {
+                                return id != null && id.startsWith("api-key-");
+                            }
+                    ));
                 }
-
             };
+
+            wampAuthTicket = new WAMPAuthTicket(wampTicketSecret, (session, authid, ticket) -> {
+                for (TokenUserVerifier tv : tvs) {
+                    if (tv.canVerify("Bearer " + authid)) try {
+                        VerificationResult vr = tv.verify("Bearer " + authid);
+                        if (vr != null) {
+                            Map<String, Object> r = new LinkedHashMap<>();
+                            r.put(K_AUTH_METHOD, "ticket");
+                            r.put(K_AUTH_ID, vr.userId);
+                            r.put(K_AUTH_PROVIDER, vr.userDomain != null ? vr.userDomain : "http");
+                            if (vr.userRoles != null && vr.userRoles.length > 0) {
+                                r.put(K_AUTH_ROLE, vr.userRoles[0]);
+                            } else {
+                                r.put(K_AUTH_ROLE, "guest");
+                            }
+                            return r;
+                        }
+                    } catch (IOException ioex) {
+                        ioex.printStackTrace();
+                    }
+                }
+                return null;
+            });
         }
 
         {

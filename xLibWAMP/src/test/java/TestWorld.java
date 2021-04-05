@@ -1,13 +1,11 @@
 
 import ssg.lib.wamp.util.WAMPTransportList;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.wamp.WAMP;
 import static ssg.lib.wamp.WAMPConstantsBase.INFO_CloseNormal;
 import ssg.lib.wamp.WAMPFeature;
 import ssg.lib.wamp.WAMPFeatureProvider;
-import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
 import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
@@ -60,14 +58,11 @@ public class TestWorld implements Runnable {
     public WAMPAuthProvider wapcra = new WAMPAuthCRA("testCRA");
     WAMPAuthProvider wapcra2 = new WAMPAuthCRA("testCRA2");
     WAMPAuthProvider wapcra3 = new WAMPAuthCRA("testCRA3");
-    public WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket") {
-        @Override
-        public Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException {
-            Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, name());
-            map.put(K_AUTH_ROLE, authid.endsWith("-2") || authid.endsWith("-4") ? "admin" : authid.endsWith("-3") ? "trainer" : "student");
-            return map;
-        }
-    };
+    public WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket", (session, authid, ticket) -> {
+        Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, authid);
+        map.put(K_AUTH_ROLE, authid.endsWith("-2") || authid.endsWith("-4") ? "admin" : authid.endsWith("-3") ? "trainer" : "student");
+        return map;
+    });
 
     // features
     WAMPFeatureProvider wfpSessionMeta = new WAMP_FP_SessionMetaAPI();

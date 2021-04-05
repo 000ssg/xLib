@@ -76,11 +76,6 @@ import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.WAMPTransport.WAMPTransportMessageListener;
 import ssg.lib.wamp.auth.WAMPAuth;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
-import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
-import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
-import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
-import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
-import ssg.lib.wamp.auth.impl.WAMPAuthTicket;
 import ssg.lib.wamp.features.WAMP_FP_Reflection;
 import ssg.lib.wamp.flows.WAMPMessagesFlow;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -98,6 +93,7 @@ import ssg.lib.wamp.stat.WAMPStatistics;
 import ssg.lib.wamp.util.RB;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
+import ssg.lib.wamphttpapi_cs.WAMPAdapter.WAMPAdapterConf;
 
 /**
  * API runner defines WAMP/REST publishing and WAMP routing functionality to
@@ -127,6 +123,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     // WAMP/REST/API support
     API_MethodsProvider wampOverREST;
     Collection<String> registeredRESTAPIs = new HashSet<>();
+    WAMPAdapter wampAdapter = new WAMPAdapter();
 
     public WAMPRunner() {
     }
@@ -248,6 +245,12 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     }
 
     @Override
+    public WAMPRunner configureDomain(HttpAuthenticator.Domain domain) throws IOException {
+        super.configureDomain(domain);
+        return this;
+    }
+
+    @Override
     public WAMPRunner configuration(Config... configs) throws IOException {
         super.configuration(configs);
         if (configs != null) {
@@ -255,7 +258,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 if (cfg instanceof WAMPConfig) {
                     WAMPConfig config = (WAMPConfig) cfg;
                     // TODO: utilize WAMP configuration parameters...
-                    if (config.routerPort > 0) try {
+                    if (config.routerPort!=null && config.routerPort > 0) try {
                         configureWAMPRouter(config.routerPort);
                     } catch (IOException ioex) {
                         ioex.printStackTrace();
@@ -265,90 +268,27 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                     } catch (IOException ioex) {
                         ioex.printStackTrace();
                     }
+                    if (((WAMPConfig) cfg).auth != null) {
+                        for (String authS : ((WAMPConfig) cfg).auth) {
+                            WAMPAdapterConf aconf = wampAdapter.createWAMPAdapterConf(authS);
+                            if (aconf != null) {
+                                WAMPAuthProvider wauth = wampAdapter.createAuthProviders(aconf, authAdapter());
+                                if (wauth != null) {
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         return this;
     }
 
-    void _configAuth(WAMPConfig config) {
-        if (config.auth != null) try {
-            for (String auth : config.auth) {
-                if (auth == null || auth.isEmpty()) {
-                    continue;
-                }
-                String[] ss = auth.split(";");
-                String realm = "";
-                String type = null;
-                String secret = null;
-                String role = null;
-                for (String s : ss) {
-                    if (s.contains("=")) {
-                        int idx = s.indexOf("=");
-                        String n = s.substring(0, idx);
-                        String v = s.substring(idx + 1);
-                        if ("type".equals(n)) {
-                            type = v;
-                        } else if ("secret".equals(n)) {
-                            secret = v;
-                        } else if ("role".equals(n)) {
-                            role = v;
-                        } else if ("realm".equals(n)) {
-                            realm = v;
-                        }
-                    }
-                }
-                if (type == null || secret == null) {
-                    break;
-                }
-
-//                List<WAMPAuthProvider> aps = authProviders.get(realm);
-                List<WAMPAuthProvider> aps = new ArrayList<>();
-//                boolean newAPS = aps == null;
-//                if (newAPS) {
-//                    aps = new ArrayList<>();
-//                }
-                if ("WAMPCRA".equalsIgnoreCase(type)) {
-                    final String scope = realm;
-                    WAMPAuthProvider wapcra = new WAMPAuthCRA(secret) {
-                        @Override
-                        public String authrole(WAMPSession session, String authid, Map<String, Object> details) {
-                            return super.authrole(session, authid, details);
-                        }
-
-                        @Override
-                        public String toString() {
-                            return getClass().getName() + "{" + getClass().getSuperclass().getSimpleName() + ", " + scope + '}';
-                        }
-                    };
-                    aps.add(wapcra);
-                } else if ("Ticket".equalsIgnoreCase(type)) {
-                    final String userRole = role;
-                    final String scope = realm;
-                    WAMPAuthProvider wapticket = new WAMPAuthTicket(secret) {
-                        @Override
-                        public Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException {
-                            Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, name());
-                            map.put(K_AUTH_ROLE, userRole);
-                            return map;
-                        }
-
-                        @Override
-                        public String toString() {
-                            return getClass().getName() + "{" + getClass().getSuperclass().getSimpleName() + ", " + scope + ", " + userRole + '}';
-                        }
-                    };
-                    aps.add(wapticket);
-                } else {
-                    System.out.println("UNRECOGNIZED (ignored) WAMP authentication method: " + auth);
-                }
-//                if (newAPS && !aps.isEmpty()) {
-//                    authProviders.put(realm, aps);
-//                }
-            }
-        } catch (Throwable th) {
-            th.printStackTrace();
+    public WAMPRunner configureWAMPAdapter(WAMPAdapter wampAdapter) {
+        if (wampAdapter != null) {
+            this.wampAdapter = wampAdapter;
         }
+        return this;
     }
 
     @Override
@@ -424,6 +364,10 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
                 });
             }
         }
+    }
+
+    public WAMPAdapter wampAdapter() {
+        return wampAdapter;
     }
 
     @Override

@@ -27,6 +27,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,12 +55,25 @@ public class WAMPAuthCRA implements WAMPAuthProvider {
     String defaultAuthProvider = "wcra";
     String defaultAuthRole = "guest";
     private String secret = "WAMPCRA secret";
+    Map<String, String> authids = new HashMap<>();
 
     public WAMPAuthCRA() {
     }
 
     public WAMPAuthCRA(String secret) {
         this.secret = secret;
+    }
+
+    /**
+     * Define role per authid. IF undefined - default role is used.
+     *
+     * @param authid
+     * @param role
+     * @return
+     */
+    public WAMPAuthCRA configureRole(String authid, String role) {
+        authids.put(authid, role);
+        return this;
     }
 
     @Override
@@ -164,7 +178,7 @@ public class WAMPAuthCRA implements WAMPAuthProvider {
     }
 
     public String authrole(WAMPSession session, String authid, Map<String, Object> details) {
-        return defaultAuthRole;
+        return authids.containsKey(authid) ? authids.get(authid) : defaultAuthRole;
     }
 
     String getSecret(WAMPSession session, WAMPMessage msg) throws WAMPException {

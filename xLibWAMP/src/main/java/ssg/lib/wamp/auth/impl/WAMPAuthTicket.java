@@ -40,16 +40,31 @@ import ssg.lib.wamp.util.WAMPTools;
  *
  * @author 000ssg
  */
-public abstract class WAMPAuthTicket implements WAMPAuthProvider {
+public class WAMPAuthTicket implements WAMPAuthProvider {
 
     String defaultTicket;
     Map<Long, Map<String, Object>> wip = WAMPTools.createSynchronizedMap();
+    TicketVerifier verifier;
 
     public WAMPAuthTicket() {
     }
 
+    public WAMPAuthTicket(TicketVerifier verifier) {
+        configureVerifier(verifier);
+    }
+
     public WAMPAuthTicket(String defaultTicket) {
         this.defaultTicket = defaultTicket;
+    }
+
+    public WAMPAuthTicket(String defaultTicket, TicketVerifier verifier) {
+        this.defaultTicket = defaultTicket;
+        configureVerifier(verifier);
+    }
+
+    public WAMPAuthTicket configureVerifier(TicketVerifier verifier) {
+        this.verifier = verifier;
+        return this;
     }
 
     @Override
@@ -110,7 +125,7 @@ public abstract class WAMPAuthTicket implements WAMPAuthProvider {
             switch (msg.getType().getId()) {
                 case T_AUTHENTICATE: { // verify AUTHENTICATE msg
                     Map<String, Object> auth = wip.remove(session.getId());
-                    Map<String, Object> ticketInfo = verifyTicket(session, (String) auth.get(K_AUTH_ID), msg.getString(0));
+                    Map<String, Object> ticketInfo = verifier.verifyTicket(session, (String) auth.get(K_AUTH_ID), msg.getString(0));
                     if (ticketInfo != null && !ticketInfo.isEmpty()) {
                         Map<String, Object> authInfo = WAMPTools.createDict(K_AUTH_METHOD, name());
                         authInfo.put(K_AUTH_ID, auth.get(K_AUTH_ID));
@@ -135,15 +150,19 @@ public abstract class WAMPAuthTicket implements WAMPAuthProvider {
         return defaultTicket;
     }
 
-    /**
-     * Ticket verification should ensure ticket can/is valid for the authid and
-     * return related set of properties, like authrole, authprovider etc.
-     *
-     * @param session
-     * @param authid
-     * @param ticket
-     * @return
-     * @throws WAMPException
-     */
-    public abstract Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException;
+    public static interface TicketVerifier {
+
+        /**
+         * Ticket verification should ensure ticket can/is valid for the authid
+         * and return related set of properties, like authrole, authprovider
+         * etc.
+         *
+         * @param session
+         * @param authid
+         * @param ticket
+         * @return
+         * @throws WAMPException
+         */
+        Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException;
+    }
 }

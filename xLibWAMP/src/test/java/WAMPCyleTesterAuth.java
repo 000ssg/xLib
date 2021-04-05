@@ -26,14 +26,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.wamp.WAMP.Role;
-import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.auth.WAMPAuthProvider;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ID;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_METHOD;
+import static ssg.lib.wamp.auth.WAMPAuthProvider.K_AUTH_ROLE;
 import ssg.lib.wamp.auth.impl.WAMPAuthCRA;
 import ssg.lib.wamp.auth.impl.WAMPAuthTicket;
 import ssg.lib.wamp.nodes.WAMPClient;
 import ssg.lib.wamp.nodes.WAMPRouter;
 import ssg.lib.wamp.events.WAMPEventListener.WAMPEventListenerBase;
-import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.util.WAMPTools;
 
 /**
@@ -57,14 +58,11 @@ public class WAMPCyleTesterAuth {
         WAMPAuthProvider wapcra = new WAMPAuthCRA("testCRA");
         WAMPAuthProvider wapcra2 = new WAMPAuthCRA("testCRA2");
         WAMPAuthProvider wapcra3 = new WAMPAuthCRA("testCRA3");
-        WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket") {
-            @Override
-            public Map<String, Object> verifyTicket(WAMPSession session, String authid, String ticket) throws WAMPException {
-                Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, name());
-                map.put(K_AUTH_ROLE, "admin");
-                return map;
-            }
-        };
+        WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket", (session, authid, ticket) -> {
+            Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, authid);
+            map.put(K_AUTH_ROLE, "admin");
+            return map;
+        });
 
         router.configure(wapcra, wapticket);
 

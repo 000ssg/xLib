@@ -24,9 +24,11 @@
 package ssg.lib.wamp;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import ssg.lib.wamp.WAMP.Role;
+import ssg.lib.wamp.auth.WAMPAuthProvider;
 import ssg.lib.wamp.util.WAMPException;
 
 /**
@@ -57,6 +59,7 @@ public class WAMPRealmFactory {
     ////////////////////////////////////////////////////////////////////////////
     WAMPActorFactory actorFactory;
     List<RealmVerifier> verifiers = new ArrayList<>();
+    Map<String, List<WAMPAuthProvider>> authProviders = new LinkedHashMap<>();
 
     private WAMPRealmFactory() {
     }
@@ -69,7 +72,17 @@ public class WAMPRealmFactory {
 
     public WAMPRealm newRealm(Object context, String name, WAMPFeature[] features, Map<WAMPFeature, WAMPFeatureProvider> featureProviders, Role... roles) throws WAMPException {
         if (test(context, name, features, roles)) {
-            return WAMPRealm.createRealm(actorFactory, name, features, featureProviders, roles);
+            WAMPRealm realm = WAMPRealm.createRealm(actorFactory, name, features, featureProviders, roles);
+            List<WAMPAuthProvider> apr = authProviders.get(name);
+            if (apr != null) {
+                realm.getAuthProviders().addAll(apr);
+            } else {
+                apr = authProviders.get("");
+                if (apr != null) {
+                    realm.getAuthProviders().addAll(apr);
+                }
+            }
+            return realm;
         } else {
             return null;
         }
@@ -84,6 +97,25 @@ public class WAMPRealmFactory {
             }
         }
         return allowed;
+    }
+
+    public WAMPRealmFactory configureAuths(String realmName, WAMPAuthProvider... authProviders) {
+        if (authProviders != null && realmName != null) {
+            for (WAMPAuthProvider p : authProviders) {
+                if (p == null) {
+                    continue;
+                }
+                List<WAMPAuthProvider> ps = this.authProviders.get(realmName);
+                if (ps == null) {
+                    ps = new ArrayList<>();
+                    this.authProviders.put(realmName, ps);
+                }
+                if (!ps.contains(p)) {
+                    ps.add(p);
+                }
+            }
+        }
+        return this;
     }
 
     public static interface RealmVerifier {
