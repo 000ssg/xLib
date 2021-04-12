@@ -116,7 +116,8 @@ public class APIAdapter {
     public <T> T createBuilderContext(APIAdapterConf conf) {
         try {
             if (API_TYPE_REFLECTION.equalsIgnoreCase(conf.type)) {
-                return (T) new Reflective_API_Context();
+                return (T) new Reflective_API_Context()
+                        .configure(new API_MethodsProvider_AccessHelper());
             } else if (API_TYPE_JDBC.equalsIgnoreCase(conf.type)) {
                 return (T) new DB_API_Context(getDBAPI(conf), getConnection(conf), getTypeResolver(conf));
             } else if (API_TYPE_JDBC_ORACLE.equalsIgnoreCase(conf.type)) {
@@ -164,6 +165,12 @@ public class APIAdapter {
                         }
                         if (o == null) {
                             o = contexts.get(conf.name);
+                        }
+                        if (o == null) try {
+                            o = cls[i].newInstance();
+                            contexts.put(cls[i], o);
+                        } catch (Throwable th) {
+                            int a = 0;
                         }
                         if (o != null) {
                             r.add(o);
@@ -242,7 +249,7 @@ public class APIAdapter {
         public APIAdapterConf(String... api) {
             super("");
             this.noSysProperties();
-            Config.load(this,api);
+            Config.load(this, api);
         }
 
         public String toText() {

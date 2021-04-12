@@ -153,17 +153,17 @@ public class TokenUserVerifier implements UserVerifier {
 
     @Override
     public Map<String, Object> verifiedProperties(Object... parameters) {
-        return canVerify(parameters) ? null : null; //tv.decodeComponents((String) parameters[0])[1] : null;
+        return canVerify(parameters) ? null : null;
     }
 
     @Override
     public boolean registerUser(String name, Object... parameters) {
-        throw new UnsupportedOperationException("No explicit users are handled. Only 3rd party authenticated users can be tokenized.");
+        return false;
     }
 
     @Override
     public boolean unregisterUser(String name) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return false;
     }
 
     @Override

@@ -214,7 +214,7 @@ public class HttpCaller {
             serviceURI = uriCorrection.apply(serviceURI, new Object[]{userName, callAuth, headers, data});
         }
         if (CALL_AUTH.basic.equals(callAuth)) {
-            serviceURI = serviceURI.replace("://", userName + "@");
+            serviceURI = serviceURI.replace("://", "://"+userName + "@");
             if (userName.contains(":")) {
                 userName = userName.substring(0, userName.indexOf(":"));
             }

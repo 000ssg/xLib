@@ -73,7 +73,9 @@ public class TokenVerifierHttpDataProcessor extends HttpDataProcessor {
     }
 
     public TokenVerifierHttpDataProcessor configure(String secret, TokenVerifier verifier) {
-        verifiers.put(secret, verifier);
+        if (secret != null && verifier != null) {
+            verifiers.put(secret, verifier);
+        }
         return this;
     }
 

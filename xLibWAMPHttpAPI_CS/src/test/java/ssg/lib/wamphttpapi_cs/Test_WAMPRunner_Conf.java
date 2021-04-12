@@ -24,6 +24,7 @@
 package ssg.lib.wamphttpapi_cs;
 
 import java.net.URI;
+import ssg.lib.common.net.NetTools;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.HttpAuthenticator.Domain;
@@ -32,11 +33,18 @@ import ssg.lib.http.dp.tokens.APKTokenVerifier;
 import ssg.lib.http.dp.tokens.JWTTokenVerifier;
 import ssg.lib.http.dp.tokens.TokenVerifier;
 import ssg.lib.http.dp.tokens.TokenVerifierHttpDataProcessor;
+import ssg.lib.http.rest.annotations.XMethod;
+import ssg.lib.http.rest.annotations.XType;
 import ssg.lib.http_cs.HttpCaller;
 import ssg.lib.http_cs.HttpRunner;
 import ssg.lib.http_cs.HttpRunner.HttpConfig;
+import ssg.lib.httpapi_cs.APIRunner.APIConfig;
 import ssg.lib.net.MCS.MCSConfig;
 import ssg.lib.service.Repository;
+import ssg.lib.wamp.WAMPFeature;
+import ssg.lib.wamp.features.WAMP_FP_Reflection;
+import ssg.lib.wamp.features.WAMP_FP_SessionMetaAPI;
+import ssg.lib.wamp.features.WAMP_FP_VirtualSession;
 import ssg.lib.wamphttpapi_cs.WAMPRunner.WAMPConfig;
 
 /**
@@ -45,6 +53,14 @@ import ssg.lib.wamphttpapi_cs.WAMPRunner.WAMPConfig;
  */
 public class Test_WAMPRunner_Conf {
 
+    @XType
+    public static class XDemo {
+        @XMethod
+        public double getRND(){
+            return Math.random();
+        }
+    }
+    
     public static void main(String... args) throws Exception {
         int ssoPort = 30010;
         int wampPort = 30011;
@@ -155,6 +171,10 @@ public class Test_WAMPRunner_Conf {
                                 "tokenDelegate=type=token;uri=" + tokenVerifyURI + ";secret=" + apkSecret + ";prefix=apk.",
                                 "tokenDelegate=type=token;uri=" + tokenVerifyURI + ";secret=" + apiSecret + ";prefix=api-key-"
                         ),
+                        new APIConfig("",
+                                
+                                "api=namespace=A;name=a;item=ssg.lib.wamphttpapi_cs.Test_WAMPRunner_Conf$XDemo"
+                        ),
                         new WAMPConfig("",
                                 "routerPath=wamp",
                                 "auth=type=wampcra;secret=" + wampCRASecret,
@@ -162,12 +182,31 @@ public class Test_WAMPRunner_Conf {
                                 "auth=type=any"
                         )
                 );
+                    wamp.wamp()
+                    .configureFeature(WAMPFeature.caller_identification)
+                    .configureFeature(WAMPFeature.procedure_reflection, new WAMP_FP_Reflection())
+                    .configureFeature(WAMPFeature.x_session_meta_api, new WAMP_FP_SessionMetaAPI())
+                    .configureFeature(WAMP_FP_VirtualSession.virtual_session, new WAMP_FP_VirtualSession());
 
+
+        authServer.start();
+        wamp.start();
+
+        NetTools.delay(3000);
+        
         System.out.println("\n------------------------------------------ SSO"
                 + "\n-- " + authServer.toString().replace("\n", "\n-- ")
         );
         System.out.println("\n\n----------------------------------------- WAMP"
                 + "\n-- " + wamp.toString().replace("\n", "\n-- ")
         );
+        System.out.println("\n\n----------------------------------------- WAMP Router"
+                + "\n-- " + wamp.getRouter().toString().replace("\n", "\n-- ")
+        );
+        
+        NetTools.delay(3000);
+        
+        wamp.stop();
+        authServer.stop();
     }
 }

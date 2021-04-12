@@ -224,7 +224,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         } else {
             if (rp != null && rp.getPaths() != null && rp.getPaths().length == 1) {
                 String pp = rp.getPaths()[0];
-                path = (!pp.startsWith("/") ? "/" : "") + pp + (pp.endsWith("/") || path.startsWith("/") ? "" : "/") + path;
+                path = (!pp.isEmpty() && !pp.startsWith("/") ? "/" : "") + pp + (pp.isEmpty() || pp.endsWith("/") || path.startsWith("/") ? "" : "/") + path;
             }
             HttpMatcher rm = new HttpMatcher((root == null || root.equals("/") ? "" : root) + path);
             return rm;

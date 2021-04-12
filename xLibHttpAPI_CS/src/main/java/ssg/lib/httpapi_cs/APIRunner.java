@@ -16,7 +16,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.api.API_Publisher;
 import ssg.lib.api.API_Publisher.API_Publishers;
+import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.Config;
+import ssg.lib.common.Refl;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.rest.MethodsProvider;
@@ -37,11 +39,29 @@ public class APIRunner<T> extends HttpRunner {
     public static final String CFG_API_NAME = "apiName";
     public static final String API_PUB_CLIENT_TITLE = "api-pub";
 
+    // GLOBALLY INDIRECTLY DEFINED TYPE CONVERTER
+    static {
+        if (Reflective_API_Builder.typeConverter == null) {
+            Reflective_API_Builder.typeConverter = new Reflective_API_Builder.TypeConverter() {
+                Refl refl = new Refl.ReflImpl.ReflJSON();
+
+                @Override
+                public Object toType(Class type, Object value) {
+                    try {
+                        return refl.enrich(value, type);
+                    } catch (IOException ioex) {
+                        throw new RuntimeException(ioex);
+                    }
+                }
+            };
+        }
+    }
+
     // API support
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
     //Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
-    APIAdapter apiAdapter;
+    APIAdapter apiAdapter = new APIAdapter();
 
     /**
      * API group enables defining multiple APIs for same context, that is
@@ -68,7 +88,7 @@ public class APIRunner<T> extends HttpRunner {
         public APIStatistics apiStat;
 
         public void connect(URI uri) throws IOException {
-            // publish APIs to DEMO WAMP namespace..., implicitly as REST bridge to WAMP.
+            // publish APIs to namespace..., implicitly as REST bridge to WAMP.
             T client = APIRunner.this.publishAPI(uri, this, apis.getAPINames());
             if (client != null) {
                 clients.put(uri, client);
