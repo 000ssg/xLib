@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import ssg.lib.common.Stub.StubContext;
 import ssg.lib.http.HttpMatcher;
+import ssg.lib.http.HttpUser;
+import ssg.lib.http.base.HttpRequest;
 
 /**
  *
@@ -82,6 +84,15 @@ public class StubRESTHttpContext extends StubContext<RESTHttpDataProcessor, Entr
             }
         }
         return ms;
+    }
+
+    @Override
+    public boolean isAllowedParameter(RESTParameter p) {
+        if (HttpRequest.class.isAssignableFrom(p.getType()) || HttpUser.class.isAssignableFrom(p.getType())) {
+            return false;
+        } else {
+            return super.isAllowedParameter(p);
+        }
     }
 
     @Override

@@ -108,6 +108,12 @@ public class StubWAMPReflectionContext extends StubContext<WAMPRealm, Map, Map, 
     }
 
     @Override
+    public boolean isAllowedParameter(Map p) {
+        // TODO: disable WAMPAuth parameter...
+        return super.isAllowedParameter(p);
+    }
+
+    @Override
     public String type(Map parameter) {
         return parameter != null ? (String) parameter.get("type") : null;
     }

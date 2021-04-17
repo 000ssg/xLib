@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import ssg.lib.api.API;
+import ssg.lib.api.APIAuthContext;
 import ssg.lib.api.APIDataType;
 import ssg.lib.api.APIFunction;
 import ssg.lib.api.APIItem;
@@ -108,6 +109,15 @@ public class StubAPIContext extends StubContext<API, APIProcedure, APIParameter,
             }
         }
         return null;
+    }
+
+    @Override
+    public boolean isAllowedParameter(APIParameter p) {
+        if (APIAuthContext.class.isAssignableFrom(p.type.getJavaType())) {
+            return false;
+        } else {
+            return super.isAllowedParameter(p); //To change body of generated methods, choose Tools | Templates.
+        }
     }
 
     @Override
