@@ -33,6 +33,7 @@ import java.io.Reader;
 import java.io.Serializable;
 import java.io.Writer;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -430,7 +431,7 @@ public interface HttpAuthenticator<P> {
             if (ba != null && ba.startsWith("Basic ")) {
                 try {
                     String[] up = new String(Base64.getDecoder().decode(ba.substring(ba.indexOf(" ") + 1)), "UTF-8").split(":");
-                    HttpUser r = authenticate(provider, null, up[0], up[1]);
+                    HttpUser r = authenticate(provider, null, URLDecoder.decode(up[0], "UTF-8"), URLDecoder.decode(up[1], "UTF-8"));
                     if (r != null) {
                         r.getProperties().put(HttpUser.P_AUTH_TYPE, HttpUser.AUTH_TYPE.basic);
                     }

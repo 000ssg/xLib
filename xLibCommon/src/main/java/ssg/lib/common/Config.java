@@ -168,8 +168,32 @@ public class Config {
         Map<String, List> props = new HashMap<>();
         if (!config.sysPropsLoaded) {
             Collection<URL> configSources = new ArrayList<>();
-            for (String pn : System.getProperties().stringPropertyNames()) {
-                String v = System.getProperty(pn);
+            for (Entry<String, String> e : System.getenv().entrySet()) {
+                String pn = e.getKey();
+                String v = e.getValue();
+                URL url = null;
+                try {
+                    if ("configFile".equals(pn)) {
+                        url = new File(v).toURI().toURL();
+                    } else if ("configURL".equals(pn)) {
+                        url = new URL(v);
+                    } else {
+                        List l = props.get(pn);
+                        if (l == null) {
+                            l = new ArrayList();
+                            props.put(pn, l);
+                        }
+                        l.add(v);
+                    }
+                } catch (Throwable th) {
+                }
+                if (url != null) {
+                    configSources.add(url);
+                }
+            }
+            for (Entry<Object, Object> e : System.getProperties().entrySet()) {
+                String pn = (String) e.getKey();
+                String v = (String) e.getValue();
                 URL url = null;
                 try {
                     if ("configFile".equals(pn)) {
@@ -277,7 +301,7 @@ public class Config {
                                     v = jd.readObject(
                                             (String) vli,
                                             f.getType().isArray()
-                                            ? f.getType().componentType()
+                                            ? f.getType().getComponentType()
                                             : Collection.class.isAssignableFrom(f.getType())
                                             ? Map.class
                                             : f.getType()

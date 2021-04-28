@@ -6,8 +6,10 @@
 package ssg.lib.httpapi_cs;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -19,6 +21,7 @@ import ssg.lib.api.API_Publisher.API_Publishers;
 import ssg.lib.api.util.Reflective_API_Builder;
 import ssg.lib.common.Config;
 import ssg.lib.common.Refl;
+import ssg.lib.common.WildcardMatcher;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
 import ssg.lib.http.rest.MethodsProvider;
@@ -59,7 +62,6 @@ public class APIRunner<T> extends HttpRunner {
 
     // API support
     Map<String, Map<String, APIGroup>> apis = new LinkedHashMap<>();
-    //Collection<String> registeredRESTAPIs = new HashSet<>();
     APIStatistics apiStat;
     APIAdapter apiAdapter = new APIAdapter();
 
@@ -73,7 +75,7 @@ public class APIRunner<T> extends HttpRunner {
      * connections.
      *
      */
-    public class APIGroup {
+    public class APIGroup implements Serializable {
 
         public static final long O_NONE = 0x0000;
         public static final long O_COMPACT = 0x0001;
@@ -86,6 +88,7 @@ public class APIRunner<T> extends HttpRunner {
         public API_Publisher.API_Publishers apis = new API_Publisher.API_Publishers();
         public Map<URI, T> clients = new LinkedHashMap<>();
         public APIStatistics apiStat;
+        public Map<String, Object> properties = new LinkedHashMap<>();
 
         public void connect(URI uri) throws IOException {
             // publish APIs to namespace..., implicitly as REST bridge to WAMP.
@@ -325,6 +328,62 @@ public class APIRunner<T> extends HttpRunner {
         } catch (IOException ioex) {
             ioex.printStackTrace();
         }
+        // rest publishing/stubs
+        if (config.stub != null) {
+            String rest_root = getApp() != null ? getApp().getRoot() + "/" + getREST().getMatcher().getPath() : getREST().getMatcher().getPath();
+            if (!rest_root.endsWith("/")) {
+                rest_root += "/";
+            }
+            String[] groups = config.stub;
+            for (String s : groups) {
+                String[] ss = s.split(",");
+                if (ss.length < 3) {
+                    continue;
+                }
+                for (int i = 0; i < ss.length; i++) {
+                    ss[i] = ss[i].trim();
+                }
+                String ns = ss[0];
+                String n = ss[1];
+                String[] types = Arrays.copyOfRange(ss, 2, ss.length);
+                List<Object[]> apis = findAPIs(ns, n);
+                for (Object[] api : apis) {
+                    ns = (String) api[0];
+                    n = (String) api[1];
+
+                    APIGroup group = (APIGroup) api[2];
+                    StubVirtualData svd = new StubVirtualData(rest_root.substring(0, rest_root.length() - 1), null, group, types)
+                            .configure(new StubAPIGroupContext(null, null, true))
+                            .configure(ns + (n != null && !n.isEmpty() ? "/" + n : ""), types);
+                    configureStub(svd);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns collectin of matched APIGroups as [namespace,name,APIGroup]
+     * structures.
+     *
+     * @param namespace
+     * @param name
+     * @return
+     */
+    public List<Object[]> findAPIs(String namespace, String name) {
+        List<Object[]> r = new ArrayList<>();
+        WildcardMatcher nsw = namespace.contains("*") || namespace.contains("?") ? new WildcardMatcher(namespace, true) : null;
+        WildcardMatcher nw = name.contains("*") || name.contains("?") ? new WildcardMatcher(name, true) : null;
+        for (String ns : apis.keySet()) {
+            if (nsw != null && nsw.match(ns) > 0 || ns.matches(namespace)) {
+                Map<String, APIGroup> nsg = apis.get(ns);
+                for (String n : nsg.keySet()) {
+                    if (nw != null && nw.match(n) > 0 || n.matches(name)) {
+                        r.add(new Object[]{ns, n, nsg.get(n)});
+                    }
+                }
+            }
+        }
+        return r;
     }
 
     /**
@@ -371,14 +430,16 @@ public class APIRunner<T> extends HttpRunner {
             // add callable APIs
             for (String apiName : apiNames) {
                 if (apiName != null) {
-                    final API_Publisher api = apis.getAPIPublisher(apiName);
-                    // enable API-level publishing
-                    onPublishingAPI(wsURI, group, client, apiName, api, null);
-                    for (final String pn : apis.getNames(apiName)) {
-                        // proceed with procedure-level publishing
-                        onPublishingAPI(wsURI, group, client, apiName, api, pn);
+                    final API_Publisher[] apiPubs = apis.getAPIPublisher(apiName);
+                    for (API_Publisher api : apiPubs) {
+                        // enable API-level publishing
+                        onPublishingAPI(wsURI, group, client, apiName, api, null);
+                        for (final String pn : apis.getNames(apiName)) {
+                            // proceed with procedure-level publishing
+                            onPublishingAPI(wsURI, group, client, apiName, api, pn);
+                        }
+                        onPublishedAPI(wsURI, group, client, apiName, api);
                     }
-                    onPublishedAPI(wsURI, group, client, apiName, api);
                 }
             }
             // connect and register API calls
@@ -493,5 +554,7 @@ public class APIRunner<T> extends HttpRunner {
         }
 
         public List<String> api;
+        @Description(value = "API on REST code stub (generated code for client use)", pattern = "api,stub type[,stub type]")
+        public String[] stub;
     }
 }

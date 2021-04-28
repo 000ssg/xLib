@@ -263,7 +263,7 @@ public class DIHttpForwarder<P extends Channel> extends BaseDI<ByteBuffer, P> im
                             SocketAddress rAddr = new InetSocketAddress(InetAddress.getByName(uri.getHost()), uri.getPort());
                             boolean rSecure = "https".equalsIgnoreCase(uri.getScheme());
 
-                            P rCh = connectToRemote(rAddr, new DIForwarded().configure(rSecure ? ssl_df_client : null));
+                            P rCh = (P)connectToRemote(rAddr, new DIForwarded().configure(rSecure ? ssl_df_client : null));
 
                             onBindForwarding(provider, secure.containsKey(provider), rCh, rSecure);
                             Link l = link(provider);

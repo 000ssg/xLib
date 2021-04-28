@@ -24,6 +24,7 @@
 package ssg.lib.api;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import ssg.lib.api.util.APIException;
 import java.util.Collection;
 import java.util.Collections;
@@ -292,17 +293,14 @@ public class API_Publisher {
 
     public static class API_Publishers {
 
-        Map<String, API_Publisher> apis = new LinkedHashMap<>();
+        Map<String, API_Publisher[]> apis = new LinkedHashMap<>();
 
         public API_Publishers() {
         }
 
         public API_Publishers add(String name, API api) {
             if (api != null) {
-                if (name == null) {
-                    name = api.name;
-                }
-                apis.put(name, new API_Publisher().configure(api));
+                add(name, new API_Publisher().configure(api));
             }
             return this;
         }
@@ -312,7 +310,14 @@ public class API_Publisher {
                 if (name == null) {
                     name = api.getAPI().name;
                 }
-                apis.put(name, api);
+                API_Publisher[] aps = apis.get(name);
+                if (aps == null) {
+                    aps = new API_Publisher[1];
+                } else {
+                    aps = Arrays.copyOf(aps, aps.length + 1);
+                }
+                aps[aps.length - 1] = api;
+                apis.put(name, aps);
             }
             return this;
         }
@@ -321,8 +326,8 @@ public class API_Publisher {
             return apis.keySet();
         }
 
-        public <T extends API_Publisher> T getAPIPublisher(String name) {
-            return (T) apis.get(name);
+        public <T extends API_Publisher> T[] getAPIPublisher(String name) {
+            return (T[]) apis.get(name);
         }
 
         public void removeAPIPublisher(String name) {
@@ -331,18 +336,26 @@ public class API_Publisher {
             }
         }
 
-        public <T extends API> T getAPI(String name) {
-            API_Publisher pub = apis.get(name);
-            if (pub != null) {
-                return (T) pub.getAPI();
-            } else {
-                return null;
+        public <T extends API> List<T> getAPI(String name) {
+            List<T> r = new ArrayList<>();
+            API_Publisher[] pubs = apis.get(name);
+            if (pubs != null) {
+                for (API_Publisher pub : pubs) {
+                    r.add(pub.getAPI());
+                }
             }
+            return r;
         }
 
         public Collection<String> getNames(final String apiName) {
-            API api = getAPI(apiName);
-            return getNames(api, apiName);
+            List<String> r = new ArrayList<>();
+            List<API> apis = getAPI(apiName);
+            if (apis != null) {
+                for (API api : apis) {
+                    r.addAll(getNames(api, apiName));
+                }
+            }
+            return r;
         }
 
         public Collection<String> getNames(API api, final String apiName) {

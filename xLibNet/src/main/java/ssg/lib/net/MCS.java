@@ -716,8 +716,13 @@ public class MCS implements MCSSelector {
                 selector = Selector.open();
                 while (selector != null && selector.isOpen()) {
                     long startedCycle = System.nanoTime();
-                    int readyChannels = selector.selectNow();
+                    int readyChannels = 0;
+                    try {
+                        readyChannels = selector.selectNow();
+                    } catch (Throwable th) {
+                    }
                     Collection<SelectionKey> skeys = new LinkedHashSet<>();
+                    //if (readyChannels > 0)
                     synchronized (selector) {
                         try {
                             skeys.addAll(selector.selectedKeys());

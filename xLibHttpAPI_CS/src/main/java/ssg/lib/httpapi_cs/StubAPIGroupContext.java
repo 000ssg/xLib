@@ -37,14 +37,15 @@ import ssg.lib.api.APIProcedure;
 import ssg.lib.api.util.APISearchable.APIMatcher.API_MATCH;
 import ssg.lib.common.Stub.StubContext;
 import ssg.lib.http.base.HttpData;
+import ssg.lib.httpapi_cs.APIRunner.APIGroup;
 
 /**
  *
  * @author 000ssg
  */
-public class StubAPIContext extends StubContext<List<API>, APIProcedure, APIParameter, APIDataType> {
+public class StubAPIGroupContext extends StubContext<APIGroup, APIProcedure, APIParameter, APIDataType> {
 
-    public StubAPIContext(String baseURL, String namespace, boolean generateExtendedComments) {
+    public StubAPIGroupContext(String baseURL, String namespace, boolean generateExtendedComments) {
         super(baseURL, namespace, generateExtendedComments);
     }
 
@@ -62,22 +63,20 @@ public class StubAPIContext extends StubContext<List<API>, APIProcedure, APIPara
     }
 
     @Override
-    public List<APIProcedure> methods(List<API> apis) {
-        Collection<APIProcedure> c = new ArrayList<>();
-        for (API api : apis) {
-            c.addAll((Collection<APIProcedure>) (Object) api.find((item) -> {
-                return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
-            }, APIProcedure.class, null));
-        }
-        if (c instanceof List) {
-            return (List) c;
-        } else {
-            List<APIProcedure> r = new ArrayList<>();
-            if (c != null) {
-                r.addAll(c);
+    public List<APIProcedure> methods(APIGroup apiGroup) {
+        List<APIProcedure> r = new ArrayList<>();
+        for (String apiName : apiGroup.apis.getAPINames()) {
+            List<API> apis = apiGroup.apis.getAPI(apiName);
+            for (API api : apis) {
+                Collection<APIProcedure> c = (Collection<APIProcedure>) (Object) api.find((item) -> {
+                    return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
+                }, APIProcedure.class, null);
+                if (c != null) {
+                    r.addAll(c);
+                }
             }
-            return r;
         }
+        return r;
     }
 
     @Override

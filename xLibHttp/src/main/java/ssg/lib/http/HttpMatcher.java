@@ -234,9 +234,9 @@ public class HttpMatcher implements Cloneable {
         sb.append("\n  path='" + path + "'");
         if (paths != null) {
             sb.append("\n  paths=" + paths.length + ", has file: " + lastIsFile + ", is absolute: " + absolutePath + ", is prefix: " + pathIsPrefix);
-            for (String p : paths) {
-                sb.append("\n    '" + p + "'");
-            }
+//            for (String p : paths) {
+//                sb.append("\n    '" + p + "'");
+//            }
         }
         ;
         if (lastIsFile) {

@@ -523,7 +523,10 @@ public class CommonTools {
     public static String stackTrace(int indent) {
         try (final StringWriter sw = new StringWriter()) {
             new Exception("").printStackTrace(new PrintWriter(sw));
-            return sw.toString().indent(indent);
+            char[] chs = new char[indent + 1];
+            Arrays.fill(chs, ' ');
+            chs[0] = '\n';
+            return sw.toString().replace("\n", new String(chs));
         } catch (IOException ioex) {
             return "";
         }

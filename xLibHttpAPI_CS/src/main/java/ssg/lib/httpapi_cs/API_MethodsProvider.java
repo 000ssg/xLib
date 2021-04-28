@@ -82,170 +82,172 @@ public class API_MethodsProvider implements MethodsProvider {
     public Map<String, List<RESTMethod>> findMethods(Object obj) {
         Map<String, List<RESTMethod>> wms = new LinkedHashMap<String, List<RESTMethod>>();
         if (canHandleClass((obj != null) ? obj.getClass() : null)) {
-            API_Publishers apiss = (obj instanceof API_Publishers) ? (API_Publishers) obj : null;
-            API_Publisher apis = (obj instanceof API_Publisher) ? (API_Publisher) obj : null;
+            API_Publishers apiPublishers = (obj instanceof API_Publishers) ? (API_Publishers) obj : null;
+            API_Publisher apiPub = (obj instanceof API_Publisher) ? (API_Publisher) obj : null;
             API dbAPI = (obj instanceof API) ? (API) obj : null;
-            if (apis == null && apiss == null && dbAPI != null) {
-                apiss = new API_Publishers().add(null, dbAPI);
+            if (apiPub == null && apiPublishers == null && dbAPI != null) {
+                apiPublishers = new API_Publishers().add(null, dbAPI);
             }
-            if (apiss == null && apis != null) {
-                apiss = new API_Publishers().add(null, apis);
+            if (apiPublishers == null && apiPub != null) {
+                apiPublishers = new API_Publishers().add(null, apiPub);
             }
 
             List<RESTMethod> ms = new ArrayList<RESTMethod>();
 
-            for (String apiName : apiss.getAPINames().toArray(new String[apiss.getAPINames().size()])) {
-                apis = apiss.getAPIPublisher(apiName);
+            for (String apiName : apiPublishers.getAPINames().toArray(new String[apiPublishers.getAPINames().size()])) {
+                API_Publisher[] apiPublisherS = apiPublishers.getAPIPublisher(apiName);
 
-                RESTProvider pr = new RESTProvider();
-                {
-                    String s = apiName.replace(".", "/");
-                    pr.setName(s);
-                    pr.setPaths(adjustPath(pr, apis, s.toLowerCase()));
-                }
-
-                for (APIProcedure p : (Collection<APIProcedure>) (Object) apis.getAPI().find((item) -> {
-                    return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
-                }, APIProcedure.class, null)) {
-                    String operationName = p.fqn();
-                    final APICallable m = apis.getCallable(operationName, null);
-                    if (m == null) {
-                        continue;
+                for (API_Publisher apiPublisher : apiPublisherS) {
+                    RESTProvider pr = new RESTProvider();
+                    {
+                        String s = apiName.replace(".", "/");
+                        pr.setName(s);
+                        pr.setPaths(adjustPath(pr, apiPublisher, s.toLowerCase()));
                     }
 
-                    String[] operationPaths = new String[]{operationName};
+                    for (APIProcedure p : (Collection<APIProcedure>) (Object) apiPublisher.getAPI().find((item) -> {
+                        return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
+                    }, APIProcedure.class, null)) {
+                        String operationName = p.fqn();
+                        final APICallable m = apiPublisher.getCallable(operationName, null);
+                        if (m == null) {
+                            continue;
+                        }
 
-                    for (String operationPath : operationPaths) {
-                        RESTMethod mth = new RESTMethod() {
-                            RESTMethod self = this;
-                            boolean inAsynch = false; // avoid short circuit...
-                            APIStatistics apiStat = baseStat != null ? baseStat.createChild(baseStat, "REST:" + operationName) : null;
+                        String[] operationPaths = new String[]{operationName};
 
-                            {
-                                if (apiStat != null) {
-                                    setProperty("apiStat", apiStat);
+                        for (String operationPath : operationPaths) {
+                            RESTMethod mth = new RESTMethod() {
+                                RESTMethod self = this;
+                                boolean inAsynch = false; // avoid short circuit...
+                                APIStatistics apiStat = baseStat != null ? baseStat.createChild(baseStat, "REST:" + operationName) : null;
+
+                                {
+                                    if (apiStat != null) {
+                                        setProperty("apiStat", apiStat);
+                                    }
                                 }
-                            }
 
-                            /**
-                             * Pass async invocation via method provider to
-                             * enable alternative solution.
-                             */
-                            @Override
-                            public Runnable invokeAsync(HttpUser user, Object service, Map<String, Object> parameters, RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
-                                if (inAsynch) {
-                                    // if loop - create runnable.
-                                    return new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            if (apiStat != null) {
-                                                apiStat.onTryInvoke();
+                                /**
+                                 * Pass async invocation via method provider to
+                                 * enable alternative solution.
+                                 */
+                                @Override
+                                public Runnable invokeAsync(HttpUser user, Object service, Map<String, Object> parameters, RESTMethod.RESTMethodAsyncCallback callback) throws IOException {
+                                    if (inAsynch) {
+                                        // if loop - create runnable.
+                                        return new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                if (apiStat != null) {
+                                                    apiStat.onTryInvoke();
+                                                }
+                                                long started = System.nanoTime();
+                                                Object result = null;
+                                                Throwable error = null;
+                                                try {
+                                                    if (apiStat != null) {
+                                                        apiStat.onInvoke();
+                                                    }
+                                                    result = m.call(new HttpAPIUser(user), parameters);
+                                                } catch (Throwable th) {
+                                                    error = th;
+                                                    if (apiStat != null) {
+                                                        apiStat.onError();
+                                                    }
+                                                } finally {
+                                                    if (apiStat != null) {
+                                                        apiStat.onDone();
+                                                    }
+                                                    if (callback != null) {
+                                                        callback.onResult(self, service, parameters, result, System.nanoTime() - started, error, error != null ? error.toString() : null);
+                                                    }
+                                                }
                                             }
-                                            long started = System.nanoTime();
-                                            Object result = null;
-                                            Throwable error = null;
-                                            try {
-                                                if (apiStat != null) {
-                                                    apiStat.onInvoke();
-                                                }
-                                                result = m.call(new HttpAPIUser(user), parameters);
-                                            } catch (Throwable th) {
-                                                error = th;
-                                                if (apiStat != null) {
-                                                    apiStat.onError();
-                                                }
-                                            } finally {
-                                                if (apiStat != null) {
-                                                    apiStat.onDone();
-                                                }
-                                                if (callback != null) {
-                                                    callback.onResult(self, service, parameters, result, System.nanoTime() - started, error, error != null ? error.toString() : null);
-                                                }
-                                            }
+                                        };
+                                    } else {
+                                        inAsynch = true;
+                                        try {
+                                            return API_MethodsProvider.this.invokeAsync(
+                                                    user,
+                                                    this,
+                                                    getName(),
+                                                    m,
+                                                    service, parameters, callback);
+                                        } finally {
+                                            inAsynch = false;
                                         }
-                                    };
-                                } else {
-                                    inAsynch = true;
+                                    }
+                                }
+
+                                /**
+                                 * Replace reflective invocation with DBCaller
+                                 * call providing proper parametrization.
+                                 */
+                                @Override
+                                public <T> T invoke(HttpUser user, Object service, Object[] parameters) throws IllegalAccessException, InvocationTargetException, IOException {
+                                    if (apiStat != null) {
+                                        apiStat.onTryInvoke();
+                                    }
                                     try {
-                                        return API_MethodsProvider.this.invokeAsync(
-                                                user,
-                                                this,
-                                                getName(),
-                                                m,
-                                                service, parameters, callback);
+                                        HttpAPIUser apiUser = new HttpAPIUser(user);
+                                        Map<String, Object> ps = m.toParametersMap(apiUser, parameters);
+                                        if (apiStat != null) {
+                                            apiStat.onInvoke();
+                                        }
+                                        return (T) m.call(apiUser, ps);
+                                    } catch (APIException sex) {
+                                        if (apiStat != null) {
+                                            apiStat.onError();
+                                        }
+                                        throw new InvocationTargetException(sex);
                                     } finally {
-                                        inAsynch = false;
+                                        if (apiStat != null) {
+                                            apiStat.onDone();
+                                        }
                                     }
+                                }
+                            };
+                            mth.setProvider(pr);
+                            //mth.setMethod(m);
+                            mth.setName(operationName);
+                            mth.setPath(operationPath);
+                            APIProcedure proc = m.getAPIProcedure(null);
+                            if (proc.access != null) {
+                                Collection<String> acc = proc.access.accessOf(APIAccess.A_EXECUTE);
+                                if (!acc.isEmpty()) {
+                                    RESTAccess ra = new RESTAccess();
+                                    ra.setMethod(new RAT().roles(acc.toArray(new String[acc.size()])));
+                                    mth.setAccess(ra);
+                                }
+                            }
+                            int pri = 0;
+                            for (String pn : proc.params.keySet()) {
+                                APIParameter prm = proc.params.get(pn);
+                                if (prm.direction == APIParameterDirection.in || prm.direction == APIParameterDirection.in_out) {
+                                    RESTParameter wsp = new RESTParameter();
+                                    wsp.setName(pn);
+                                    wsp.setType(prm.type.getJavaType());
+                                    wsp.setOptional(!prm.mandatory);
+                                    mth.getParams().add(wsp);
+                                    pri++;
                                 }
                             }
 
-                            /**
-                             * Replace reflective invocation with DBCaller call
-                             * providing proper parametrization.
-                             */
-                            @Override
-                            public <T> T invoke(HttpUser user, Object service, Object[] parameters) throws IllegalAccessException, InvocationTargetException, IOException {
-                                if (apiStat != null) {
-                                    apiStat.onTryInvoke();
-                                }
-                                try {
-                                    HttpAPIUser apiUser = new HttpAPIUser(user);
-                                    Map<String, Object> ps = m.toParametersMap(apiUser, parameters);
-                                    if (apiStat != null) {
-                                        apiStat.onInvoke();
-                                    }
-                                    return (T) m.call(apiUser, ps);
-                                } catch (APIException sex) {
-                                    if (apiStat != null) {
-                                        apiStat.onError();
-                                    }
-                                    throw new InvocationTargetException(sex);
-                                } finally {
-                                    if (apiStat != null) {
-                                        apiStat.onDone();
-                                    }
-                                }
-                            }
-                        };
-                        mth.setProvider(pr);
-                        //mth.setMethod(m);
-                        mth.setName(operationName);
-                        mth.setPath(operationPath);
-                        APIProcedure proc = m.getAPIProcedure(null);
-                        if (proc.access != null) {
-                            Collection<String> acc = proc.access.accessOf(APIAccess.A_EXECUTE);
-                            if (!acc.isEmpty()) {
-                                RESTAccess ra = new RESTAccess();
-                                ra.setMethod(new RAT().roles(acc.toArray(new String[acc.size()])));
-                                mth.setAccess(ra);
-                            }
-                        }
-                        int pri = 0;
-                        for (String pn : proc.params.keySet()) {
-                            APIParameter prm = proc.params.get(pn);
-                            if (prm.direction == APIParameterDirection.in || prm.direction == APIParameterDirection.in_out) {
-                                RESTParameter wsp = new RESTParameter();
-                                wsp.setName(pn);
-                                wsp.setType(prm.type.getJavaType());
-                                wsp.setOptional(!prm.mandatory);
-                                mth.getParams().add(wsp);
-                                pri++;
+                            mth.setReturnType(API.APIResult.class);
+                            if (ms.isEmpty()) {
+                                ms.add(mth);
+                                wms.put(operationName, ms);
+                            } else if (ms.get(0).getName().equals(operationName)) {
+                                ms.add(mth);
+                            } else {
+                                ms = new ArrayList<RESTMethod>();
+                                ms.add(mth);
+                                wms.put(operationName, ms);
                             }
                         }
 
-                        mth.setReturnType(API.APIResult.class);
-                        if (ms.isEmpty()) {
-                            ms.add(mth);
-                            wms.put(operationName, ms);
-                        } else if (ms.get(0).getName().equals(operationName)) {
-                            ms.add(mth);
-                        } else {
-                            ms = new ArrayList<RESTMethod>();
-                            ms.add(mth);
-                            wms.put(operationName, ms);
-                        }
                     }
-
                 }
             }
 

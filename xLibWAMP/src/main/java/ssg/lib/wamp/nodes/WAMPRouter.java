@@ -212,7 +212,6 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
         WAMPSession session = sessions.get(transport);
         if (session == WAMPSessionImpl.NO_SESSION) {
             session = null;
-            sessions.remove(transport);
         }
 
         if (session != null) {
@@ -236,16 +235,10 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                     session = createSession(transport, msg, realm, roles);
                     session.getLocal().setAgent(getAgent());
                     session.setId(nextSessionId());
-                    if(transport.getTransportAuth()!=null) {
+                    if (transport.getTransportAuth() != null) {
                         session.setTransportAuth(transport.getTransportAuth());
                     }
                     if (session.getStatistics() != null) {
-//                        session.setStatistics(realm.getStatistics().createChild(null, ""
-//                                + "session"
-//                                + "." + realm.getName()
-//                                + "." + getAgent()
-//                                + "." + session.getId()
-//                        ));
                         // ensure session statistics is assigned to session transport.
                         WAMPMessageStatistics twms = (session.getStatistics() != null) ? session.getStatistics().createChildMessageStatistics("transport") : null;
                         transport.setStatistics(twms);
@@ -256,6 +249,9 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                     }
                     sessions.put(transport, session);
                 } else {
+                    if (session == null) {
+                        sessions.remove(transport);
+                    }
                     if (WAMPMessageType.GOODBYE == msg.getType() || WAMPMessageType.ABORT == msg.getType()) {
                         int a = 0;
                     } else {

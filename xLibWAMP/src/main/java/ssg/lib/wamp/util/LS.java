@@ -26,7 +26,7 @@ package ssg.lib.wamp.util;
 import java.util.Arrays;
 
 /**
- * Listeners helper.
+ * Listeners helper (used to simplify concurrent multi-threaded operation).
  *
  * @author 000ssg
  */
@@ -45,7 +45,7 @@ public class LS<T> {
     public int size() {
         return listeners.length;
     }
-    
+
     public T[] get() {
         return listeners;
     }

@@ -247,82 +247,84 @@ public class Reflective_API_BuilderTest {
         API_Publishers pubs = new API_Publishers().add(null, api);
         System.out.println("Published apis: " + pubs.getAPINames());
         for (String pubn : pubs.getAPINames()) {
-            API_Publisher pub = pubs.getAPIPublisher(pubn);
-            Collection<APIProcedure> procs = pub.getAPI().find((item) -> {
-                return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
-            }, APIProcedure.class, null);
-            System.out.println("  APIProcedures[" + procs.size() + "]");
-            for (APIProcedure proc : procs) {
-                System.out.println("    " + proc.fqn());
-            }
-            Collection<APIDataType> types = pub.getAPI().find((item) -> {
-                return item instanceof APIDataType ? API_MATCH.exact : API_MATCH.partial;
-            }, APIDataType.class, null);
-            System.out.println("  Types[" + types.size() + "]");
-            for (APIDataType type : types) {
-                System.out.println("    " + type.fqn());
-            }
-
-            APICallable callable = pub.getCallable("random", null);
-            System.out.println("Callable[null]: " + callable);
-            callable = pub.getCallable("random", null);
-            System.out.println("Callable[[3]]: " + callable);
-            callable = pub.getCallable("random", null);
-            System.out.println("Callable[[3]]: " + callable);
-            callable = pub.getCallable("random", null);
-            System.out.println("Callable[count=3]: " + callable);
-
-            System.out.println("Try calls:");
-            for (Object params : new Object[]{
-                3,
-                null,
-                new Object[]{3},
-                3,
-                Collections.singletonList(3),
-                Collections.singletonMap("count", 3),
-                Collections.singletonMap("count", "sdf"),
-                Collections.singletonMap("count", Math.PI)
-            }) {
-                callable = null;
-                Map map = null;
-                List list = null;
-                Object[] arr = null;
-                if (params == null) {
-                    callable = pub.getCallable("T1.random", null);
-                } else if (params instanceof Map) {
-                    callable = pub.getCallable("T1.random", null);
-                    map = (Map) params;
-                } else if (params instanceof List) {
-                    callable = pub.getCallable("T1.random", null);
-                    list = (List) params;
-                } else if (params.getClass().isArray() && params.getClass().getComponentType().isPrimitive()) {
-                    callable = pub.getCallable("T1.random", null);
-                    arr = new Object[]{params};
-                } else if (params.getClass().isArray() && !params.getClass().getComponentType().isPrimitive()) {
-                    callable = pub.getCallable("T1.random", null);
-                    arr = (Object[]) params;
-                } else if (!params.getClass().isArray()) {
-                    callable = pub.getCallable("T1.random", null);
-                    arr = new Object[]{params};
+            API_Publisher[] pubis = pubs.getAPIPublisher(pubn);
+            for (API_Publisher pub : pubis) {
+                Collection<APIProcedure> procs = pub.getAPI().find((item) -> {
+                    return item instanceof APIProcedure ? API_MATCH.exact : API_MATCH.partial;
+                }, APIProcedure.class, null);
+                System.out.println("  APIProcedures[" + procs.size() + "]");
+                for (APIProcedure proc : procs) {
+                    System.out.println("    " + proc.fqn());
+                }
+                Collection<APIDataType> types = pub.getAPI().find((item) -> {
+                    return item instanceof APIDataType ? API_MATCH.exact : API_MATCH.partial;
+                }, APIDataType.class, null);
+                System.out.println("  Types[" + types.size() + "]");
+                for (APIDataType type : types) {
+                    System.out.println("    " + type.fqn());
                 }
 
-                System.out.println("Params: " + params);
+                APICallable callable = pub.getCallable("random", null);
+                System.out.println("Callable[null]: " + callable);
+                callable = pub.getCallable("random", null);
+                System.out.println("Callable[[3]]: " + callable);
+                callable = pub.getCallable("random", null);
+                System.out.println("Callable[[3]]: " + callable);
+                callable = pub.getCallable("random", null);
+                System.out.println("Callable[count=3]: " + callable);
 
-                Object result = null;
-                if (callable != null) {
-                    try {
-                        if (map != null) {
-                            result = callable.call(null, map);
-                        } else if (list != null) {
-                            result = callable.call(null, callable.toParametersMap(null,list));
-                        } else if (arr != null) {
-                            result = callable.call(null, callable.toParametersMap(null,arr));
-                        } else {
-                            result = callable.call(null, null);
+                System.out.println("Try calls:");
+                for (Object params : new Object[]{
+                    3,
+                    null,
+                    new Object[]{3},
+                    3,
+                    Collections.singletonList(3),
+                    Collections.singletonMap("count", 3),
+                    Collections.singletonMap("count", "sdf"),
+                    Collections.singletonMap("count", Math.PI)
+                }) {
+                    callable = null;
+                    Map map = null;
+                    List list = null;
+                    Object[] arr = null;
+                    if (params == null) {
+                        callable = pub.getCallable("T1.random", null);
+                    } else if (params instanceof Map) {
+                        callable = pub.getCallable("T1.random", null);
+                        map = (Map) params;
+                    } else if (params instanceof List) {
+                        callable = pub.getCallable("T1.random", null);
+                        list = (List) params;
+                    } else if (params.getClass().isArray() && params.getClass().getComponentType().isPrimitive()) {
+                        callable = pub.getCallable("T1.random", null);
+                        arr = new Object[]{params};
+                    } else if (params.getClass().isArray() && !params.getClass().getComponentType().isPrimitive()) {
+                        callable = pub.getCallable("T1.random", null);
+                        arr = (Object[]) params;
+                    } else if (!params.getClass().isArray()) {
+                        callable = pub.getCallable("T1.random", null);
+                        arr = new Object[]{params};
+                    }
+
+                    System.out.println("Params: " + params);
+
+                    Object result = null;
+                    if (callable != null) {
+                        try {
+                            if (map != null) {
+                                result = callable.call(null, map);
+                            } else if (list != null) {
+                                result = callable.call(null, callable.toParametersMap(null, list));
+                            } else if (arr != null) {
+                                result = callable.call(null, callable.toParametersMap(null, arr));
+                            } else {
+                                result = callable.call(null, null);
+                            }
+                            System.out.println("Callable: " + callable + " -> " + result);
+                        } catch (Throwable th) {
+                            System.out.println("Callable: " + callable + " -> " + th);
                         }
-                        System.out.println("Callable: " + callable + " -> " + result);
-                    } catch (Throwable th) {
-                        System.out.println("Callable: " + callable + " -> " + th);
                     }
                 }
             }

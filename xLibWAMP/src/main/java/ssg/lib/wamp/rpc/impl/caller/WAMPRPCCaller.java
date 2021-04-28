@@ -55,7 +55,8 @@ public class WAMPRPCCaller extends WAMPRPC implements WAMPCaller {
         WAMPFeature.call_canceling,
         WAMPFeature.progressive_call_results,
         WAMPFeature.call_timeout,
-        WAMPFeature.caller_identification
+        WAMPFeature.caller_identification,
+        WAMPFeature.x_testament_meta_api
     };
 
     Map<Long, CallerCall> calls = WAMPTools.createSynchronizedMap();

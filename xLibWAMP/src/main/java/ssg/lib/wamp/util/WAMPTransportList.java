@@ -180,6 +180,31 @@ public class WAMPTransportList<P> implements WAMPTransport {
         listeners.remove(ls);
     }
 
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 67 * hash + this.id;
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final WAMPTransportList<?> other = (WAMPTransportList<?>) obj;
+        if (this.id != other.id) {
+            return false;
+        }
+        return true;
+    }
+
     public static class TransportData {
 
         private List<List> output;
@@ -250,10 +275,12 @@ public class WAMPTransportList<P> implements WAMPTransport {
          */
         public void add(List... messages) {
             if (messages != null) {
-                for (List msg : messages) {
-                    if (hasData(msg)) {
-                        onRCV(msg);
-                        input.add(msg);
+                synchronized (input) {
+                    for (List msg : messages) {
+                        if (hasData(msg)) {
+                            onRCV(msg);
+                            input.add(msg);
+                        }
                     }
                 }
             }
@@ -266,11 +293,13 @@ public class WAMPTransportList<P> implements WAMPTransport {
          */
         public List get() {
             if (!output.isEmpty()) {
-                List r = output.remove(0);
-                if (r != null) {
-                    onSND(r);
+                synchronized (output) {
+                    List r = output.remove(0);
+                    if (r != null) {
+                        onSND(r);
+                    }
+                    return r;
                 }
-                return r;
             } else {
                 return null;
             }

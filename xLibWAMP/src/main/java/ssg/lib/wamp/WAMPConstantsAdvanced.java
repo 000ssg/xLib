@@ -72,4 +72,6 @@ public interface WAMPConstantsAdvanced {
     public static final String FEATURE_x_batched_ws_transport = "batched WS transport";
     public static final String FEATURE_x_longpoll_transport = "longpoll transport";
     public static final String FEATURE_x_session_meta_api = "session_meta_api";
+    public static final String FEATURE_x_testament_meta_api = "testament_meta_api";
+    
 }

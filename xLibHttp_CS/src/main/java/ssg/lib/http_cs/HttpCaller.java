@@ -214,7 +214,13 @@ public class HttpCaller {
             serviceURI = uriCorrection.apply(serviceURI, new Object[]{userName, callAuth, headers, data});
         }
         if (CALL_AUTH.basic.equals(callAuth)) {
-            serviceURI = serviceURI.replace("://", "://"+userName + "@");
+            if (userName.indexOf(":") != -1) {
+                String un = userName.substring(0, userName.indexOf(":"));
+                String up = userName.substring(userName.indexOf(":") + 1);
+                serviceURI = serviceURI.replace("://", "://" + URLEncoder.encode(un, "UTF-8") + ":" + URLEncoder.encode(up, "UTF-8") + "@");
+            } else {
+                serviceURI = serviceURI.replace("://", "://" + URLEncoder.encode(userName, "UTF-8") + "@");
+            }
             if (userName.contains(":")) {
                 userName = userName.substring(0, userName.indexOf(":"));
             }

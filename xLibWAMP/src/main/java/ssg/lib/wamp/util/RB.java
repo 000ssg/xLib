@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * Reflection meta-data helper. Simplifies building map/list based structures
+ * with built-in RPC METADATA support via set of specific builders like
+ * function, procedure, parameter, etc.
  *
  * @author 000ssg
  */
@@ -237,9 +240,9 @@ public class RB {
         String ct = (String) data.get(TYPE);
         if (FUNCTION.equals(ct)) {
             if (description != null) {
-                data.put(RETURNS, RB.root().value("type",type).value("description", description).data());
+                data.put(RETURNS, RB.root().value("type", type).value("description", description).data());
             } else {
-                data.put(RETURNS, RB.root().value("type",type).data());
+                data.put(RETURNS, RB.root().value("type", type).data());
             }
         } else {
             throw new RBException("Cannot add returns type to non function item in: " + toString(data));

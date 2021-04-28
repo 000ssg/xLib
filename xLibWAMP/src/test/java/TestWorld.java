@@ -161,7 +161,9 @@ public class TestWorld implements Runnable {
                 .configure(features);
         client.configure(transport.local, agent, realm, roles);
         //client.addWAMPNodeListener(new WAMPNodeListenerDebug("CLIENT#" + i + ": "));
-        clients.add(client);
+        synchronized (clients) {
+            clients.add(client);
+        }
         router.onNewTransport(transport.remote);
 
         if (userid != null) {

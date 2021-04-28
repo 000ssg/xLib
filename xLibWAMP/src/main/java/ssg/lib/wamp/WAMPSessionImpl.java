@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import ssg.lib.wamp.WAMP.Role;
 import ssg.lib.wamp.auth.WAMPAuth;
@@ -127,6 +128,35 @@ public abstract class WAMPSessionImpl implements WAMPSession {
         if (local.isRouter() && hello != null) {
             helloMessage = hello;
         }
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 11 * hash + Objects.hashCode(this.realm);
+        hash = 11 * hash + (int) (this.id ^ (this.id >>> 32));
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final WAMPSessionImpl other = (WAMPSessionImpl) obj;
+        if (this.id != other.id) {
+            return false;
+        }
+        if (!Objects.equals(this.realm, other.realm)) {
+            return false;
+        }
+        return true;
     }
 
     @Override

@@ -27,9 +27,14 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import ssg.lib.common.Config;
 import ssg.lib.http.HttpApplication;
 import ssg.lib.http.HttpAuthenticator;
@@ -73,13 +78,12 @@ public class HttpRunner extends CS {
     HttpApplication app;
     RESTHttpDataProcessor rest;
     URI restURI;
-    StubVirtualData<?> stub;
+    List<StubVirtualData<?>> stubs;
     HttpStaticDataProcessor stubDP;
     //
     AuthAdapter authAdapter = new AuthAdapter();
     RESTAdapter restAdapter = new RESTAdapter();
-    //Map<String, Object> contexts = new LinkedHashMap<>();
-    //transient Map<Class, Object> pendingRESTs = new LinkedHashMap<>();
+    Map<String, Object> properties = new LinkedHashMap<>();
     transient Collection<RESTAdapterConf> pendingRESTDefs = new LinkedHashSet<>();
 
     // embedding CS support: nested (indirect) calls to start/stop are safe
@@ -336,9 +340,10 @@ public class HttpRunner extends CS {
     }
 
     public HttpRunner configureStub(StubVirtualData<?> stub) {
-        if (this.stub == null && stub != null) {
+        if (stubs == null && stub != null) {
             initHttp();
-            this.stub = stub;
+            stubs = new ArrayList<>();
+            stubs.add(stub);
             String router_root = getApp() != null ? getApp().getRoot() + "/" : "/";
             stubDP = new HttpStaticDataProcessor();
             for (StubVirtualData.WR wr : stub.resources()) {
@@ -349,12 +354,17 @@ public class HttpRunner extends CS {
             } else {
                 getService().configureDataProcessor(0, stubDP);
             }
+        } else if (stub != null) {
+            stubs.add(stub);
+            for (StubVirtualData.WR wr : stub.resources()) {
+                stubDP.add(new HttpResourceBytes(stub, wr.getPath()));
+            }
         }
         return this;
     }
 
-    public StubVirtualData<?> getStub() {
-        return stub;
+    public List<StubVirtualData<?>> getStubs() {
+        return stubs;
     }
 
     public void onStarted() throws IOException {
@@ -409,6 +419,16 @@ public class HttpRunner extends CS {
         return http != null ? http.getHttpService() : null;
     }
 
+    public <T> T getProperty(String name) {
+        return (T) properties.get(name);
+    }
+
+    public void setProperty(String name, Object value) {
+        if (name != null) {
+            properties.put(name, value);
+        }
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -426,6 +446,12 @@ public class HttpRunner extends CS {
         }
         if (rest != null) {
             //sb.append("\n  rest=" + rest.toString().replace("\n", "\n  "));
+        }
+        if (!properties.isEmpty()) {
+            sb.append("\n  properties[" + properties.size() + "]");
+            for (Entry e : properties.entrySet()) {
+                sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+            }
         }
         sb.append('\n');
         sb.append('}');

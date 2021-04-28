@@ -40,6 +40,12 @@ public class Test_API_Conf {
             return System.currentTimeMillis();
         }
     }
+    public static class TestB {
+
+        public long getTimestamp() {
+            return System.currentTimeMillis();
+        }
+    }
 
     public static void main(String... args) throws Exception {
         APIRunner runner = new APIRunner(new HttpApplication("Test application", "/teatApp"))
@@ -60,6 +66,8 @@ public class Test_API_Conf {
                         new APIConfig(
                                 "app.api",
                                 "app.api.api=namespace=aaa;name=A;item=ssg.lib.httpapi_cs.Test_API_Conf$TestA",
+                                "app.api.api=namespace=bbb;name=B;item=ssg.lib.httpapi_cs.Test_API_Conf$TestB",
+                                "app.api.stub=*,*,js,jq",
                                 "")
                 );
         runner.start();

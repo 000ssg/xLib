@@ -62,6 +62,7 @@ import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_cookie_authentication
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_longpoll_transport;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_rawsocket_transport;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_session_meta_api;
+import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_testament_meta_api;
 import static ssg.lib.wamp.WAMPConstantsAdvanced.FEATURE_x_ticket_authentication;
 import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.util.WAMPTools;
@@ -186,6 +187,12 @@ public class WAMPFeature implements Serializable {
             dealer,
             broker,
             subscriber,
+            caller);
+    public static final WAMPFeature x_testament_meta_api = new WAMPFeature(
+            FEATURE_x_testament_meta_api,
+            dealer,
+            broker,
+            //publisher,
             caller);
 
     public static WAMPFeature find(String name) {

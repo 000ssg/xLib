@@ -193,7 +193,7 @@ public class StubVirtualData<T> implements VirtualData {
         public WR(String realm, String type) {
             this.realm = realm;
             this.type = type;
-            path = StubVirtualData.this.resPath + "/" + realm + "/script." + type;
+            path = StubVirtualData.this.resPath + (realm != null && !realm.isEmpty() ? "/" + realm : "") + "/script." + type;
         }
 
         public WR(String realm, String type, String path) {
