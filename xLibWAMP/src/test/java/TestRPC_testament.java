@@ -74,37 +74,37 @@ public class TestRPC_testament {
     }
 
     public static void main(String... args) throws Exception {
-        WAMPNode.DUMP_ESTABLISH_CLOSE = true;
+        WAMPNode.DUMP_ESTABLISH_CLOSE = false;
         WAMPTransportList.GLOBAL_ENABLE_TRACE_MESSAGES = true;
         
 
         TestWorld world = new TestWorld();
         world.getRouter()
-                .configure(WAMPFeature.call_reroute)
                 .configure(WAMPFeature.x_testament_meta_api, new WAMP_FP_TestamentMetaAPI())
                 .configure(new WAMPStatistics());
         world.start();
 
         String realm = "test";
-        WAMPClient cee1 = world.connect(realm, "cee1", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller, WAMP.Role.publisher}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
-        WAMPClient cee2 = world.connect(realm, "cee2", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
-        WAMPClient cee3 = world.connect(realm, "cee3", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
+        WAMPClient cee1 = world.connect(realm, "cee1", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller, WAMP.Role.publisher}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.x_testament_meta_api);
+        WAMPClient cee2 = world.connect(realm, "cee2", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.x_testament_meta_api);
+        WAMPClient cee3 = world.connect(realm, "cee3", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.x_testament_meta_api);
 
         cee1.waitEstablished(10000L);
         cee2.waitEstablished(100L);
         cee3.waitEstablished(100L);
         
-        for (WAMPClient c : new WAMPClient[]{cee1, cee2, cee3}) {
-            cee1.call(WAMP_FP_TestamentMetaAPI.TM_RPC_ADD_TESTAMENT,
+        int cnt=0;
+        for (WAMPClient c : new WAMPClient[]{cee1, cee1, cee2, cee3}) {
+            c.call(WAMP_FP_TestamentMetaAPI.TM_RPC_ADD_TESTAMENT,
                     WAMPTools.createList(
                             "cee.testament.destroyed",
-                            WAMPTools.createList("AAA",c.getAgent()),
+                            WAMPTools.createList("AAA",c.getAgent(), cnt++),
                             WAMPTools.createDict("A", "B")),
                     WAMPTools.createDict(
                             WAMP_FP_TestamentMetaAPI.TM_OPTION_SCOPE,
                             WAMP_FP_TestamentMetaAPI.TM_SCOPE_DESTROYED)
             );
-            cee1.call(WAMP_FP_TestamentMetaAPI.TM_RPC_ADD_TESTAMENT,
+            c.call(WAMP_FP_TestamentMetaAPI.TM_RPC_ADD_TESTAMENT,
                     WAMPTools.createList(
                             "cee.testament.detached",
                             WAMPTools.createList("AAA"),
@@ -156,12 +156,21 @@ public class TestRPC_testament {
         });
 
         Thread.sleep(100);
+            cee2.call(WAMP_FP_TestamentMetaAPI.TM_RPC_FLUSH_TESTAMENT,
+                    WAMPTools.EMPTY_LIST,
+                    WAMPTools.createDict(
+                            WAMP_FP_TestamentMetaAPI.TM_OPTION_SCOPE,
+                            WAMP_FP_TestamentMetaAPI.TM_SCOPE_DESTROYED)
+            );
+        
+        Thread.sleep(100);
 
         cee1.disconnect("aaa.bbb");
         cee2.disconnect("aaa.ccc");
         cee3.disconnect("aaa.ddd");
 
         Thread.sleep(1000);
+        System.out.println("\n--------------------------------------\n--- router info\n--------------------------------\n"+world.getRouter().toString().replace("\n", "\n--  "));
         world.stop();
     }
 }

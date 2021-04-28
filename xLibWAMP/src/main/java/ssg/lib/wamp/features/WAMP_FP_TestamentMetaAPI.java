@@ -157,7 +157,7 @@ wamp.session.flush_testaments to remove the Testaments for that Session, either 
         @Override
         public boolean doResult(WAMPSession session, WAMPMessage msg) throws WAMPException {
             if (session.hasLocalRole(WAMP.Role.dealer) && session.hasLocalRole(WAMP.Role.broker) && session.getRealm().getActor(WAMP.Role.dealer) instanceof WAMPRPCDealer) {
-                Map opts = msg.getDict(3);
+                Map opts = msg.getDict(4);
                 Collection<Object[]>[] rs = testaments.get(session);
                 if (rs != null) {
                     String scope = null;

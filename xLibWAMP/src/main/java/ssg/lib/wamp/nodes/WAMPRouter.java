@@ -99,7 +99,7 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                 }
             }
         }
-        if (session.getCloseReason() == null) {
+        if (session!=null && session.getCloseReason() == null) {
             session.setCloseReason("on.closing.transport");
         }
         onSessionRemoved(session);
@@ -297,6 +297,10 @@ public class WAMPRouter extends WAMPNode implements WAMPNodeSessionManagement {
                     session.send(WAMPMessage.abort(WAMPTools.createDict("message", msg.toList(), "error", WAMPTools.getStackTrace(wex)),
                             WAMPConstantsBase.ERROR_ProtocolViolation));
                 }
+            }
+            if (session != null && WAMPSessionState.closed == session.getState()) {
+                sessions.remove(transport);
+                onSessionRemoved(session);
             }
             tooBusy = false;//session != null && session.getPendingCount() > getMaxPendingMessagesQueue();
             if (!tooBusy && !lastIsBusy && session != null && WAMPSessionState.established == session.getState()) {
