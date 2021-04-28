@@ -14,3 +14,8 @@ There're several base ideas, expressed in standalone or composite items.
 5. OAuth: OAuth protocol extperimental implementations for embedding authentication based on some popular OAUth-enabled providers (Miscrosoft, Google, Facebook, VK, etc.) for use with CS/Http infra.
 
 As result, it is possible to compose solution with various complexity and resources consumption.
+
+Special series is CS, that is mostly sample idea of how to use xLib* components: 
+  xLibHttp_CS - simple HTTP service runner with environment/parameters extended configuration support. A kind of reference/base small simple Http service.
+  xLibHttpAPI_CS - extension of aove with explicit support for xLibAPI-based APIs publishing.
+  xLibWAMPHttpAPI_CS - extension of above with WAMP router/client support and REST/WAMP dynamic bridge.
