@@ -18,7 +18,7 @@ import ssg.lib.wamp.util.WAMPTools;
 /*
  * The MIT License
  *
- * Copyright 2020 sesidoro.
+ * Copyright 2020 000ssg.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -86,20 +86,19 @@ public class TestRPC_testament {
         world.start();
 
         String realm = "test";
-//        WAMPClient cee0 = world.connect(realm, "cee1", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller, WAMP.Role.publisher}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
         WAMPClient cee1 = world.connect(realm, "cee1", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller, WAMP.Role.publisher}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
-//        WAMPClient cee2 = world.connect(realm, "cee2", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
-//        WAMPClient cee3 = world.connect(realm, "cee3", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
+        WAMPClient cee2 = world.connect(realm, "cee2", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
+        WAMPClient cee3 = world.connect(realm, "cee3", new WAMP.Role[]{WAMP.Role.callee, WAMP.Role.caller}, "user-1", world.wapticket, WAMPFeature.shared_registration, WAMPFeature.call_reroute, WAMPFeature.x_testament_meta_api);
 
         cee1.waitEstablished(10000L);
-        //cee2.waitEstablished(100L);
-        //cee3.waitEstablished(100L);
+        cee2.waitEstablished(100L);
+        cee3.waitEstablished(100L);
         
-        for (WAMPClient c : new WAMPClient[]{cee1}) {//, cee2, cee3}) {
+        for (WAMPClient c : new WAMPClient[]{cee1, cee2, cee3}) {
             cee1.call(WAMP_FP_TestamentMetaAPI.TM_RPC_ADD_TESTAMENT,
                     WAMPTools.createList(
                             "cee.testament.destroyed",
-                            WAMPTools.createList("AAA"),
+                            WAMPTools.createList("AAA",c.getAgent()),
                             WAMPTools.createDict("A", "B")),
                     WAMPTools.createDict(
                             WAMP_FP_TestamentMetaAPI.TM_OPTION_SCOPE,
@@ -159,8 +158,8 @@ public class TestRPC_testament {
         Thread.sleep(100);
 
         cee1.disconnect("aaa.bbb");
-        //cee2.disconnect("aaa.ccc");
-        //cee3.disconnect("aaa.ddd");
+        cee2.disconnect("aaa.ccc");
+        cee3.disconnect("aaa.ddd");
 
         Thread.sleep(1000);
         world.stop();

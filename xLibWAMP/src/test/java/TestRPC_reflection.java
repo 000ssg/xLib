@@ -28,7 +28,7 @@ import ssg.lib.wamp.util.WAMPTools;
 /*
  * The MIT License
  *
- * Copyright 2020 sesidoro.
+ * Copyright 2020 000ssg.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
