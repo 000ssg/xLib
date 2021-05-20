@@ -56,6 +56,7 @@ import ssg.lib.http_cs.AuthAdapter.AuthAdapterConf;
 import ssg.lib.http_cs.RESTAdapter.RESTAdapterConf;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
+import ssg.lib.service.DF_Service;
 import ssg.lib.service.Repository;
 
 /**
@@ -104,10 +105,12 @@ public class HttpRunner extends CS {
     @Override
     public void start() throws IOException {
         synchronized (starting) {
-            if (!starting) {
+            if (!starting) try {
                 starting = true;
                 super.start();
                 onStarted();
+            } catch (IOException ioex) {
+                stop();
             }
         }
     }
@@ -396,6 +399,8 @@ public class HttpRunner extends CS {
                     }
                 }
             }
+        } else {
+            throw new IOException("No HTTP configured: port=" + httpPort + ", http=" + http);
         }
     }
 
@@ -417,6 +422,10 @@ public class HttpRunner extends CS {
 
     public HttpService getService() {
         return http != null ? http.getHttpService() : null;
+    }
+
+    public DF_Service getDFService() {
+        return http != null ? http.getService() : null;
     }
 
     public <T> T getProperty(String name) {

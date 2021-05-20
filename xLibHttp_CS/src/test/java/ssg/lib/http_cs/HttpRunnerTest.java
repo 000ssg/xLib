@@ -64,6 +64,7 @@ public class HttpRunnerTest {
     public void testStop() throws Exception {
         System.out.println("stop");
         HttpRunner instance = new HttpRunner();
+        instance.configureHttp(0);
         instance.start();
         assertTrue(instance.isRunning());
         instance.stop();
@@ -78,6 +79,7 @@ public class HttpRunnerTest {
         System.out.println("start");
         HttpRunner instance = new HttpRunner();
         assertFalse(instance.isRunning());
+        instance.configureHttp(0);
         instance.start();
         assertTrue(instance.isRunning());
         instance.stop();
@@ -163,6 +165,7 @@ public class HttpRunnerTest {
                 probe[3] = true;
             }
         };
+        instance.configureHttp(0);
         instance.start();
         assertTrue(probe[0]);
         assertTrue(probe[1]);
@@ -195,6 +198,7 @@ public class HttpRunnerTest {
                 probe[3] = true;
             }
         };
+        instance.configureHttp(0);
         instance.start();
         assertTrue(probe[0]);
         assertTrue(probe[1]);

@@ -268,6 +268,19 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
             } else {
                 addProcessor(req, m, params);
             }
+        } else {
+            final Map<String, Object> params = new LinkedHashMap<String, Object>();
+            RESTMethod m = prepareMethodAndParams(req, params);
+            if (m == null) {
+                HttpResponse resp = req.getResponse();
+                resp.setResponseCode(500, "Server Error");
+                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+                resp.onHeaderLoaded();
+                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+                resp.onLoaded();
+            } else {
+                addProcessor(req, m, params);
+            }
         }
     }
 
@@ -288,13 +301,18 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         RESTMethod m = prepareMethodAndParams(req, params);
 
         if (m == null) {
-            HttpResponse resp = req.getResponse();
-            resp.setResponseCode(500, "Server Error");
-            resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
-            resp.onHeaderLoaded();
-            resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
-            resp.onLoaded();
-            return;
+            if (req.isCompleted()) {
+                // if no method for completed request -> error
+                HttpResponse resp = req.getResponse();
+                resp.setResponseCode(500, "Server Error");
+                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+                resp.onHeaderLoaded();
+                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+                resp.onLoaded();
+            } else {
+                // need more data: wait, e.g. if content type is "application/x-www-form-urlencoded"
+                return;
+            }
             //throw new IOException("No REST method found for " + qrm.toString());
         } else {
             addProcessor(req, m, params);

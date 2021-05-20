@@ -24,9 +24,11 @@
 package ssg.lib.http.dp.tokens;
 
 import java.io.IOException;
+import java.nio.channels.Channel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import ssg.lib.di.DI;
 import ssg.lib.http.HttpDataProcessor;
 import ssg.lib.http.HttpSession;
 import ssg.lib.http.base.HttpData;
@@ -80,6 +82,12 @@ public class TokenVerifierHttpDataProcessor extends HttpDataProcessor {
     }
 
     @Override
+    public void onHeaderLoaded(HttpData data) throws IOException {
+        super.onHeaderLoaded(data);
+        //System.out.println(""+getClass().getName()+".onHeaderLoaded: "+data.toString().replace("\n", "\n  "));
+    }
+
+    @Override
     public void onCompleted(HttpData data) throws IOException {
         super.onCompleted(data);
 
@@ -87,6 +95,8 @@ public class TokenVerifierHttpDataProcessor extends HttpDataProcessor {
             HttpRequest req = (HttpRequest) data;
             HttpSession session = req.getHttpSession();
 
+            //System.out.println(""+getClass().getName()+".onCompleted: "+data.toString().replace("\n", "\n  "));
+            
             String[] path = data.getMatcher().getPathItems();
             if (path == null || path.length < 2) {
                 this.do500(data, "text/html; encoding=utf-8", ("<html><body>" + "Invalid request path: " + data.getHead().getProtocolInfo()[1] + "</body></html>").getBytes("UTF-8"));
@@ -145,6 +155,11 @@ public class TokenVerifierHttpDataProcessor extends HttpDataProcessor {
         } catch (Throwable th) {
             throw new IOException(th);
         }
+    }
+
+    @Override
+    public void onDeassigned(Channel p, DI di) {
+        super.onDeassigned(p, di);
     }
 
     @Override

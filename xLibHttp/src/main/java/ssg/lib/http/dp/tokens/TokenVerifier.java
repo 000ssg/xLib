@@ -8,7 +8,9 @@ package ssg.lib.http.dp.tokens;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -344,6 +346,14 @@ public abstract class TokenVerifier {
 
         public TokenStoreRAM(TokenVerifier tv) {
             this.tv = tv;
+        }
+
+        public Collection<String> tokenUsers() {
+            Collection<String> r = new LinkedHashSet<>();
+            for (T t : tokens.values()) {
+                r.add(t.getDomain() + ":" + t.getId() + ":" + t.getName() + ":" + t.getRoles());
+            }
+            return r;
         }
 
         @Override

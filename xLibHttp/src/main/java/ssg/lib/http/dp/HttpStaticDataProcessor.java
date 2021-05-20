@@ -226,19 +226,21 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             long timestamp = resolveTimestamp(res, resBase);
             Long expires = resolveExpires(res, resBase);
             if (expires == null) {
+                long timeOffset=System.currentTimeMillis()-timestamp;
+                if(timeOffset<0)timeOffset=0;
                 if (res.path().contains(".")) {
                     String rp = res.path();
                     int idx = rp.lastIndexOf(".");
                     rp = rp.substring(idx);
                     if (rp.toLowerCase().equals(".html")) {
-                        expires = 1000L * 60 * 5;
+                        expires = timeOffset+1000L * 60 * 5;
                     }
                 }
                 if (expires == null) {
-                    expires = 1000L * 60 * 60 * 24;
+                    expires = timeOffset+1000L * 60 * 60;
                 }
             }
-
+            
             Replacement[] replacements = null;
             {
                 String[] params = res.parameters();
@@ -257,8 +259,10 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     }
                 } else {
                     long lastTimestamp = HttpData.fromHeaderDatetime(modifiedSince);
-                    if (lastTimestamp != -1 && timestamp <= lastTimestamp) {
-                        do304(data, timestamp, expires);
+                    if (lastTimestamp != -1
+                            && timestamp <= lastTimestamp
+                            && timestamp != 0) {
+                        do304(data, lastTimestamp, expires);
                         return;
                     }
                 }
@@ -891,7 +895,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
 
         @Override
         public String getParametersPrefix() {
-            return "app";
+            return "app.";
         }
 
         @Override

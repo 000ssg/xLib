@@ -198,7 +198,7 @@ public class HttpDataProcessor<P extends Channel> implements DataProcessor<P>, H
         if (modifiedSince != null && timestamp != null && !isPreventCacheing(data)) {
             long lastTimestamp = HttpData.fromHeaderDatetime(modifiedSince);
             if (lastTimestamp != -1 && timestamp <= lastTimestamp) {
-                do304(data, timestamp, expires);
+                do304(data, lastTimestamp, expires);
             }
         }
     }

@@ -50,6 +50,8 @@ public class StubVirtualData<T> implements VirtualData {
     Map<String, Stub> stubs = new HashMap<>();
     // per-stub resources
     Map<String, WR> resources = new HashMap<>();
+    // cached timestamp
+    long timestamp;
 
     public StubVirtualData(String resPath, String basePath, T owner, Stub... stubs) {
         this.owner = owner;
@@ -111,7 +113,7 @@ public class StubVirtualData<T> implements VirtualData {
     }
 
     public long timestamp(String realm) {
-        return 0;
+        return timestamp;
     }
 
     @Override
@@ -120,7 +122,7 @@ public class StubVirtualData<T> implements VirtualData {
         WR wr = resources.get(owner.path());
         if (wr != null) {
             data = wr.data;
-            long timestamp = timestamp(wr.realm);
+            timestamp = Math.max(timestamp, timestamp(wr.realm));
             if (data == null || timestamp == 0 || timestamp > owner.timestamp()) {
                 synchronized (this) {
                     for (WR wri : resources.values()) {
