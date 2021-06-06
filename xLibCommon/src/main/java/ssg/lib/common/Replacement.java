@@ -225,6 +225,7 @@ public class Replacement implements Cloneable {
         public Replacement copy() {
             Replacements copy = (Replacements) super.copy();
             if (replacements != null) {
+                copy.replacements = new Replacement[replacements.length];
                 for (int i = 0; i < replacements.length; i++) {
                     copy.replacements[i] = replacements[i].copy();
                 }

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -410,6 +411,14 @@ public class HttpRunner extends CS {
 
     public HttpApplication getApp() {
         return app;
+    }
+
+    public URI getApp_URI() {
+        try {
+            return this.app != null && httpPort != null && httpPort > 0 ? new URI("http://localhost:" + httpPort + app.getRoot()) : null;
+        } catch (URISyntaxException usex) {
+            return null;
+        }
     }
 
     public RESTHttpDataProcessor getREST() {

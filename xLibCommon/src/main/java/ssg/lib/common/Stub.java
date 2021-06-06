@@ -378,7 +378,7 @@ public interface Stub<A, F, P, T> {
                 }
             }
             sb.append("//\n");
-            sb.append("\nvar " + context.namespace() + " = {\n");
+            sb.append("\nvar " + context.namespace().replace("/", "_").replace(":", "_") + " = {\n");
             sb.append("\n  baseURL: \"" + context.baseURL() +(context.baseURL().endsWith("/") ? "" : "/")+ "\",");
             sb.append("\n  callsDebug: undefined,");
             return sb.toString();

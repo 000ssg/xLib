@@ -226,21 +226,23 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             long timestamp = resolveTimestamp(res, resBase);
             Long expires = resolveExpires(res, resBase);
             if (expires == null) {
-                long timeOffset=System.currentTimeMillis()-timestamp;
-                if(timeOffset<0)timeOffset=0;
+                long timeOffset = System.currentTimeMillis() - timestamp;
+                if (timeOffset < 0) {
+                    timeOffset = 0;
+                }
                 if (res.path().contains(".")) {
                     String rp = res.path();
                     int idx = rp.lastIndexOf(".");
                     rp = rp.substring(idx);
                     if (rp.toLowerCase().equals(".html")) {
-                        expires = timeOffset+1000L * 60 * 5;
+                        expires = timeOffset + 1000L * 60 * 5;
                     }
                 }
                 if (expires == null) {
-                    expires = timeOffset+1000L * 60 * 60;
+                    expires = timeOffset + 1000L * 60 * 60;
                 }
             }
-            
+
             Replacement[] replacements = null;
             {
                 String[] params = res.parameters();
@@ -298,7 +300,9 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     } else {
                         dp = new DataPipe((HttpRequest) data, respRes.open(data, replace));
                     }
-                    dataPipes.put(data, dp);
+                    synchronized (dataPipes) {
+                        dataPipes.put(data, dp);
+                    }
                 } else {
                     Runnable run = new Runnable() {
                         @Override
@@ -1026,15 +1030,23 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             }
             timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
 
-            int c = is.read(buf);
-            if (c == -1) {
-                req.getResponse().onLoaded();
-                completed = System.currentTimeMillis();
-            } else if (c > 0) {
-                size += c;
-                body.add(ByteBuffer.wrap(buf, 0, c));
+            try {
+                int c = is.read(buf);
+                if (c == -1) {
+                    req.getResponse().onLoaded();
+                    completed = System.currentTimeMillis();
+                } else if (c > 0) {
+                    size += c;
+                    body.add(ByteBuffer.wrap(buf, 0, c));
+                }
+                return c;
+            } catch (Throwable th) {
+                th.printStackTrace();
+                if (th instanceof IOException) {
+                    throw (IOException) th;
+                }
+                throw new IOException(th);
             }
-            return c;
         }
 
         @Override
