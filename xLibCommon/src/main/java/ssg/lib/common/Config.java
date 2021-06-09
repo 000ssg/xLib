@@ -357,6 +357,10 @@ public class Config {
 
     @Override
     public String toString() {
+        return toString(true);
+    }
+
+    public String toString(boolean withOthers) {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         sb.append('{');
@@ -415,10 +419,12 @@ public class Config {
                 }
             }
         }
-        if (this.other != null && !this.other.isEmpty()) {
-            sb.append("\n  other configs[" + other.size());
-            for (Entry<String, Object> e : other.entrySet()) {
-                sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+        if (withOthers) {
+            if (this.other != null && !this.other.isEmpty()) {
+                sb.append("\n  other configs[" + other.size());
+                for (Entry<String, Object> e : other.entrySet()) {
+                    sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+                }
             }
         }
         sb.append('\n');

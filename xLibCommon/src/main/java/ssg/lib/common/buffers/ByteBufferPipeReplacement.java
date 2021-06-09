@@ -31,9 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 import ssg.lib.common.Replacement;
 import ssg.lib.common.Replacement.MATCH;
-import static ssg.lib.common.Replacement.MATCH.exact;
-import static ssg.lib.common.Replacement.MATCH.none;
-import static ssg.lib.common.Replacement.MATCH.partial;
 import ssg.lib.common.Replacement.Replacements;
 
 /**
@@ -59,7 +56,16 @@ public class ByteBufferPipeReplacement extends ByteBufferPipe {
     /**
      * accumulated current replaced data: filled by fetch, consumed by read
      */
-    List<byte[]> processed = new ArrayList<>();
+    List<byte[]> processed = new ArrayList<byte[]>() {
+//        @Override
+//        public boolean add(byte[] e) {
+//            if (e != null && e.length > 0) try {
+//                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].processed.add[" + e.length + ", at " + size() + ", mpllsl="+fMin+";"+fPos+";"+fLen+";"+lastM+";"+replace.getMatchState()+";"+replace.getSizes()[0]+"/"+replace.getSizes()[1]+"] " + new String(e, "ISO-8859-1").replace("\n", "\\n").replace("\r", "\\r"));
+//            } catch (Throwable th) {
+//            }
+//            return super.add(e);
+//        }
+    };
     /**
      * Current position in top processed buffer - once consumed, buffer is
      * removed, ppos reset to 0.
@@ -140,7 +146,7 @@ public class ByteBufferPipeReplacement extends ByteBufferPipe {
         return r;
     }
 
-    int fetch() throws IOException {
+    synchronized int fetch() throws IOException {
         if (fLen == fPos) {
             // if fetch buffer was fully loaded -> reset, otherwise append
             if (fPos == fetch.length) {
@@ -149,7 +155,7 @@ public class ByteBufferPipeReplacement extends ByteBufferPipe {
             }
             int c = super.read(ByteBuffer.wrap(fetch, fPos, fetch.length - fPos));
             if (c == -1 || c == 0) {
-                if (MATCH.partial == lastM && fMin < fPos) {
+                if (c == -1 && MATCH.partial == lastM && fMin < fPos) {
                     // flush remainder
                     synchronized (processed) {
                         processed.add(Arrays.copyOfRange(fetch, fMin, fPos));
@@ -184,13 +190,19 @@ public class ByteBufferPipeReplacement extends ByteBufferPipe {
                     break;
                 case exact:
                     int[] szs = replace.getSizes();
+                    if (szs[0] == -1) {
+                        int a = 0;
+                        replace.getSizes();
+                    }
                     synchronized (processed) {
                         // write pre-match bytes
                         if ((fPos - fMin) > szs[0]) {
                             processed.add(Arrays.copyOfRange(fetch, fMin, fPos - szs[0]));
                         }
                         // write replacement bytes
-                        processed.add(Arrays.copyOf(replace.getTrg(), szs[1]));
+                        if (szs[1] > 0 && replace.getTrg() != null) {
+                            processed.add(Arrays.copyOf(replace.getTrg(), szs[1]));
+                        }
                     }
                     fMin = fPos;
                     fPartial = fMin;
@@ -201,15 +213,16 @@ public class ByteBufferPipeReplacement extends ByteBufferPipe {
                 // flush unmatched bytes
                 if (m == MATCH.partial) {
                     try {
-                        // save up to fPartial, then move fPartial to beginning...
-                        processed.add(Arrays.copyOfRange(fetch, fMin, fPartial));
-                        for (int i = 0; i < (fPos - fPartial); i++) {
-                            fetch[i] = fetch[i + fPartial];
+                        synchronized (processed) { // save up to fPartial, then move fPartial to beginning...
+                            processed.add(Arrays.copyOfRange(fetch, fMin, fPartial));
+                            for (int i = 0; i < (fPos - fPartial); i++) {
+                                fetch[i] = fetch[i + fPartial];
+                            }
+                            fLen = fPos - fPartial;
+                            fPos = fLen;
+                            fMin = 0;
+                            fPartial = 0;
                         }
-                        fLen = fPos - fPartial;
-                        fPos = fLen;
-                        fMin = 0;
-                        fPartial = 0;
                     } catch (Throwable th) {
                         int a = 0;
                     }

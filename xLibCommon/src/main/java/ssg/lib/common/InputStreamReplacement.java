@@ -49,6 +49,15 @@ public class InputStreamReplacement extends FilterInputStream {
     }
 
     @Override
+    public int available() throws IOException {
+        int r = super.available();
+        if (DEBUG) {
+            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "]READ AVAILABLE: " + r);
+        }
+        return r;
+    }
+
+    @Override
     public int read(byte[] b, int off, int len) throws IOException {
         int r = 0;
         if (pipe == null) {
@@ -57,28 +66,41 @@ public class InputStreamReplacement extends FilterInputStream {
             byte[] buf = new byte[1024];
             ByteBuffer bb = ByteBuffer.wrap(buf);
 
-            while (len > 0 && !pipe.isClosed()) {
+            while (len > 0) { // || !pipe.isClosed()) {
                 // get into buf
-                int c = super.read(buf, 0, buf.length);
-                if (c == -1) {
-                    pipe.close();
-                }
+                int c = 0;
+                synchronized (pipe) {
+                    if (!pipe.isClosed()) {
+                        c = super.read(buf, 0, buf.length);
+                        if (c == -1) {
+                            pipe.close();
+                            if (DEBUG) {
+                                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "]READ CLOSED");
+                            }
+                        }
 
-                if (c > 0) {
-                    bb.position(c);
-                    bb.flip();
-                    if (DEBUG) {
-                        System.out.println("READ SRC[" + bb.remaining() + "]:\n   S|" + BufferTools.toText("ISO-8859-1", bb).replace("\n", "\n   S|"));
+                        if (c > 0) {
+                            bb.position(c);
+                            bb.flip();
+                            if (DEBUG) {
+                                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "]READ SRC[" + bb.remaining() + "]:\n   S|" + BufferTools.toText("ISO-8859-1", bb).replace("\n", "\n   S|"));
+                            }
+                            pipe.write(bb);
+                            ((Buffer) bb).clear();
+                        }
                     }
-                    pipe.write(bb);
-                    ((Buffer) bb).clear();
-                }
 
-                c = pipe.read(ByteBuffer.wrap(b, off, len));
-                if (c > 0) {
-                    off += c;
-                    len -= c;
-                    r += c;
+                    c = pipe.read(ByteBuffer.wrap(b, off, len));
+                    if (c > 0) {
+                        if (DEBUG) {
+                            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "]WRITE DST[" + c + ", " + off + ", " + len + "]:\n   S|" + new String(b, off, c, "ISO-8859-1").replace("\n", "\n   S|"));
+                        }
+                        off += c;
+                        len -= c;
+                        r += c;
+                    } else if (c == -1 || c == 0 && pipe.isClosed()) {
+                        break;
+                    }
                 }
             }
         }

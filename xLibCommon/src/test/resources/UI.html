@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!--
+        /*
+         * The MIT License
+         *
+         * Copyright 2020 Sergey Sidorov/000ssg@gmail.com
+         *
+         * Permission is hereby granted, free of charge, to any person obtaining a copy
+         * of this software and associated documentation files (the "Software"), to deal
+         * in the Software without restriction, including without limitation the rights
+         * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+         * copies of the Software, and to permit persons to whom the Software is
+         * furnished to do so, subject to the following conditions:
+         *
+         * The above copyright notice and this permission notice shall be included in
+         * all copies or substantial portions of the Software.
+         *
+         * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+         * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+         * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+         * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+         * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+         * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+         * THE SOFTWARE.
+         */
+        -->
+        <style>
+            * {font-family: Monospace;}
+            div.node {
+                margin-left: 20px; 
+                border-left: dashed black 1px; 
+                border-top: dashed black 1px; 
+                border-top-left-radius: 5px;
+                border-bottom-left-radius: 5px;
+            }
+
+            caption.app {
+                font-size: 18pt;
+                text-shadow: 2px 2px 4px #000000;
+            }
+            table.app {
+                border-collapse: collapse;
+                box-shadow: 2px 2px 4px #000000;
+            }
+            tr.app {background-color: rgba(100,100,100,0.1);}
+            td.app {padding:  5px;}
+        </style>
+
+        <style>
+            caption.login {
+                font-size: 14pt;
+                text-shadow: 2px 2px 4px #000000;
+            }
+            table.login {
+                border-collapse: collapse;
+                box-shadow: 2px 2px 4px #000000;
+            }
+            td.login {padding-left: 5px; padding-right: 2px;}
+
+
+            caption.apk {
+                font-size: 14pt;
+                text-shadow: 2px 2px 4px #000000;
+            }
+            table.apk {
+                border-collapse: collapse;
+                box-shadow: 2px 2px 4px #000000;
+            }
+            td.apk {padding-left: 5px; padding-right: 2px;}
+
+            caption.du {
+                font-size: 14pt;
+                text-shadow: 2px 2px 4px #000000;
+            }
+            table.du {
+                border-collapse: collapse;
+                box-shadow: 2px 2px 4px #000000;
+            }
+            td.du {padding-left: 5px; padding-right: 2px;}
+
+            caption.tu {
+                font-size: 14pt;
+                text-shadow: 2px 2px 4px #000000;
+            }
+            table.tu {
+                border-collapse: collapse;
+                box-shadow: 2px 2px 4px #000000;
+            }
+            td.tu {padding-left: 5px; padding-right: 2px;}
+        </style>
+
+
+        <script src="../static/jquery.js"></script>
+        <script src="../rest/script.jq"></script>
+
+        <script>
+            // server-side app/session info
+            var lApp = "${app.name}";
+            var lUser = "${user.id}";
+            var lRoles = "${user.roles}".split(",");
+
+            function isValidUser() {
+                return !(lUser == "$" + "{" + "user.id}");
+            }
+
+            function initUI() {
+                var el = document.getElementById('tr_login');
+                var el2 = document.getElementById('tr_users');
+                var el3 = document.getElementById('tr_jwt');
+                var validUser = isValidUser();
+                if (el) {
+                    if (!validUser) {
+                        el.style.display = "block";
+                        if (el2)
+                            el2.style.display = "none";
+                        if (el3)
+                            el3.style.display = "none";
+                    } else {
+                        el.style.display = "none";
+                        if (el2)
+                            el2.style.display = "block";
+                        if (el3)
+                            el3.style.display = "block";
+                    }
+                }
+                el = document.getElementById('app_caption');
+                if (el) {
+                    el.innerHTML = "<table width='100%'><tr><td width='50%'><td>" + lApp + "</td><td width='50%' align='right'>" + (!validUser
+                            ? ""
+                            : "<font size='-1'>"
+                            + lUser + "&nbsp;(" + lRoles + ")"
+                            + "<br/>"
+                            + "<a href='' onclick='doLogout();'>#{Logout}</a>"
+                            + "</font>"
+                            )
+                            + "</td></tr></table>"
+                            ;
+                }
+                if (validUser) {
+                    doShowDomainUsers();
+                    doShowAPK();
+                    doShowTokenUsers();
+                 }
+                doShowTokenVerifier();
+            }
+
+            function doLogin() {
+                _jq.UM_API_login(
+                        document.getElementById("u_name").value,
+                        document.getElementById("u_pwd").value,
+                        function (url, data) {
+                            if (data && data.result == true) {
+                                window.location = window.location;
+                            }
+                        }
+                );
+            }
+
+            function doLogout() {
+                _jq.UM_API_logout(
+                        function (url, data) {
+                            if (data && data.result == true) {
+                                window.location = window.location;
+                            }
+                        }
+                );
+            }
+
+            function doShowDomainUsers() {
+                _jq.UM_API_domainUsers(
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("du_tbody");
+                                for (var k in data.result) {
+                                    var v = data.result[k];
+                                    el.innerHTML += "<tr class='du'><th class='du'>" + k + "</th><td class='du'>" + v + "</td></tr>";
+                                }
+                            }
+                        }
+                );
+            }
+
+            function doShowAPK() {
+                _jq.UM_API_apkTokens(
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("apk_tbody");
+                                for (var k in data.result) {
+                                    var v = data.result[k];
+                                    el.innerHTML += "<tr class='apk'><th class='apk'>" + k + "</th><td class='apk'>" + v + "</td></tr>";
+                                }
+                            }
+                        }
+                );
+            }
+
+            function doShowTokenUsers() {
+                _jq.UM_API_tokenUsers(
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("tu_tbody");
+                                for (var k in data.result) {
+                                    var v = data.result[k];
+                                    el.innerHTML += "<tr class='tu'><th class='tu'>" + k + "</th><td class='tu'>" + v + "</td></tr>";
+                                }
+                            }
+                        }
+                );
+            }
+
+            function doShowTokenVerifier() {
+                _jq.UM_API_getTokenVerificationURL(
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("token_verify_id");
+                                el.innerHTML = "<pre>" + data.result + "</pre>";
+                            }
+                        }
+                );
+            }
+
+            function doCreateJWT() {
+                _jq.UM_API_createJWTToken(
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("jwt_id");
+                                el.value = data.result;
+                            }
+                        }
+                );
+            }
+
+            function doCheckToken() {
+                _jq.UM_API_verifyToken(
+                        document.getElementById("jwt_id").value,
+                        function (url, data) {
+                            if (data && data.result) {
+                                var el = document.getElementById("token_info_id");
+                                el.innerHTML = "<pre>"+JSON.stringify(data.result,null,'  ')+"</pre>";
+                            }
+                        }
+                );
+            }
+        </script>
+
+    </head>
+    <body onload="initUI();">
+        <table class="app"><caption id="app_caption"  class="app">${app.name}</caption>
+            <tr class="app" id="tr_login"> <!-- Login form -->
+                <td class="app" colspan="3" align="middle">
+                    <table align="center" id="login_table_id" class="login"><caption class="login">#{Login}</caption>
+                        <tr>
+                            <td>#{Name}</td>
+                            <td><input name="u_name" id="u_name"/></td>
+                        </tr><tr>
+                            <td>#{Password}</td>
+                            <td><input type="password" name="u_pwd" id="u_pwd"/></td>
+                        </tr><tr>
+                            <td colspan='2' align='center'><input type="button" value="#{Login}" onclick="doLogin();"/></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="app" id="tr_users">
+                <td valign="top" class="app">
+                    <table width="100%" border="1"  class="du">
+                        <caption class="du">Domain&nbsp;users</caption>
+                        <tbody id="du_tbody">
+                        </tbody>
+                    </table>
+                </td>
+                <td valign="top" class="app">
+                    <table width="100%" border="1" class="tu">
+                        <caption class="tu">Token users</caption>
+                        <tbody id="tu_tbody">
+                        </tbody>
+                    </table>
+                </td>
+                <td valign="top" class="app">
+                    <table width="100%" border="1" class="apk">
+                        <caption class="apk">APK</caption>
+                        <tbody id="apk_tbody">
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            <tr class="app">
+                <td colspan="3" valign="top" class="app"><div id="token_verify_id"/></td>
+            </tr>
+            <tr class="app" id="tr_jwt">
+                <td colspan="3" valign="top" class="app">
+                    <div >
+                        <table><caption></caption>
+                            <tbody>
+                                <tr>
+                                    <td><input type="button" onclick="doCreateJWT()" value="Create JWT"/></td>
+                                    <td><input type="button" onclick="doCheckToken()" value="Check token"/></td>
+                                </tr>
+                                <tr><td colspan="2"><textarea cols="100" rows="7" id="jwt_id"></textarea></td></tr>
+                                <tr><td colspan="2"><div id="token_info_id"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
