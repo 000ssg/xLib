@@ -50,8 +50,8 @@ import java.util.Properties;
  * those) from args as name=value pairs.
  *
  * Parameters are assigned either to public fields or in map based on "base"
- * property. Property names are "." separated (assuming starting as base+"."),
- * dots are replaced with "_" and finally reduced/harmonized name is compared to
+ * property. Property names are "_" separated (assuming starting as base+"_"),
+ * '_' are replaced with "__" and finally reduced/harmonized name is compared to
  * field name or is stored as "other.
  *
  * Config.load ecognizes nested config sources via "configFile=..." and
@@ -142,7 +142,7 @@ public class Config {
     }
 
     public static <T extends Config> T load(Config config, String... args) {
-        String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
+        String base = config.getBase().isEmpty() ? "" : config.getBase() + "_";
 
         Field[] fs = config.getClass().getFields();
 
@@ -280,8 +280,8 @@ public class Config {
         for (String pn : props.keySet()) {
             if (pn.startsWith(base)) {
                 String fn = pn.substring(base.length());
-                if (fn.contains(".")) {
-                    fn = fn.replace(".", "_");
+                if (fn.contains("_")) {
+                    fn = fn.replace("_", "__");
                 }
                 if (fm.containsKey(fn)) {
                     try {
