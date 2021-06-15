@@ -42,7 +42,6 @@ import java.util.Map.Entry;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
-import ssg.lib.common.InputStreamReplacement;
 import ssg.lib.common.Replacement;
 import ssg.lib.di.DI;
 import ssg.lib.http.HttpApplication;
@@ -590,10 +589,11 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
     }
 
     static AtomicInteger NEXT_TASK_ID = new AtomicInteger();
+
     @Override
     public List<Task> getTasks(TaskPhase... phases) {
         if (useDataPipes && (dataPipeTask == null || dataPipeTask.getCompleted() != 0) && !assigned.isEmpty()) {
-            if (!dataPipes.isEmpty()) synchronized(this) {
+            if (!dataPipes.isEmpty()) synchronized (this) {
                 if (dataPipeTask == null) {
                     dataPipeTask = new Task(new Runnable() {
                         byte[] buf = new byte[1024 * 4];
@@ -608,7 +608,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                             if (paths.length() > 30) {
                                 paths = paths.substring(0, 27) + "...";
                             }
-                            Thread.currentThread().setName(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":pipe["+NEXT_TASK_ID.getAndIncrement()+"]: " + paths);
+                            Thread.currentThread().setName(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":pipe[" + NEXT_TASK_ID.getAndIncrement() + "]: " + paths);
                             try {
                                 // exit task once no actions during 5 sec.
                                 //long timeout = System.currentTimeMillis() + 100;//0*5;
@@ -740,6 +740,92 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         boolean canResolveParameter(HttpData data, String parameterName);
 
         String resolveParameter(HttpData data, String parameterName);
+    }
+
+    public static class ParameterResolverRequest implements ParameterResolver {
+
+        @Override
+        public String getParametersPrefix() {
+            return "request.";
+        }
+
+        @Override
+        public Collection<String> getParameterNames(HttpData data, boolean withPrefix) {
+            Collection<String> r = new HashSet<>();
+            r.add("hostURL");
+            r.add("host");
+            r.add("headers");
+
+            List<String> ns = new ArrayList<>(r.size());
+            HttpRequest req = (HttpRequest) data;
+            for (String hn : req.getHead().getHeaders().keySet()) {
+                ns.add("header." + hn);
+            }
+
+            ns.addAll(r);
+            Collections.sort(ns);
+            if (withPrefix) {
+                String pfx = getParametersPrefix();
+                for (int i = 0; i < ns.size(); i++) {
+                    ns.set(i, pfx + ns.get(i));
+                }
+            }
+
+            return ns;
+        }
+
+        @Override
+        public boolean canResolveParameter(HttpData data, String parameterName) {
+            return data instanceof HttpRequest && parameterName != null;
+        }
+
+        @Override
+        public String resolveParameter(HttpData data, String parameterName) {
+            if (canResolveParameter(data, parameterName)) {
+                HttpRequest req = (HttpRequest) data;
+                String[] ss = parameterName.split("\\.");
+
+                if ("hostURL".equals(parameterName)) {
+                    return "" + req.getHostURL();
+                } else if ("host".equals(parameterName)) {
+                    return "" + req.getHead().getHeader1(parameterName);
+                } else if ("headers".equals(parameterName)) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("[");
+                    for (String s : req.getHead().getHeaders().keySet()) {
+                        if (sb.length() > 1) {
+                            sb.append(',');
+                        }
+                        sb.append('"');
+                        sb.append(s.replace("\"", "\\\""));
+                        sb.append('"');
+                    }
+                    sb.append("]");
+                    return sb.toString();
+                } else if (ss[0].equals("header") && ss.length == 2) {
+                    String[] si = req.getHead().getHeader(ss[1]);
+                    if (si == null) {
+                        return "";
+                    } else if (si.length == 1) {
+                        return si[0];
+                    } else {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("[");
+                        for (String s : si) {
+                            if (sb.length() > 1) {
+                                sb.append(',');
+                            }
+                            sb.append('"');
+                            sb.append(s.replace("\"", "\\\""));
+                            sb.append('"');
+                        }
+                        sb.append("]");
+                        return sb.toString();
+                    }
+                }
+            }
+            return null;
+        }
     }
 
     public static class ParameterResolverSession implements ParameterResolver {
@@ -1013,53 +1099,53 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         }
 
         public int runCycle(byte[] buf) throws IOException {
-                cycles++;
-                if (getInitializer() != null) {
-                    timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
-                    return 0;
-                } else if (error != null) {
-                    if (error instanceof IOException) {
-                        throw (IOException) error;
-                    } else {
-                        throw new IOException(error);
-                    }
-                } else if (is == null) {
-                    // TODO: throw IOExeption???
-                    return -1;
-                }
-                HttpResponse resp = req.getResponse();
-                Body body = req.getResponse().getBody();
-                //System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize() + ", body.size=" + body.size());
-                if (body.size() > 0) {
-                    return 0;
-                }
-                if (System.currentTimeMillis() > timeout) {
-                    throw new IOException("Buffer not read within specified timeout for " + req.getResponse());
-                }
+            cycles++;
+            if (getInitializer() != null) {
                 timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
+                return 0;
+            } else if (error != null) {
+                if (error instanceof IOException) {
+                    throw (IOException) error;
+                } else {
+                    throw new IOException(error);
+                }
+            } else if (is == null) {
+                // TODO: throw IOExeption???
+                return -1;
+            }
+            HttpResponse resp = req.getResponse();
+            Body body = req.getResponse().getBody();
+            //System.out.println("rc[" + req.getQuery() + "]: sentSize=" + resp.getSentSize() + ", outputSize=" + resp.getOutputSize() + ", body.size=" + body.size());
+            if (body.size() > 0) {
+                return 0;
+            }
+            if (System.currentTimeMillis() > timeout) {
+                throw new IOException("Buffer not read within specified timeout for " + req.getResponse());
+            }
+            timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
 
-                try {
+            try {
 //                    if (is instanceof InputStreamReplacement) {
 //                        ((InputStreamReplacement) is).DEBUG = true;
 //                    }
-                    int c = is.read(buf);
-                    if (c > 0) {
-                        size += c;
-                        //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] " + new String(buf, 0, c, "ISO-8859-1"));
-                        body.add(ByteBuffer.wrap(buf, 0, c));
-                    } else if (c == -1) {
-                        //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] close response");
-                        req.getResponse().onLoaded();
-                        completed = System.currentTimeMillis();
-                    }
-                    return c;
-                } catch (Throwable th) {
-                    th.printStackTrace();
-                    if (th instanceof IOException) {
-                        throw (IOException) th;
-                    }
-                    throw new IOException(th);
+                int c = is.read(buf);
+                if (c > 0) {
+                    size += c;
+                    //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] " + new String(buf, 0, c, "ISO-8859-1"));
+                    body.add(ByteBuffer.wrap(buf, 0, c));
+                } else if (c == -1) {
+                    //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] close response");
+                    req.getResponse().onLoaded();
+                    completed = System.currentTimeMillis();
                 }
+                return c;
+            } catch (Throwable th) {
+                th.printStackTrace();
+                if (th instanceof IOException) {
+                    throw (IOException) th;
+                }
+                throw new IOException(th);
+            }
         }
 
         @Override

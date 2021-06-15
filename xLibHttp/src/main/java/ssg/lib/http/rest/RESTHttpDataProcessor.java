@@ -379,13 +379,16 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     }
 
     public void addProcessor(final HttpRequest req, final RESTMethod m, final Map params) {
-        // ensure parameter typed as HttpRequest is set if present
+        // ensure parameter typed as HttpRequest/HttpSession/HttpUser is set if present
         if (m != null && !m.getParams().isEmpty()) {
             List<RESTParameter> rps = m.getParams();
             for (RESTParameter rp : rps) {
                 if (HttpRequest.class.isAssignableFrom(rp.getType())) {
                     params.put(rp.getName(), req);
-                    break;
+                } else if (HttpSession.class.isAssignableFrom(rp.getType())) {
+                    params.put(rp.getName(), req.getHttpSession());
+                } else if (HttpUser.class.isAssignableFrom(rp.getType())) {
+                    params.put(rp.getName(), req.getHttpSession()!=null ? req.getHttpSession().getUser(): null);
                 }
             }
         }
