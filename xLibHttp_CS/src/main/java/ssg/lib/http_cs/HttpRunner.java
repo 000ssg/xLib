@@ -478,7 +478,7 @@ public class HttpRunner extends CS {
 
     public static class HttpConfig extends Config {
 
-        public static final String DEFAULT_BASE = "app.http";
+        public static final String DEFAULT_BASE = "app_http";
 
         @Description("Default HTTP service port, int")
         public Integer httpPort;

@@ -48,7 +48,7 @@ public class Test_HttpRunner_Configs {
     public static void main(String... args) throws Exception {
         List<HttpRunner> runners = new ArrayList<>();
 
-        String pfx = HttpConfig.DEFAULT_BASE + ".";
+        String pfx = HttpConfig.DEFAULT_BASE + "_";
         HttpConfig c = new HttpConfig(
                 null,
                 pfx + "httpPort=31001",
