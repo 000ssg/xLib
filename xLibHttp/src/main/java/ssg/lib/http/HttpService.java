@@ -61,7 +61,7 @@ import ssg.lib.service.ServiceProcessor.ServiceProviderMeta;
  * @author 000ssg
  */
 public class HttpService<P extends Channel> implements ServiceProcessor<P> {
-
+    
     public static final String protocolVersion = "HTTP/1.1";
     public static Collection<String> methods = Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -76,9 +76,9 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
             add("PATCH");
         }
     });
-
+    
     public String defaultConnectionBehaviour = HttpData.HCONN_KEEP_ALIVE;
-
+    
     public static boolean DEBUG_SERVICE_ERROR = false;
     String name = "Http service";
     private long options = SPO_NO_OPTIONS;
@@ -90,7 +90,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     int maxURILength = 1024 * 64 + 10 + protocolVersion.length() + 2;
     String sessionIdCookieHTTP = "0x01";
     String sessionIdCookieHTTPS = "0x02";
-
+    
     DIHttpData<P> httpData = new DIHttpData<P>() {
         @Override
         public void onCompleted(P provider, ssg.lib.http.base.HttpData data) {
@@ -100,25 +100,25 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
     };
     HttpAuthenticator<P> auth = new HttpSimpleAuth<P>();
     Map<String, HttpSession> sessions = new LinkedHashMap<>();
-
+    
     public HttpService() {
     }
-
+    
     public HttpService(HttpAuthenticator<P> auth) {
         if (auth != null) {
             this.auth = auth;
         }
     }
-
+    
     public <T extends HttpService> T configureDataProcessors(Repository<DataProcessor> dataProcessors) {
         this.dataProcessors = dataProcessors;
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureConnectionUpgrades(Repository<HttpConnectionUpgrade> connectionUpgrades) {
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureDataProcessor(int order, DataProcessor... dataProcessors) {
         if (this.dataProcessors == null) {
             this.dataProcessors = new Repository<>();
@@ -126,7 +126,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         this.dataProcessors.configure(order, dataProcessors);
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureConnectionUpgrade(int order, HttpConnectionUpgrade... connectionUpgrades) {
         if (this.connectionUpgrades == null) {
             this.connectionUpgrades = new Repository<>();
@@ -134,7 +134,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         this.connectionUpgrades.configure(order, connectionUpgrades);
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureApplication(int order, HttpApplication... applications) {
         if (this.applications == null) {
             this.applications = new Repository<>();
@@ -142,12 +142,12 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         this.applications.configure(order, applications);
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureServiceOptions(long options) {
         this.setOptions(options);
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureRoot(String root) throws IOException {
         if (this.root == null && root != null) {
             this.root = root;
@@ -157,7 +157,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         this.setOptions(options);
         return (T) this;
     }
-
+    
     public <T extends HttpService> T configureAuthentication(HttpAuthenticator<P> auth) throws IOException {
         this.auth = auth;
         return (T) this;
@@ -171,40 +171,40 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         this.root = root;
         return this;
     }
-
+    
     public HttpAuthenticator<P> getAuthenticator() {
         return auth;
     }
-
+    
     public Repository<HttpApplication> getApplications() {
         return applications;
     }
-
+    
     @Override
     public void onAssigned(P p, DI<?, P> di) {
         // no default actions on assign/deassign
     }
-
+    
     @Override
     public void onDeassigned(P p, DI<?, P> di) {
         // no default actions on assign/deassign
     }
-
+    
     @Override
     public String getName() {
         return name;
     }
-
+    
     @Override
     public boolean hasOptions(long options) {
         return (this.getOptions() & options) == options;
     }
-
+    
     @Override
     public boolean hasOption(long options) {
         return (this.getOptions() & options) != 0;
     }
-
+    
     @Override
     public SERVICE_MODE probe(ServiceProviderMeta<P> meta, Collection<ByteBuffer> data) {
         if (!isAllowedProvider(meta.getProvider())) {
@@ -258,17 +258,20 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         }
         return SERVICE_MODE.failed;
     }
-
+    
     @Override
     public DI<ByteBuffer, P> initPD(ServiceProviderMeta<P> meta, SERVICE_MODE initialState, Collection<ByteBuffer>... data) throws IOException {
         try {
             switch (initialState) {
                 case request:
-
+                    
                     HttpRequest req = new HttpRequest(data);
                     req.secure(meta.isSecure());
+                    if (!req.isSecure() && "https".equals(req.getProto())) {
+                        req.secure(true);
+                    }
                     req.getProperties().put("connection", "" + meta.getProvider());
-
+                    
                     if (meta.getStatistics() != null) {
                         meta.getStatistics().updateCounter(req.getQuery(), null, 0, 0, 0);
                     }
@@ -276,7 +279,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                     //System.out.println("HTTP: " + meta.getProvider() + ": " + req.getQuery() + "\n  " + req.toString().replace("\n", "\n    "));
                     HttpSession sess = null;
                     synchronized (sessions) {
-
+                        
                         String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
                         Map<String, HttpCookie> clientCookies = HttpSession.getCookies(req);
                         if (sessionIdCookie != null && clientCookies.containsKey(sessionIdCookie)) {
@@ -285,12 +288,12 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                                 sess = sessions.get(cookie.value);
                             }
                         }
-
+                        
                         if (sess != null && !sess.isValid()) {
                             sessions.remove("" + sess.getId());
                             sess = null;
                         }
-
+                        
                         if (sess == null) {
                             String path = ((root != null) ? root : "/");
                             final String query = req.getQuery();
@@ -302,13 +305,13 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                                     }
                                     return 0;
                                 }
-
+                                
                                 @Override
                                 public float weight() {
                                     return 1;
                                 }
                             }, null);
-
+                            
                             sess = new HttpSession(req.getHostURL() + path);
                             if (req.isSecure()) {
                                 sess.setSecure(true);
@@ -329,7 +332,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                             }
                             sess.expiresAt = System.currentTimeMillis() + 1000 * 60 * 15;
                             sessions.put("" + sess.getId(), sess);
-
+                            
                             HttpCookie cookie = new HttpCookie(
                                     sessionIdCookie,
                                     "" + sess.id,
@@ -352,10 +355,10 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                             }
                         }
                     }
-
+                    
                     synchronized (sess) {
                         req.setContext(sess);
-
+                        
                         if (meta.getCertificates() != null) {
                             for (Certificate cert : meta.getCertificates()) {
                                 HttpUser user = this.auth.authenticate(meta.getProvider(), cert);
@@ -420,9 +423,9 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         if (name != null) {
             req.getResponse().setHeader(HttpData.HH_SERVER, name);
         }
-
+        
         String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
-
+        
         if (sessionIdCookie != null) {
             HttpCookie cookie = req.getHttpSession().getCookies().get(sessionIdCookie);
             if (cookie != null) {
@@ -469,7 +472,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                             return 0;
                         }
                     }
-
+                    
                     @Override
                     public float weight() {
                         return 1;
@@ -487,7 +490,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         }
         throw new IOException("Failed to upgrade connection for: " + http.getHead());
     }
-
+    
     @Override
     public SERVICE_FLOW_STATE test(P provider, DI<ByteBuffer, P> pd) throws IOException {
         if (pd instanceof DIHttpData) {
@@ -510,7 +513,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         }
         return SERVICE_FLOW_STATE.failed;
     }
-
+    
     @Override
     public SERVICE_PROCESSING_STATE testProcessing(P provider, DI<ByteBuffer, P> pd) throws IOException {
         HttpData http = (pd instanceof DIHttpData) ? ((DIHttpData) pd).http(provider) : null;
@@ -521,14 +524,14 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         }
         return SERVICE_PROCESSING_STATE.failed;
     }
-
+    
     public void onHttpDataCreated(P provider, HttpData http) {
     }
-
+    
     public void onHttpDataCompleted(P provider, HttpData http) {
         //System.out.println("" + provider + ": HttpDataCompleted: " + http.toString().replace("\n", "\n    "));
     }
-
+    
     @Override
     public void onServiceError(P provider, DI<ByteBuffer, P> pd, Throwable error) throws IOException {
         HttpData http = (pd instanceof DIHttpData) ? ((DIHttpData) pd).http(provider) : null;
@@ -563,7 +566,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
             }
         }
     }
-
+    
     @Override
     public Repository<DataProcessor> getDataProcessors(P provider, DI<ByteBuffer, P> pd) {
         if (provider != null && pd != null) {
@@ -594,7 +597,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
             dataProcessors.addOwner(this);
         }
     }
-
+    
     public boolean isAllowedProvider(P provider) {
         return provider != null && provider.isOpen();
     }
@@ -632,14 +635,14 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
             connectionUpgrades.addOwner(this);
         }
     }
-
+    
     @Override
     public List<Task> getTasks(TaskPhase... phases) {
         if (phases == null || phases.length == 0) {
             return Collections.emptyList();
         }
         List<Task> r = new ArrayList<>();
-
+        
         if (dataProcessors != null) {
             for (DataProcessor dp : dataProcessors.items()) {
                 if (dp == null) {
@@ -651,18 +654,18 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                 }
             }
         }
-
+        
         for (HttpApplication dp : this.applications.items()) {
             List<Task> dpr = dp.getTasks(phases);
             if (dpr != null) {
                 r.addAll(dpr);
             }
         }
-
+        
         Collections.sort(r, TaskProvider.getTaskComparator(true));
         return r;
     }
-
+    
     @Override
     public String toString() {
         return "HttpService{"
@@ -682,5 +685,5 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
                 + '\n'
                 + '}';
     }
-
+    
 }

@@ -207,6 +207,33 @@ public abstract class HttpData {
         return body;
     }
 
+    /**
+     * Pseudo-security evaluation: if request is forwarder from original "https"...
+     * @return 
+     */
+    public String getProto() {
+        if (isSecure()) {
+            return "https";
+        }
+        if (head != null && head.isHeadCompleted()) {
+            String s1 = head.getHeader1("X-Forwarded-Proto");
+            if (s1 != null) {
+                return s1;
+            }
+            s1 = head.getHeader1("Forwarded");
+            if (s1 != null) {
+                String[] ss = s1.split(";");
+                for (String s : ss) {
+                    s = s.trim();
+                    if (s.startsWith("proto=")) {
+                        return s.substring(6).trim();
+                    }
+                }
+            }
+        }
+        return "http";
+    }
+
 //    @Override
     public boolean ready() {
         return completed;
@@ -447,8 +474,9 @@ public abstract class HttpData {
                         //System.out.println("CCC: length="+getHead().size+", len="+getBody().length+"/"+getBody().size()+";  sz="+size+"/"+sentSize+"; cmpl="+completed);
                         if (size == sentSize) {
                             // completed data send for non-empty non-chunked body
-                            if(completed)
-                            setSent(true);
+                            if (completed) {
+                                setSent(true);
+                            }
                         }
                     } else if (body.isEmpty() && completed) {
                         // completed data send for empty body.

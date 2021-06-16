@@ -170,7 +170,7 @@ public class StubVirtualData<T> implements VirtualData {
     public StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         try {
             return context.clone()
-                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
+                    .setProperty(Stub.StubContext.BASE_URL, httpData.getProto() + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
                     .setProperty(Stub.StubContext.NAMESPACE, wr.realm + "_" + wr.type) //                    .setProperty("wampRealm", wr.realm)
                     ;
         } catch (Throwable th) {
