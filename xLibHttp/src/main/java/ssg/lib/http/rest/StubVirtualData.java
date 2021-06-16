@@ -118,6 +118,7 @@ public class StubVirtualData<T> implements VirtualData {
 
     @Override
     public byte[] get(HttpResourceBytes owner, HttpData httpData) {
+        System.out.println("StubVirtualData.get: for="+httpData.toString().replace("\n", "\\n"));
         byte[] data = null;
         WR wr = resources.get(owner.path());
         if (wr != null) {
