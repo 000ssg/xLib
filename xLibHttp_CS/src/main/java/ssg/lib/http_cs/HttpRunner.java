@@ -499,8 +499,8 @@ public class HttpRunner extends CS {
                 pattern = "type=(jwt|token)[;uri=(verificator URI)][;secret=(secret key)][;secretHeader=(header name for secret)][;tokenPrefix=(token prefix to select this verifier)]))")
         public String[] tokenDelegate;
 
-        public HttpConfig(String base, String... args) {
-            super(base != null ? base : DEFAULT_BASE, args);
+        public HttpConfig(String base) {
+            super(base != null ? base : DEFAULT_BASE);
         }
     }
 }

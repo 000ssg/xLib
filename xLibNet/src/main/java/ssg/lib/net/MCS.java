@@ -1257,8 +1257,8 @@ public class MCS implements MCSSelector {
             super("net_mcs");
         }
 
-        public MCSConfig(String base, String... args) {
-            super(base, args);
+        public MCSConfig(String base) {
+            super(base);
         }
 
         @Description("MCS name")

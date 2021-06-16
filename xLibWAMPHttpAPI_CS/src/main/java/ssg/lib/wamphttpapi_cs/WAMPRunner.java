@@ -980,8 +980,8 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             super("app.wamp");
         }
 
-        public WAMPConfig(String base, String... args) {
-            super(base, args);
+        public WAMPConfig(String base) {
+            super(base);
         }
 
         @Description("Define port for WAMP router. If set, Standalon WAMP router is run.")

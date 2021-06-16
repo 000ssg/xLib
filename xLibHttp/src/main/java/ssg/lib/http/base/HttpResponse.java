@@ -46,9 +46,17 @@ public class HttpResponse extends HttpData {
     }
 
     public String getQuery() {
-        return request!=null ? request.getQuery() : null;
+        return request != null ? request.getQuery() : null;
     }
-    
+
+    public long getRequestedAt() {
+        return request != null ? request.getCreatedAt() : System.currentTimeMillis();
+    }
+
+    public String getConnectionInfo() {
+        return request != null ? request.getConnectionInfo() : "";
+    }
+
     /**
      * Fix head status and notify request
      */

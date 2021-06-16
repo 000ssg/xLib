@@ -145,10 +145,10 @@ public class Test_WAMPRunner_Conf {
         )
                 // add SSO users
                 .configureDomain(ssoDomain)
-                .configuration(new MCSConfig("",
+                .configuration(new MCSConfig("").init(
                         "acceptors=3"
                 ),
-                        new HttpConfig("",
+                        new HttpConfig("").init(
                                 "httpPort=" + ssoPort
                         )
                 );
@@ -161,21 +161,21 @@ public class Test_WAMPRunner_Conf {
         )
                 .configureDomain(new Domain(wampRoot))
                 .configuration(
-                        new MCSConfig("",
+                        new MCSConfig("").init(
                                 "acceptors=3"
                         ),
-                        new HttpConfig("",
+                        new HttpConfig("").init(
                                 "httpPort=" + wampPort,
                                 "rest=wamp",
                                 "tokenDelegate=type=jwt;uri=" + tokenVerifyURI + ";secret=" + jwtSecret,
                                 "tokenDelegate=type=token;uri=" + tokenVerifyURI + ";secret=" + apkSecret + ";prefix=apk.",
                                 "tokenDelegate=type=token;uri=" + tokenVerifyURI + ";secret=" + apiSecret + ";prefix=api-key-"
                         ),
-                        new APIConfig("",
+                        new APIConfig("").init(
                                 
                                 "api=namespace=A;name=a;item=ssg.lib.wamphttpapi_cs.Test_WAMPRunner_Conf$XDemo"
                         ),
-                        new WAMPConfig("",
+                        new WAMPConfig("").init(
                                 "routerPath=wamp",
                                 "auth=type=wampcra;secret=" + wampCRASecret,
                                 "auth={'type':'ticket','secret':'" + wampTicketSecret + "', 'tokenDelegate': ['type=jwt;uri=" + tokenVerifyURI + ";secret=" + jwtSecret + "']}",

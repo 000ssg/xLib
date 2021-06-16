@@ -90,13 +90,17 @@ public class Config {
     private Map<String, Object> other;
     private boolean sysPropsLoaded = false;
 
-    public Config(String base, String... args) {
+    public Config(String base) {
         this.base = base != null ? base : getClass().isAnonymousClass() ? getClass().getSuperclass().getName() : getClass().getSimpleName();
-        load(this, args);
     }
 
     public <T extends Config> T noSysProperties() {
         sysPropsLoaded = true;
+        return (T) this;
+    }
+
+    public <T extends Config> T init(String... args) {
+        load(this, args);
         return (T) this;
     }
 
@@ -297,15 +301,16 @@ public class Config {
                                     || f.getGenericType() instanceof ParameterizedType
                                     && String.class.equals(((ParameterizedType) f.getGenericType()).getActualTypeArguments()[0])))) {
                                 if (((String) vli).charAt(0) == '{') {
+                                    v = (String) vli;
                                     // decode JSON object as generic type or as target type
-                                    v = jd.readObject(
-                                            (String) vli,
-                                            f.getType().isArray()
-                                            ? f.getType().getComponentType()
-                                            : Collection.class.isAssignableFrom(f.getType())
-                                            ? Map.class
-                                            : f.getType()
-                                    );
+//                                    v = jd.readObject(
+//                                            (String) vli,
+//                                            f.getType().isArray()
+//                                            ? f.getType().getComponentType()
+//                                            : Collection.class.isAssignableFrom(f.getType())
+//                                            ? Map.class
+//                                            : f.getType()
+//                                    );
                                     v = refl.enrich(v, f.getType());
                                 } else if (((String) vli).charAt(0) == '[') {
                                     v = jd.readObject((String) vli, List.class);
@@ -321,7 +326,7 @@ public class Config {
                                     f.set(config, v);
                                 } else {
                                     Object vv = f.get(config);
-                                    Object va=Array  .newInstance(f.getType().getComponentType(), Array.getLength(vv) + Array.getLength(v));
+                                    Object va=Array.newInstance(f.getType().getComponentType(), Array.getLength(vv) + Array.getLength(v));
                                     int off = 0;
                                     for (Object oo : new Object[]{vv, v}) {
                                         for (int i = 0; i < Array.getLength(oo); i++) {
