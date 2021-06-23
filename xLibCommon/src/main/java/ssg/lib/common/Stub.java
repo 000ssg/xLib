@@ -529,7 +529,7 @@ public interface Stub<A, F, P, T> {
                 if (sbp.length() > 0) {
                     sb.append("\n    $.post(url, {" + sbp.toString() + "})");
                 } else {
-                    sb.append("\n    $.post(url)");
+                    sb.append("\n    $.get(url)");
                 }
                 sb.append("\n      .done()");
                 sb.append("\n      .fail()");
