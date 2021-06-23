@@ -546,11 +546,11 @@ public class APIRunner<T> extends HttpRunner {
     public static class APIConfig extends Config {
 
         public APIConfig() {
-            super("app.api");
+            super("app_api");
         }
 
-        public APIConfig(String base, String... args) {
-            super(base, args);
+        public APIConfig(String base) {
+            super(base);
         }
 
         public List<String> api;

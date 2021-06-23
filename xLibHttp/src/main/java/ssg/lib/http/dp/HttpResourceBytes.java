@@ -41,6 +41,7 @@ import ssg.lib.http.base.HttpData;
 public class HttpResourceBytes implements HttpResource {
 
     long timestamp = System.currentTimeMillis();
+    Long expires;
     //byte[] data;
     VirtualData data;
     String path;
@@ -155,11 +156,15 @@ public class HttpResourceBytes implements HttpResource {
 
     @Override
     public Long expires() {
-        return null;
+        return expires;
     }
 
     public void timestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public void expires(Long expires) {
+        this.expires = expires;
     }
 
     @Override

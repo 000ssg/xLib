@@ -23,6 +23,8 @@
  */
 package ssg.lib.common;
 
+import java.util.Arrays;
+
 /**
  *
  * @author 000ssg
@@ -225,8 +227,13 @@ public class Replacement implements Cloneable {
         public Replacement copy() {
             Replacements copy = (Replacements) super.copy();
             if (replacements != null) {
+                copy.replacements = new Replacement[replacements.length];
                 for (int i = 0; i < replacements.length; i++) {
                     copy.replacements[i] = replacements[i].copy();
+                }
+                copy.states = new MATCH[states.length];
+                for (int i = 0; i < states.length; i++) {
+                    copy.states[i] = states[i];
                 }
             }
             return copy;
@@ -264,9 +271,7 @@ public class Replacement implements Cloneable {
                 for (Replacement repl : replacements) {
                     repl.reset();
                 }
-                for (int i = 0; i < states.length; i++) {
-                    states[i] = MATCH.none;
-                }
+                Arrays.fill(states, MATCH.none);
                 last = null;
                 lastML = 0;
             }
@@ -299,18 +304,27 @@ public class Replacement implements Cloneable {
                             int a = 0;
                         }
                         last = repl;
+                        //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + ", '" + ((char) b) + "'" + ", " + ri + "].replace.set: " + repl.toString().replace("\n", "\\n"));
                     } else if (oldLast == repl && last == repl) {
+                        //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + ", '" + ((char) b) + "'" + ", " + ri + "].replace.reset: " + repl.toString().replace("\n", "\\n"));
                         repl.reset();
                         last = null;
                     } else if (MATCH.none == ri && ri != states[i]) {
+                        //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + ", '" + ((char) b) + "'" + ", " + ri + "].replace.reset: " + repl.toString().replace("\n", "\\n"));
                         repl.reset();
                     }
+                } else if (MATCH.exact == ri) {
+                    //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + ", '" + ((char) b) + "'" + ", " + ri + "].replace.shouldSet: " + repl.toString().replace("\n", "\\n"));
+                    throw new RuntimeException("Duplicated EXACT state detected for '" + ((char) b) + "': " + repl);
                 }
                 states[i] = ri;
                 r = r.toHighest(ri);
             }
 
             lastML = ml;
+//            if (MATCH.exact == r) {
+//                System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].exact[" + ", '" + ((char) b) + "'" + "]: " + toString().replace("\n", "\\n"));
+//            }
             return r;
         }
 

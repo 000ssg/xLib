@@ -136,7 +136,7 @@ public class HttpSession implements HttpContext {
             sb.append(", secure");
         }
         if (application != null) {
-            sb.append(", app=" + application);
+            sb.append(", app=" + application.getName()+" ("+application.getRoot()+")");
         }
         sb.append(((isValid()) ? ", expires in=" + tf.format(new Date(expiresAt - System.currentTimeMillis())) : ", invalid"));
         if (user != null) {
@@ -189,6 +189,8 @@ public class HttpSession implements HttpContext {
                     HttpCookie cookie = new HttpCookie(s);
                     if (!r.containsKey(cookie.name)) {
                         r.put(cookie.name, cookie);
+                    }else {
+                        r.get(cookie.name).setAltValue(cookie.value);
                     }
                 }
             }

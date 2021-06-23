@@ -1254,11 +1254,11 @@ public class MCS implements MCSSelector {
     public static class MCSConfig extends Config {
 
         public MCSConfig() {
-            super("net.mcs.base");
+            super("net_mcs");
         }
 
-        public MCSConfig(String base, String... args) {
-            super(base, args);
+        public MCSConfig(String base) {
+            super(base);
         }
 
         @Description("MCS name")

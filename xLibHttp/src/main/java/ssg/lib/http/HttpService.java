@@ -36,15 +36,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import ssg.lib.common.Matcher;
 import ssg.lib.common.TaskProvider;
 import ssg.lib.common.buffers.BufferTools;
 import ssg.lib.di.DI;
-import ssg.lib.http.HttpAuthenticator.Domain;
 import ssg.lib.service.DataProcessor;
 import ssg.lib.service.Repository;
 import ssg.lib.service.Repository.CombinedRepository;
@@ -100,7 +97,7 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
         }
     };
     HttpAuthenticator<P> auth = new HttpSimpleAuth<P>();
-    Map<String, HttpSession> sessions = new LinkedHashMap<>();
+    HttpSessionManager sessions = new HttpSessionManager();
 
     public HttpService() {
     }
@@ -268,6 +265,9 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
 
                     HttpRequest req = new HttpRequest(data);
                     req.secure(meta.isSecure());
+                    if (!req.isSecure() && "https".equals(req.getProto())) {
+                        req.secure(true);
+                    }
                     req.getProperties().put("connection", "" + meta.getProvider());
 
                     if (meta.getStatistics() != null) {
@@ -276,116 +276,129 @@ public class HttpService<P extends Channel> implements ServiceProcessor<P> {
 
                     //System.out.println("HTTP: " + meta.getProvider() + ": " + req.getQuery() + "\n  " + req.toString().replace("\n", "\n    "));
                     HttpSession sess = null;
+                    synchronized (sessions) {
 
-                    String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
-                    Map<String, HttpCookie> clientCookies = HttpSession.getCookies(req);
-                    if (sessionIdCookie != null && clientCookies.containsKey(sessionIdCookie)) {
-                        HttpCookie cookie = clientCookies.get(sessionIdCookie);
-                        if (cookie.isValid()) {
-                            sess = sessions.get(cookie.value);
-                        }
-                    }
-
-                    if (sess != null && !sess.isValid()) {
-                        sessions.remove("" + sess.getId());
-                        sess = null;
-                    }
-
-                    if (sess == null) {
-                        String path = ((root != null) ? root : "/");
-                        final String query = req.getQuery();
-                        List<HttpApplication> apps = getApplications().find(new Matcher<HttpApplication>() {
-                            @Override
-                            public float match(HttpApplication t) {
-                                if (query.startsWith(t.getRoot())) {
-                                    return t.getRoot().length() * 1f / query.length();
-                                }
-                                return 0;
-                            }
-
-                            @Override
-                            public float weight() {
-                                return 1;
-                            }
-                        }, null);
-
-                        sess = new HttpSession(req.getHostURL() + path);
-                        if (req.isSecure()) {
-                            sess.setSecure(true);
-                        }
-                        if (apps != null && !apps.isEmpty()) {
-                            sess.application = apps.get(0);
-                            String appRoot = sess.application.getRoot();
-                            path += (path.endsWith("/") || appRoot.startsWith("/"))
-                                    ? (path.endsWith("/") && appRoot.startsWith("/"))
-                                    ? appRoot.substring(1)
-                                    : appRoot
-                                    : "/" + appRoot;
-                            sess.setLocale(Locale.forLanguageTag(sess.application.chooseLocale(req)));
-                        } else if (req.getHead().getHeader1(HttpData.HH_ACCEPT_LANGUAGE) != null) {
-                            String[] ll = req.getHead().getHeader1(HttpData.HH_ACCEPT_LANGUAGE).split(";");
-                            String l = ll[0];
-                            sess.setLocale(Locale.forLanguageTag(l.contains(",") ? l.split(",")[0] : l));
-                        }
-                        sess.expiresAt = System.currentTimeMillis() + 1000 * 60 * 15;
-                        sessions.put("" + sess.getId(), sess);
-
-                        HttpCookie cookie = new HttpCookie(
-                                sessionIdCookie,
-                                "" + sess.id,
-                                null,
-                                path,
-                                sess.expiresAt,
-                                HttpCookie.HttpOnly | (sess.isSecure() ? HttpCookie.Secure : 0)
-                        );
-                        sess.getCookies().put("" + sess.id, cookie);
-                        req.getResponse().getHead().addHeader(HttpData.HH_SET_COOKIE, cookie.toSetString());
-                    } else {
-                        // check if need to extend session cookie life
-                        sess.touch(1000 * 60 * 15);
+                        String sessionIdCookie = req.isSecure() ? sessionIdCookieHTTPS : sessionIdCookieHTTP;
+                        Map<String, HttpCookie> clientCookies = HttpSession.getCookies(req);
                         if (sessionIdCookie != null && clientCookies.containsKey(sessionIdCookie)) {
                             HttpCookie cookie = clientCookies.get(sessionIdCookie);
-                            if (!cookie.isValid() || cookie.expires != null && (cookie.expires - 1000 * 60) < sess.expiresAt) {
-                                cookie.expires = sess.expiresAt;
-                                req.getResponse().getHead().addHeader(HttpData.HH_SET_COOKIE, cookie.toSetString());
+                            if (cookie.isValid()) {
+                                sess = sessions.get(cookie.value);
+                                // TODO: find best session based on app root and request path...
+                                if(sess==null && cookie.getAltValues().length>0) {
+                                    for(String v:cookie.getAltValues()) {
+                                        sess = sessions.get(cookie.value);
+                                        if(sess!=null) break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (sess != null && !sess.isValid()) {
+                            sessions.remove("" + sess.getId());
+                            sess = null;
+                        }
+
+                        if (sess == null) {
+                            String path = ((root != null) ? root : "/");
+                            final String query = req.getQuery();
+                            List<HttpApplication> apps = getApplications().find(new Matcher<HttpApplication>() {
+                                @Override
+                                public float match(HttpApplication t) {
+                                    if (query.startsWith(t.getRoot())) {
+                                        return t.getRoot().length() * 1f / query.length();
+                                    }
+                                    return 0;
+                                }
+
+                                @Override
+                                public float weight() {
+                                    return 1;
+                                }
+                            }, null);
+
+//                            sess = new HttpSession(req.getHostURL() + path);
+//                            sessions.put("" + sess.getId(), sess);
+                            sess = sessions.create(req.getHostURL() + path, req, apps, sessionIdCookie);
+//                            if (req.isSecure()) {
+//                                sess.setSecure(true);
+//                            }
+//                            if (apps != null && !apps.isEmpty()) {
+//                                sess.application = apps.get(0);
+//                                String appRoot = sess.application.getRoot();
+//                                path += (path.endsWith("/") || appRoot.startsWith("/"))
+//                                        ? (path.endsWith("/") && appRoot.startsWith("/"))
+//                                        ? appRoot.substring(1)
+//                                        : appRoot
+//                                        : "/" + appRoot;
+//                                sess.setLocale(Locale.forLanguageTag(sess.application.chooseLocale(req)));
+//                            } else if (req.getHead().getHeader1(HttpData.HH_ACCEPT_LANGUAGE) != null) {
+//                                String[] ll = req.getHead().getHeader1(HttpData.HH_ACCEPT_LANGUAGE).split(";");
+//                                String l = ll[0];
+//                                sess.setLocale(Locale.forLanguageTag(l.contains(",") ? l.split(",")[0] : l));
+//                            }
+//                            sess.expiresAt = System.currentTimeMillis() + 1000 * 60 * 15;
+//
+//                            HttpCookie cookie = new HttpCookie(
+//                                    sessionIdCookie,
+//                                    "" + sess.id,
+//                                    null,
+//                                    path,
+//                                    sess.expiresAt,
+//                                    HttpCookie.HttpOnly | (sess.isSecure() ? HttpCookie.Secure : 0)
+//                            );
+//                            sess.getCookies().put("" + sess.id, cookie);
+//                            req.getResponse().getHead().addHeader(HttpData.HH_SET_COOKIE, cookie.toSetString());
+                        } else {
+                            // check if need to extend session cookie life
+                            sess.touch(1000 * 60 * 15);
+                            if (sessionIdCookie != null && clientCookies.containsKey(sessionIdCookie)) {
+                                HttpCookie cookie = clientCookies.get(sessionIdCookie);
+                                if (!cookie.isValid() || cookie.expires != null && (cookie.expires - 1000 * 60) < sess.expiresAt) {
+                                    cookie.expires = sess.expiresAt;
+                                    req.getResponse().getHead().addHeader(HttpData.HH_SET_COOKIE, cookie.toSetString());
+                                }
                             }
                         }
                     }
-                    req.setContext(sess);
 
-                    if (meta.getCertificates() != null) {
-                        for (Certificate cert : meta.getCertificates()) {
-                            HttpUser user = this.auth.authenticate(meta.getProvider(), cert);
-                            if (user != null) {
-                                sess.setUser(user);
-                            }
-                        }
-                    } else if (sess.getUser() == null && sess.getRevalidateUser() == null) {
-                        if (sess.getApplication()==null || !sess.getApplication().isNoAuth(req))
-                        try {
-                            // try user authentication
-                            HttpUser user = this.auth.authenticate(meta.getProvider(), req);
-                            if (user != null) {
-                                // ignore Basic authentication if restricted in application
-                                if (!HttpUser.AUTH_TYPE.basic.equals(user.getProperties().get(HttpUser.P_AUTH_TYPE))
-                                        || sess.getApplication() == null
-                                        || sess.getApplication().isBasicAuthEnabled()) {
+                    synchronized (sess) {
+                        req.setContext(sess);
+
+                        if (meta.getCertificates() != null) {
+                            for (Certificate cert : meta.getCertificates()) {
+                                HttpUser user = this.auth.authenticate(meta.getProvider(), cert);
+                                if (user != null) {
                                     sess.setUser(user);
                                 }
                             }
-                        } catch (Throwable th) {
-                            th.printStackTrace();
+                        } else if (sess.getUser() == null && sess.getRevalidateUser() == null) {
+                            if (sess.getApplication() == null || !sess.getApplication().isNoAuth(req))
+                        try {
+                                // try user authentication
+                                HttpUser user = this.auth.authenticate(meta.getProvider(), req);
+                                if (user != null) {
+                                    // ignore Basic authentication if restricted in application
+                                    if (!HttpUser.AUTH_TYPE.basic.equals(user.getProperties().get(HttpUser.P_AUTH_TYPE))
+                                            || sess.getApplication() == null
+                                            || sess.getApplication().isBasicAuthEnabled()) {
+                                        sess.setUser(user);
+                                    }
+                                }
+                            } catch (Throwable th) {
+                                th.printStackTrace();
+                                int a = 0;
+                            }
+                        }
+                        if (req.getHead().isConnectionUpgrade()) {
+                            //HttpData ureq=this.upgradeHttp(meta.getProvider(), req);
                             int a = 0;
                         }
+                        initHttpResponseHeaders(req);
+                        httpData.registerHttp(meta.getProvider(), req);
+                        test(meta.getProvider(), httpData);
+                        onHttpDataCreated(meta.getProvider(), req);
                     }
-                    if (req.getHead().isConnectionUpgrade()) {
-                        //HttpData ureq=this.upgradeHttp(meta.getProvider(), req);
-                        int a = 0;
-                    }
-                    initHttpResponseHeaders(req);
-                    httpData.registerHttp(meta.getProvider(), req);
-                    test(meta.getProvider(), httpData);
-                    onHttpDataCreated(meta.getProvider(), req);
                     return httpData;
                 case response:
                     HttpData http = httpData.http(meta.getProvider());

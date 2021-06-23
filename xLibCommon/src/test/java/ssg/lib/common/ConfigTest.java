@@ -119,16 +119,16 @@ public class ConfigTest {
             public String[] bb;
             public List<String> cc;
         }, new String[]{
-            "a.aa=A",
-            "a.aa=B",
-            "a.bb=A",
-            "a.bb=B",
-            "a.bb=C",
-            "a.bb=B",
-            "a.bb=B",
-            "a.cc=A",
-            "a.cc=B",
-            "a.cc=C"
+            "a_aa=A",
+            "a_aa=B",
+            "a_bb=A",
+            "a_bb=B",
+            "a_bb=C",
+            "a_bb=B",
+            "a_bb=B",
+            "a_cc=A",
+            "a_cc=B",
+            "a_cc=C"
         });
         System.out.println("AA config[" + config.getBase() + ", " + config.toMap(true).size() + "]:\n  " + config.toMap(true).toString().replace(",", "\n  ")
                 + "\n  --- other[" + config.other().size() + "]\n  " + config.other().toString().replace(",", "\n  "));

@@ -55,19 +55,16 @@ public class Test_API_Conf {
                 )
                 .configuration(
                         // configure MCS, Http, and API component levels
-                        new MCSConfig(
-                                "net.mcs",
-                                "net.mcs.acceptors=3"
+                        new MCSConfig("net_mcs").init(
+                                "net_mcs_acceptors=3"
                         ),
-                        new HttpConfig(
-                                "app.http",
-                                "app.http.rest=rest"
+                        new HttpConfig("app_http").init(
+                                "app_http_rest=rest"
                         ),
-                        new APIConfig(
-                                "app.api",
-                                "app.api.api=namespace=aaa;name=A;item=ssg.lib.httpapi_cs.Test_API_Conf$TestA",
-                                "app.api.api=namespace=bbb;name=B;item=ssg.lib.httpapi_cs.Test_API_Conf$TestB",
-                                "app.api.stub=*,*,js,jq",
+                        new APIConfig("app_api").init(
+                                "app_api_api=namespace=aaa;name=A;item=ssg.lib.httpapi_cs.Test_API_Conf$TestA",
+                                "app_api_api=namespace=bbb;name=B;item=ssg.lib.httpapi_cs.Test_API_Conf$TestB",
+                                "app_api_stub=*,*,js,jq",
                                 "")
                 );
         runner.start();

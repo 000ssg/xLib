@@ -50,8 +50,8 @@ import java.util.Properties;
  * those) from args as name=value pairs.
  *
  * Parameters are assigned either to public fields or in map based on "base"
- * property. Property names are "." separated (assuming starting as base+"."),
- * dots are replaced with "_" and finally reduced/harmonized name is compared to
+ * property. Property names are "_" separated (assuming starting as base+"_"),
+ * '_' are replaced with "__" and finally reduced/harmonized name is compared to
  * field name or is stored as "other.
  *
  * Config.load ecognizes nested config sources via "configFile=..." and
@@ -90,13 +90,17 @@ public class Config {
     private Map<String, Object> other;
     private boolean sysPropsLoaded = false;
 
-    public Config(String base, String... args) {
+    public Config(String base) {
         this.base = base != null ? base : getClass().isAnonymousClass() ? getClass().getSuperclass().getName() : getClass().getSimpleName();
-        load(this, args);
     }
 
     public <T extends Config> T noSysProperties() {
         sysPropsLoaded = true;
+        return (T) this;
+    }
+
+    public <T extends Config> T init(String... args) {
+        load(this, args);
         return (T) this;
     }
 
@@ -142,7 +146,7 @@ public class Config {
     }
 
     public static <T extends Config> T load(Config config, String... args) {
-        String base = config.getBase().isEmpty() ? "" : config.getBase() + ".";
+        String base = config.getBase().isEmpty() ? "" : config.getBase() + "_";
 
         Field[] fs = config.getClass().getFields();
 
@@ -280,8 +284,8 @@ public class Config {
         for (String pn : props.keySet()) {
             if (pn.startsWith(base)) {
                 String fn = pn.substring(base.length());
-                if (fn.contains(".")) {
-                    fn = fn.replace(".", "_");
+                if (fn.contains("_")) {
+                    fn = fn.replace("_", "__");
                 }
                 if (fm.containsKey(fn)) {
                     try {
@@ -297,15 +301,16 @@ public class Config {
                                     || f.getGenericType() instanceof ParameterizedType
                                     && String.class.equals(((ParameterizedType) f.getGenericType()).getActualTypeArguments()[0])))) {
                                 if (((String) vli).charAt(0) == '{') {
+                                    v = (String) vli;
                                     // decode JSON object as generic type or as target type
-                                    v = jd.readObject(
-                                            (String) vli,
-                                            f.getType().isArray()
-                                            ? f.getType().getComponentType()
-                                            : Collection.class.isAssignableFrom(f.getType())
-                                            ? Map.class
-                                            : f.getType()
-                                    );
+//                                    v = jd.readObject(
+//                                            (String) vli,
+//                                            f.getType().isArray()
+//                                            ? f.getType().getComponentType()
+//                                            : Collection.class.isAssignableFrom(f.getType())
+//                                            ? Map.class
+//                                            : f.getType()
+//                                    );
                                     v = refl.enrich(v, f.getType());
                                 } else if (((String) vli).charAt(0) == '[') {
                                     v = jd.readObject((String) vli, List.class);
@@ -321,7 +326,7 @@ public class Config {
                                     f.set(config, v);
                                 } else {
                                     Object vv = f.get(config);
-                                    Object va=Array  .newInstance(f.getType().getComponentType(), Array.getLength(vv) + Array.getLength(v));
+                                    Object va=Array.newInstance(f.getType().getComponentType(), Array.getLength(vv) + Array.getLength(v));
                                     int off = 0;
                                     for (Object oo : new Object[]{vv, v}) {
                                         for (int i = 0; i < Array.getLength(oo); i++) {
@@ -357,6 +362,10 @@ public class Config {
 
     @Override
     public String toString() {
+        return toString(true);
+    }
+
+    public String toString(boolean withOthers) {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName());
         sb.append('{');
@@ -415,10 +424,12 @@ public class Config {
                 }
             }
         }
-        if (this.other != null && !this.other.isEmpty()) {
-            sb.append("\n  other configs[" + other.size());
-            for (Entry<String, Object> e : other.entrySet()) {
-                sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+        if (withOthers) {
+            if (this.other != null && !this.other.isEmpty()) {
+                sb.append("\n  other configs[" + other.size());
+                for (Entry<String, Object> e : other.entrySet()) {
+                    sb.append("\n    " + e.getKey() + "=" + ("" + e.getValue()).replace("\n", "\n    "));
+                }
             }
         }
         sb.append('\n');

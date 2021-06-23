@@ -50,6 +50,8 @@ public class StubVirtualData<T> implements VirtualData {
     Map<String, Stub> stubs = new HashMap<>();
     // per-stub resources
     Map<String, WR> resources = new HashMap<>();
+    // cached timestamp
+    long timestamp;
 
     public StubVirtualData(String resPath, String basePath, T owner, Stub... stubs) {
         this.owner = owner;
@@ -111,16 +113,17 @@ public class StubVirtualData<T> implements VirtualData {
     }
 
     public long timestamp(String realm) {
-        return 0;
+        return timestamp;
     }
 
     @Override
     public byte[] get(HttpResourceBytes owner, HttpData httpData) {
+        System.out.println("StubVirtualData.get: for="+httpData.toString().replace("\n", "\\n"));
         byte[] data = null;
         WR wr = resources.get(owner.path());
         if (wr != null) {
             data = wr.data;
-            long timestamp = timestamp(wr.realm);
+            timestamp = Math.max(timestamp, timestamp(wr.realm));
             if (data == null || timestamp == 0 || timestamp > owner.timestamp()) {
                 synchronized (this) {
                     for (WR wri : resources.values()) {
@@ -167,7 +170,7 @@ public class StubVirtualData<T> implements VirtualData {
     public StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         try {
             return context.clone()
-                    .setProperty(Stub.StubContext.BASE_URL, "http" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
+                    .setProperty(Stub.StubContext.BASE_URL, httpData.getProto() + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
                     .setProperty(Stub.StubContext.NAMESPACE, wr.realm + "_" + wr.type) //                    .setProperty("wampRealm", wr.realm)
                     ;
         } catch (Throwable th) {

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -56,6 +57,7 @@ import ssg.lib.http_cs.AuthAdapter.AuthAdapterConf;
 import ssg.lib.http_cs.RESTAdapter.RESTAdapterConf;
 import ssg.lib.net.CS;
 import ssg.lib.net.TCPHandler;
+import ssg.lib.service.DF_Service;
 import ssg.lib.service.Repository;
 
 /**
@@ -104,10 +106,12 @@ public class HttpRunner extends CS {
     @Override
     public void start() throws IOException {
         synchronized (starting) {
-            if (!starting) {
+            if (!starting) try {
                 starting = true;
                 super.start();
                 onStarted();
+            } catch (IOException ioex) {
+                stop();
             }
         }
     }
@@ -396,6 +400,8 @@ public class HttpRunner extends CS {
                     }
                 }
             }
+        } else {
+            throw new IOException("No HTTP configured: port=" + httpPort + ", http=" + http);
         }
     }
 
@@ -405,6 +411,14 @@ public class HttpRunner extends CS {
 
     public HttpApplication getApp() {
         return app;
+    }
+
+    public URI getApp_URI() {
+        try {
+            return this.app != null && httpPort != null && httpPort > 0 ? new URI("http://localhost:" + httpPort + app.getRoot()) : null;
+        } catch (URISyntaxException usex) {
+            return null;
+        }
     }
 
     public RESTHttpDataProcessor getREST() {
@@ -417,6 +431,10 @@ public class HttpRunner extends CS {
 
     public HttpService getService() {
         return http != null ? http.getHttpService() : null;
+    }
+
+    public DF_Service getDFService() {
+        return http != null ? http.getService() : null;
     }
 
     public <T> T getProperty(String name) {
@@ -460,7 +478,7 @@ public class HttpRunner extends CS {
 
     public static class HttpConfig extends Config {
 
-        public static final String DEFAULT_BASE = "app.http";
+        public static final String DEFAULT_BASE = "app_http";
 
         @Description("Default HTTP service port, int")
         public Integer httpPort;
@@ -481,8 +499,8 @@ public class HttpRunner extends CS {
                 pattern = "type=(jwt|token)[;uri=(verificator URI)][;secret=(secret key)][;secretHeader=(header name for secret)][;tokenPrefix=(token prefix to select this verifier)]))")
         public String[] tokenDelegate;
 
-        public HttpConfig(String base, String... args) {
-            super(base != null ? base : DEFAULT_BASE, args);
+        public HttpConfig(String base) {
+            super(base != null ? base : DEFAULT_BASE);
         }
     }
 }

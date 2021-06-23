@@ -87,7 +87,7 @@ public class JSON implements Cloneable {
     }
 
     public boolean isObject(Object o) {
-        if (o instanceof String || o instanceof Number || o instanceof Boolean || o == null) {
+        if (o instanceof String || o instanceof Number || o instanceof Boolean || o == null || o instanceof Character) {
             return false;
         }
         if (o instanceof Collection || o.getClass().isArray()) {
@@ -97,7 +97,7 @@ public class JSON implements Cloneable {
     }
 
     public boolean isList(Object o) {
-        if (o instanceof String || o instanceof Number || o instanceof Boolean || o == null) {
+        if (o instanceof String || o instanceof Number || o instanceof Boolean || o == null || o instanceof Character) {
             return false;
         }
         return (o instanceof Collection || o.getClass().isArray());

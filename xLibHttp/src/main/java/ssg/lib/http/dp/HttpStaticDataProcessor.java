@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicInteger;
 import ssg.lib.common.Replacement;
 import ssg.lib.di.DI;
 import ssg.lib.http.HttpApplication;
@@ -59,6 +60,7 @@ import ssg.lib.service.SERVICE_PROCESSING_STATE;
 /**
  *
  * @author 000ssg
+ * @param <P>
  */
 public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcessor<P> {
 
@@ -226,16 +228,20 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             long timestamp = resolveTimestamp(res, resBase);
             Long expires = resolveExpires(res, resBase);
             if (expires == null) {
+                long timeOffset = System.currentTimeMillis() - timestamp;
+                if (timeOffset < 0) {
+                    timeOffset = 0;
+                }
                 if (res.path().contains(".")) {
                     String rp = res.path();
                     int idx = rp.lastIndexOf(".");
                     rp = rp.substring(idx);
                     if (rp.toLowerCase().equals(".html")) {
-                        expires = 1000L * 60 * 5;
+                        expires = timeOffset + 1000L * 60 * 5;
                     }
                 }
                 if (expires == null) {
-                    expires = 1000L * 60 * 60 * 24;
+                    expires = timeOffset + 1000L * 60 * 60;
                 }
             }
 
@@ -257,8 +263,10 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     }
                 } else {
                     long lastTimestamp = HttpData.fromHeaderDatetime(modifiedSince);
-                    if (lastTimestamp != -1 && timestamp <= lastTimestamp) {
-                        do304(data, timestamp, expires);
+                    if (lastTimestamp != -1
+                            && timestamp <= lastTimestamp
+                            && timestamp != 0) {
+                        do304(data, lastTimestamp, expires);
                         return;
                     }
                 }
@@ -294,7 +302,9 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     } else {
                         dp = new DataPipe((HttpRequest) data, respRes.open(data, replace));
                     }
-                    dataPipes.put(data, dp);
+                    synchronized (dataPipes) {
+                        dataPipes.put(data, dp);
+                    }
                 } else {
                     Runnable run = new Runnable() {
                         @Override
@@ -578,75 +588,79 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         return null;
     }
 
+    static AtomicInteger NEXT_TASK_ID = new AtomicInteger();
+
     @Override
     public List<Task> getTasks(TaskPhase... phases) {
         if (useDataPipes && (dataPipeTask == null || dataPipeTask.getCompleted() != 0) && !assigned.isEmpty()) {
-            if (!dataPipes.isEmpty()) {
-                dataPipeTask = new Task(new Runnable() {
-                    byte[] buf = new byte[1024 * 4];
+            if (!dataPipes.isEmpty()) synchronized (this) {
+                if (dataPipeTask == null) {
+                    dataPipeTask = new Task(new Runnable() {
+                        byte[] buf = new byte[1024 * 4];
 
-                    @Override
-                    public void run() {
-                        String oldName = Thread.currentThread().getName();
-                        String paths = "";
-                        for (HttpMatcher m : resources.keySet()) {
-                            paths += m.getPath() + ";";
-                        }
-                        if (paths.length() > 30) {
-                            paths = paths.substring(0, 27) + "...";
-                        }
-                        Thread.currentThread().setName(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":pipe: " + paths);
-                        try {
-                            // exit task once no actions during 5 sec.
-                            //long timeout = System.currentTimeMillis() + 100;//0*5;
-                            while (!assigned.isEmpty()) {//true) {
-                                while (!dataPipes.isEmpty()) {
-                                    DataPipe[] dps = null;
-                                    synchronized (dataPipes) {
-                                        dps = dataPipes.values().toArray(new DataPipe[dataPipes.size()]);
-                                    }
-                                    for (DataPipe dp : dps) {
-                                        try {
-                                            if (dp.cycles == 0) {
-                                                DataPipeStatistics.add(dp.req, dp.size, System.currentTimeMillis() - dp.started, null);
-                                                if (dp.getInitializer() != null) {
-                                                    initializers.add(dp.getInitializer());
+                        @Override
+                        public void run() {
+                            String oldName = Thread.currentThread().getName();
+                            String paths = "";
+                            for (HttpMatcher m : resources.keySet()) {
+                                paths += m.getPath() + ";";
+                            }
+                            if (paths.length() > 30) {
+                                paths = paths.substring(0, 27) + "...";
+                            }
+                            Thread.currentThread().setName(HttpStaticDataProcessor.this.getClass().getSimpleName() + ":pipe[" + NEXT_TASK_ID.getAndIncrement() + "]: " + paths);
+                            try {
+                                // exit task once no actions during 5 sec.
+                                //long timeout = System.currentTimeMillis() + 100;//0*5;
+                                while (!assigned.isEmpty()) {//true) {
+                                    while (!dataPipes.isEmpty()) {
+                                        DataPipe[] dps = null;
+                                        synchronized (dataPipes) {
+                                            dps = dataPipes.values().toArray(new DataPipe[dataPipes.size()]);
+                                        }
+                                        for (DataPipe dp : dps) {
+                                            try {
+                                                if (dp.cycles == 0) {
+                                                    DataPipeStatistics.add(dp.req, dp.size, System.currentTimeMillis() - dp.started, null);
+                                                    if (dp.getInitializer() != null) {
+                                                        initializers.add(dp.getInitializer());
+                                                    }
                                                 }
-                                            }
-                                            int c = dp.runCycle(buf);
-                                            if (c == -1) {
+                                                int c = dp.runCycle(buf);
+                                                if (c == -1) {
+                                                    synchronized (dataPipes) {
+                                                        dataPipes.remove(dp.req);
+                                                    }
+                                                    DataPipeStatistics.done(dp.req, dp.size, dp.completed - dp.started, null);
+                                                }
+                                            } catch (Throwable th) {
                                                 synchronized (dataPipes) {
+                                                    dp.req.getResponse().onLoaded();
                                                     dataPipes.remove(dp.req);
+                                                    DataPipeStatistics.done(dp.req, dp.size, System.currentTimeMillis() - dp.started, th);
                                                 }
-                                                DataPipeStatistics.done(dp.req, dp.size, dp.completed - dp.started, null);
-                                            }
-                                        } catch (Throwable th) {
-                                            synchronized (dataPipes) {
-                                                dp.req.getResponse().onLoaded();
-                                                dataPipes.remove(dp.req);
-                                                DataPipeStatistics.done(dp.req, dp.size, System.currentTimeMillis() - dp.started, th);
                                             }
                                         }
+                                        // update timeout if some activity...
+                                        //timeout = System.currentTimeMillis() + 100;//0*5;
                                     }
-                                    // update timeout if some activity...
-                                    //timeout = System.currentTimeMillis() + 100;//0*5;
-                                }
 //                            if (System.currentTimeMillis() >= timeout) {
 //                                break;
 //                            }
-                                try {
-                                    Thread.sleep(10);
-                                } catch (Throwable th) {
-                                    break;
+                                    try {
+                                        Thread.sleep(10);
+                                    } catch (Throwable th) {
+                                        break;
+                                    }
                                 }
+                            } finally {
+                                dataPipeTask = null;
+                                Thread.currentThread().setName(oldName);
                             }
-                        } finally {
-                            dataPipeTask = null;
-                            Thread.currentThread().setName(oldName);
                         }
-                    }
-                }, Task.TaskPriority.high);
-                return Collections.singletonList(dataPipeTask);
+                    }, Task.TaskPriority.high);
+                    return Collections.singletonList(dataPipeTask);
+                }
             }
         } else if (!initializers.isEmpty()) {
             List<Task> r = new ArrayList<>();
@@ -726,6 +740,92 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         boolean canResolveParameter(HttpData data, String parameterName);
 
         String resolveParameter(HttpData data, String parameterName);
+    }
+
+    public static class ParameterResolverRequest implements ParameterResolver {
+
+        @Override
+        public String getParametersPrefix() {
+            return "request.";
+        }
+
+        @Override
+        public Collection<String> getParameterNames(HttpData data, boolean withPrefix) {
+            Collection<String> r = new HashSet<>();
+            r.add("hostURL");
+            r.add("host");
+            r.add("headers");
+
+            List<String> ns = new ArrayList<>(r.size());
+            HttpRequest req = (HttpRequest) data;
+            for (String hn : req.getHead().getHeaders().keySet()) {
+                ns.add("header." + hn);
+            }
+
+            ns.addAll(r);
+            Collections.sort(ns);
+            if (withPrefix) {
+                String pfx = getParametersPrefix();
+                for (int i = 0; i < ns.size(); i++) {
+                    ns.set(i, pfx + ns.get(i));
+                }
+            }
+
+            return ns;
+        }
+
+        @Override
+        public boolean canResolveParameter(HttpData data, String parameterName) {
+            return data instanceof HttpRequest && parameterName != null;
+        }
+
+        @Override
+        public String resolveParameter(HttpData data, String parameterName) {
+            if (canResolveParameter(data, parameterName)) {
+                HttpRequest req = (HttpRequest) data;
+                String[] ss = parameterName.split("\\.");
+
+                if ("hostURL".equals(parameterName)) {
+                    return "" + req.getHostURL();
+                } else if ("host".equals(parameterName)) {
+                    return "" + req.getHead().getHeader1(parameterName);
+                } else if ("headers".equals(parameterName)) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("[");
+                    for (String s : req.getHead().getHeaders().keySet()) {
+                        if (sb.length() > 1) {
+                            sb.append(',');
+                        }
+                        sb.append('"');
+                        sb.append(s.replace("\"", "\\\""));
+                        sb.append('"');
+                    }
+                    sb.append("]");
+                    return sb.toString();
+                } else if (ss[0].equals("header") && ss.length == 2) {
+                    String[] si = req.getHead().getHeader(ss[1]);
+                    if (si == null) {
+                        return "";
+                    } else if (si.length == 1) {
+                        return si[0];
+                    } else {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("[");
+                        for (String s : si) {
+                            if (sb.length() > 1) {
+                                sb.append(',');
+                            }
+                            sb.append('"');
+                            sb.append(s.replace("\"", "\\\""));
+                            sb.append('"');
+                        }
+                        sb.append("]");
+                        return sb.toString();
+                    }
+                }
+            }
+            return null;
+        }
     }
 
     public static class ParameterResolverSession implements ParameterResolver {
@@ -891,7 +991,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
 
         @Override
         public String getParametersPrefix() {
-            return "app";
+            return "app.";
         }
 
         @Override
@@ -948,6 +1048,8 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
      */
     public static class DataPipe {
 
+        static AtomicInteger NEXT_ID = new AtomicInteger();
+        final int id = NEXT_ID.getAndIncrement();
         HttpRequest req;
         InputStream is;
         long timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
@@ -1022,15 +1124,28 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
             }
             timeout = System.currentTimeMillis() + DEFAULT_DATA_PIPE_TIMEOUT;
 
-            int c = is.read(buf);
-            if (c == -1) {
-                req.getResponse().onLoaded();
-                completed = System.currentTimeMillis();
-            } else if (c > 0) {
-                size += c;
-                body.add(ByteBuffer.wrap(buf, 0, c));
+            try {
+//                    if (is instanceof InputStreamReplacement) {
+//                        ((InputStreamReplacement) is).DEBUG = true;
+//                    }
+                int c = is.read(buf);
+                if (c > 0) {
+                    size += c;
+                    //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] " + new String(buf, 0, c, "ISO-8859-1"));
+                    body.add(ByteBuffer.wrap(buf, 0, c));
+                } else if (c == -1) {
+                    //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] close response");
+                    req.getResponse().onLoaded();
+                    completed = System.currentTimeMillis();
+                }
+                return c;
+            } catch (Throwable th) {
+                th.printStackTrace();
+                if (th instanceof IOException) {
+                    throw (IOException) th;
+                }
+                throw new IOException(th);
             }
-            return c;
         }
 
         @Override

@@ -47,6 +47,7 @@ import ssg.lib.di.DI;
 import ssg.lib.http.HttpMatcher.HttpMatcherComposite;
 import ssg.lib.http.HttpSession;
 import ssg.lib.http.HttpUser;
+import ssg.lib.http.base.HttpResponseListener;
 import ssg.lib.service.SERVICE_PROCESSING_STATE;
 
 /**
@@ -54,7 +55,7 @@ import ssg.lib.service.SERVICE_PROCESSING_STATE;
  *
  * @author 000ssg
  */
-public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<P> {
+public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<P> implements HttpResponseListener {
 
     // root path
     String root;
@@ -63,6 +64,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     Map<RESTMethod, Object> serviceProviders = new LinkedHashMap<RESTMethod, Object>();
     Refl refl = new ReflJSON();
     private RESTHttpHelper restHelper = new RESTHttpHelper();
+    boolean traceRequests = false;
 
     public RESTHttpDataProcessor(String root) {
         super(root);
@@ -190,6 +192,11 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         return this;
     }
 
+    public RESTHttpDataProcessor traceRequests(boolean trace) {
+        this.traceRequests = trace;
+        return this;
+    }
+
     public HttpMatcher prepareMethod(RESTMethod m) {
         String path = m.getPath();
         if (path == null || path.isEmpty()) {
@@ -246,6 +253,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         super.onCompleted(data); //To change body of generated methods, choose Tools | Templates.
 
         final HttpRequest req = (HttpRequest) data;
+        req.addHttpResponseListener(this);
         if (req.getBody() instanceof MultipartBody) {
             final Map<String, Object> params = new LinkedHashMap<String, Object>();
             RESTMethod m = prepareMethodAndParams(req, params);
@@ -265,6 +273,19 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
 //                }
                 return;
                 //throw new IOException("No REST method found for " + qrm.toString());
+            } else {
+                addProcessor(req, m, params);
+            }
+        } else {
+            final Map<String, Object> params = new LinkedHashMap<String, Object>();
+            RESTMethod m = prepareMethodAndParams(req, params);
+            if (m == null) {
+                HttpResponse resp = req.getResponse();
+                resp.setResponseCode(500, "Server Error");
+                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+                resp.onHeaderLoaded();
+                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+                resp.onLoaded();
             } else {
                 addProcessor(req, m, params);
             }
@@ -288,13 +309,18 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         RESTMethod m = prepareMethodAndParams(req, params);
 
         if (m == null) {
-            HttpResponse resp = req.getResponse();
-            resp.setResponseCode(500, "Server Error");
-            resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
-            resp.onHeaderLoaded();
-            resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
-            resp.onLoaded();
-            return;
+            if (req.isCompleted()) {
+                // if no method for completed request -> error
+                HttpResponse resp = req.getResponse();
+                resp.setResponseCode(500, "Server Error");
+                resp.addHeader(HttpData.HH_TRANSFER_ENCODING, HttpData.HTE_CHUNKED);
+                resp.onHeaderLoaded();
+                resp.add(wrapResponseData(null, "No REST method found at '" + root + "' handler for " + ("" + req.getMatcher()), null));
+                resp.onLoaded();
+            } else {
+                // need more data: wait, e.g. if content type is "application/x-www-form-urlencoded"
+                return;
+            }
             //throw new IOException("No REST method found for " + qrm.toString());
         } else {
             addProcessor(req, m, params);
@@ -361,13 +387,16 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     }
 
     public void addProcessor(final HttpRequest req, final RESTMethod m, final Map params) {
-        // ensure parameter typed as HttpRequest is set if present
+        // ensure parameter typed as HttpRequest/HttpSession/HttpUser is set if present
         if (m != null && !m.getParams().isEmpty()) {
             List<RESTParameter> rps = m.getParams();
             for (RESTParameter rp : rps) {
                 if (HttpRequest.class.isAssignableFrom(rp.getType())) {
                     params.put(rp.getName(), req);
-                    break;
+                } else if (HttpSession.class.isAssignableFrom(rp.getType())) {
+                    params.put(rp.getName(), req.getHttpSession());
+                } else if (HttpUser.class.isAssignableFrom(rp.getType())) {
+                    params.put(rp.getName(), req.getHttpSession() != null ? req.getHttpSession().getUser() : null);
                 }
             }
         }
@@ -670,7 +699,7 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append((getClass().isAnonymousClass() ? getClass().getName() : getClass().getSimpleName()));
-        sb.append("{" + "root=" + root + ", methods=" + methods.size());
+        sb.append("{" + "root=" + root + ", methods=" + methods.size() + ", trace requests=" + traceRequests);
         if (!methods.isEmpty()) {
             for (Entry<HttpMatcher, RESTMethod[]> e : methods.entrySet()) {
                 sb.append("\n  " + e.getKey().toString().replace("\n", "\n  "));
@@ -702,6 +731,26 @@ public class RESTHttpDataProcessor<P extends Channel> extends HttpDataProcessor<
         if (restHelper != null) {
             this.restHelper = restHelper;
         }
+    }
+
+    /////////////////////////////////////////////////////// HttpResponseListener
+    @Override
+    public void onResponseSent(HttpResponse resp) {
+    }
+
+    @Override
+    public void onResponseHeaderSent(HttpResponse resp) {
+    }
+
+    @Override
+    public void onResponseLoaded(HttpResponse resp) {
+        if (traceRequests) {
+            System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].request[" + resp.getQuery() + "] completed in " + (System.currentTimeMillis() - resp.getRequestedAt()) + "ms, size=" + resp.getOutputSize()+" for "+resp.getConnectionInfo());
+        }
+    }
+
+    @Override
+    public void onResponseHeaderLoaded(HttpResponse resp) {
     }
 
 }

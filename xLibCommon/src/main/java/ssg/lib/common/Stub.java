@@ -378,8 +378,8 @@ public interface Stub<A, F, P, T> {
                 }
             }
             sb.append("//\n");
-            sb.append("\nvar " + context.namespace() + " = {\n");
-            sb.append("\n  baseURL: \"" + context.baseURL() + "/\",");
+            sb.append("\nvar " + context.namespace().replace("/", "_").replace(":", "_") + " = {\n");
+            sb.append("\n  baseURL: \"" + context.baseURL() +(context.baseURL().endsWith("/") ? "" : "/")+ "\",");
             sb.append("\n  callsDebug: undefined,");
             return sb.toString();
         }
@@ -529,7 +529,7 @@ public interface Stub<A, F, P, T> {
                 if (sbp.length() > 0) {
                     sb.append("\n    $.post(url, {" + sbp.toString() + "})");
                 } else {
-                    sb.append("\n    $.post(url)");
+                    sb.append("\n    $.get(url)");
                 }
                 sb.append("\n      .done()");
                 sb.append("\n      .fail()");

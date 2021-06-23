@@ -23,6 +23,7 @@
  */
 package ssg.lib.http;
 
+import java.util.Arrays;
 import ssg.lib.http.base.HttpData;
 
 /**
@@ -40,6 +41,7 @@ public class HttpCookie {
     String path;
     Long expires;
     int flags;
+    String[] altValues;
 
     public HttpCookie(String s) {
         String[] ss = s.split(";");
@@ -77,6 +79,31 @@ public class HttpCookie {
         this.flags = flags;
     }
 
+    public void setAltValue(String value) {
+        if (value == null || this.value.equals(value)) {
+            return;
+        }
+        if (altValues != null) {
+            for (String v : altValues) {
+                if (v.equals(value)) {
+                    return;
+                }
+            }
+        }
+        if (altValues == null) {
+            altValues = new String[]{value};
+        } else {
+            synchronized (this) {
+                altValues = Arrays.copyOf(altValues, altValues.length + 1);
+                altValues[altValues.length - 1] = value;
+            }
+        }
+    }
+
+    public String[] getAltValues() {
+        return altValues != null ? altValues : new String[0];
+    }
+
     public void onUnknown(String n, String v) {
     }
 
@@ -95,11 +122,11 @@ public class HttpCookie {
         if (isSecure()) {
             sb.append("; Secure");
         }
+        if (isSameSite()) {
+            sb.append("; SameSite=Lax");
+        }
         if (isHttpOnly()) {
             sb.append("; HttpOnly");
-        }
-        if (isSameSite()) {
-            sb.append("; SameSite");
         }
         return sb.toString();
     }

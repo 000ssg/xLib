@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,32 +39,35 @@ import ssg.lib.common.buffers.BufferTools;
  *
  * @author 000ssg
  */
-public class HttpRequest extends HttpData {
-    
+public class HttpRequest extends HttpData implements HttpResponseListener {
+
+    long createdAt = System.currentTimeMillis();
     HttpResponse response;
     boolean closed = false;
     boolean client = false;
     private Map<String, Object> properties = new LinkedHashMap<>();
-    
+    HttpResponseListener[] listeners = new HttpResponseListener[0];
+
     public HttpRequest() {
     }
-    
+
     public HttpRequest(String method, String path) {
         this.client = true;
         this.getHead().setProtocol(method, path, httpVersion);
     }
-    
+
     public HttpRequest(boolean client) {
         this.client = client;
     }
-    
+
     public HttpRequest(HttpRequest req, boolean client) throws IOException {
         super(req);
+        this.createdAt = req.createdAt;
         getProperties().putAll(req.getProperties());
         this.client = client;
         this.closed = false;
     }
-    
+
     public HttpRequest(ByteBuffer... data) throws IOException {
         this.client = false;
         if (data != null) {
@@ -72,7 +76,7 @@ public class HttpRequest extends HttpData {
             }
         }
     }
-    
+
     public HttpRequest(Collection<ByteBuffer>... data) throws IOException {
         this.client = false;
         if (data != null) {
@@ -91,7 +95,7 @@ public class HttpRequest extends HttpData {
         long c = add(data);
         return this;
     }
-    
+
     public HttpRequest append(ByteBuffer... data) throws IOException {
         long c = 0;
         if (data != null) {
@@ -103,7 +107,7 @@ public class HttpRequest extends HttpData {
         }
         return this;
     }
-    
+
     @Override
     public void onHeaderLoaded() {
         if (!getHead().completed) {
@@ -113,7 +117,7 @@ public class HttpRequest extends HttpData {
             response = new HttpResponse(this);
         }
     }
-    
+
     @Override
     public void onLoaded() {
         super.onLoaded();
@@ -128,6 +132,11 @@ public class HttpRequest extends HttpData {
      * @param resp
      */
     public void onResponseSent(HttpResponse resp) {
+        for (HttpResponseListener l : listeners) {
+            if (l != null) {
+                l.onResponseSent(resp);
+            }
+        }
     }
 
     /**
@@ -136,6 +145,11 @@ public class HttpRequest extends HttpData {
      * @param resp
      */
     public void onResponseHeaderSent(HttpResponse resp) {
+        for (HttpResponseListener l : listeners) {
+            if (l != null) {
+                l.onResponseHeaderSent(resp);
+            }
+        }
     }
 
     /**
@@ -144,6 +158,11 @@ public class HttpRequest extends HttpData {
      * @param resp
      */
     public void onResponseLoaded(HttpResponse resp) {
+        for (HttpResponseListener l : listeners) {
+            if (l != null) {
+                l.onResponseLoaded(resp);
+            }
+        }
     }
 
     /**
@@ -152,28 +171,42 @@ public class HttpRequest extends HttpData {
      * @param resp
      */
     public void onResponseHeaderLoaded(HttpResponse resp) {
+        for (HttpResponseListener l : listeners) {
+            if (l != null) {
+                l.onResponseHeaderLoaded(resp);
+            }
+        }
     }
-    
+
+    /**
+     * Returns timestamp of HttpRequest item creation.
+     *
+     * @return
+     */
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
     public boolean closed() {
         return closed;
     }
-    
+
     public void close() throws IOException {
         closed = true;
     }
-    
+
     @Override
     public List<ByteBuffer> get() throws IOException {
         // in server mode returns response output, in server mode - self.
         lastSendTime = System.currentTimeMillis();
         return (client) ? super.get() : this.response.get();
     }
-    
+
     @Override
     public boolean isSent() {
         return (client) ? super.isSent() : this.response.isSent();
     }
-    
+
     @Override
     public void add(ByteBuffer bb) throws IOException {
         lastUpdateTime = System.currentTimeMillis();
@@ -183,11 +216,11 @@ public class HttpRequest extends HttpData {
             super.add(bb);
         }
     }
-    
+
     public HttpResponse getResponse() {
         return response;
     }
-    
+
     public void setHeader(String hn, String hv) throws IOException {
         if (!isCompleted()) {
             getHead().setHeader(hn, hv);
@@ -195,11 +228,11 @@ public class HttpRequest extends HttpData {
             //getResponse().setHeader(hn, hv);
         }
     }
-    
+
     public HttpSession getHttpSession() {
         return (getContext() instanceof HttpSession) ? (HttpSession) getContext() : null;
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -221,11 +254,18 @@ public class HttpRequest extends HttpData {
         String protocol = (isSecure()) ? "https://" : "http://";
         return protocol + host;
     }
-    
+
     public String getQuery() {
         return (head.protocol != null) ? head.protocol[1] : null;
     }
-    
+
+    public String getConnectionInfo() {
+        if (this.properties.containsKey("connection")) {
+            return "" + this.properties.get("connection");
+        }
+        return "";
+    }
+
     public boolean isDone() {
         if (client) {
             return getResponse() != null && getResponse().isCompleted() || closed;
@@ -250,11 +290,11 @@ public class HttpRequest extends HttpData {
 //        }
         return r;
     }
-    
+
     public boolean canHaveFormParameters() {
         return getBody() instanceof MultipartBody || getContentType() != null && getContentType().contains("www-form-urlencoded");
     }
-    
+
     public Map<String, Object> getFormParameters(Map<String, Object> params) throws IOException {
         if (params == null) {
             params = new LinkedHashMap<String, Object>();
@@ -272,7 +312,7 @@ public class HttpRequest extends HttpData {
                     } else {
                         params.put(part.name, s);
                     }
-                    
+
                 }
             }
         } else if (getContentType() != null && getContentType().contains("www-form-urlencoded")) {
@@ -301,7 +341,7 @@ public class HttpRequest extends HttpData {
                                 pv = URLDecoder.decode(pv, encoding);
                             }
                         }
-                        
+
                         if (1 == 1) {
                             toFormParameterValue(pn, pv, params);
                         } else {
@@ -322,10 +362,10 @@ public class HttpRequest extends HttpData {
                 throw new IOException("Failed to parse www-form-urlencoded params: " + th, th);
             }
         }
-        
+
         return params;
     }
-    
+
     public static void toFormParameterValue(String pn, String pv, Object obj) {
         String[] pns = pn.split("\\[");
         Integer[] pnt = new Integer[pns.length];
@@ -388,7 +428,7 @@ public class HttpRequest extends HttpData {
             }
         }
         int last = pns.length - 1;
-        
+
         if (pns[last].isEmpty()) {
             if (obj instanceof Collection) {
                 ((Collection) obj).add(pv);
@@ -411,5 +451,49 @@ public class HttpRequest extends HttpData {
      */
     public Map<String, Object> getProperties() {
         return properties;
+    }
+
+    public void addHttpResponseListener(HttpResponseListener l) {
+        if (l != null) {
+            synchronized (this) {
+                int idx = -1;
+                for (int i = 0; i < listeners.length; i++) {
+                    if (listeners[i].equals(l)) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx == -1) {
+                    HttpResponseListener[] tmp = Arrays.copyOf(listeners, listeners.length + 1);
+                    tmp[tmp.length - 1] = l;
+                    listeners = tmp;
+                }
+            }
+        }
+    }
+
+    public void removeHttpResponseListener(HttpResponseListener l) {
+        if (l != null) {
+            synchronized (this) {
+                int idx = -1;
+                for (int i = 0; i < listeners.length; i++) {
+                    if (listeners[i].equals(l)) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx == -1) {
+                    HttpResponseListener[] tmp = new HttpResponseListener[listeners.length - 1];
+                    int off = 0;
+                    for (int i = 0; i < listeners.length; i++) {
+                        if (i == idx) {
+                            continue;
+                        }
+                        tmp[off++] = listeners[i];
+                    }
+                    listeners = tmp;
+                }
+            }
+        }
     }
 }
