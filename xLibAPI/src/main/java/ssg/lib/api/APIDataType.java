@@ -44,7 +44,7 @@ public class APIDataType extends APIItem {
         sb.append(super.toString());
         sb.delete(sb.length() - 1, sb.length());
         //sb.append(", len=" + len + ", scale=" + scale + ", prec=" + prec + ", cs=" + cs + ", mandatory=" + mandatory);
-        sb.append(", category=" + (isObjectType() ? "collection" : isCollectionType() ? "object" : "scalar"));
+        sb.append(", category=" + (isCollectionType() ? "collection" : isObjectType() ? "object" : "scalar"));
         sb.append(", mandatory=" + mandatory);
         sb.append(", java=" + ((getJavaType() != null) ? getJavaType() : "<none>"));
         sb.append('}');

@@ -122,6 +122,9 @@ public class StubVirtualData<T> implements VirtualData {
         byte[] data = null;
         WR wr = resources.get(owner.path());
         if (wr != null) {
+            if(wr.crossOrigin!=null) {
+                        int a=0;
+            }
             data = wr.data;
             timestamp = Math.max(timestamp, timestamp(wr.realm));
             if (data == null || timestamp == 0 || timestamp > owner.timestamp()) {
@@ -192,6 +195,7 @@ public class StubVirtualData<T> implements VirtualData {
         public String type;
         public byte[] data;
         public long updated;
+        public String crossOrigin = "*";
 
         public WR(String realm, String type) {
             this.realm = realm;

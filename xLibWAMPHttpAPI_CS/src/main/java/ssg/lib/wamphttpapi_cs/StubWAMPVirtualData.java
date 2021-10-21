@@ -24,6 +24,7 @@
 package ssg.lib.wamphttpapi_cs;
 
 import java.io.IOException;
+import java.net.URI;
 import ssg.lib.common.Stub;
 import ssg.lib.http.base.HttpData;
 import ssg.lib.http.rest.StubVirtualData;
@@ -42,12 +43,19 @@ import ssg.lib.wamp.nodes.WAMPRouter;
  */
 public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
 
+    URI routerURI;
+
     public StubWAMPVirtualData(String resPath, String basePath, WAMPRouter owner, Stub... stubs) {
         super(resPath, basePath, owner, stubs);
     }
 
     public StubWAMPVirtualData(String resPath, String basePath, WAMPRouter owner, String... stubs) {
         super(resPath, basePath, owner, stubs);
+    }
+
+    public StubWAMPVirtualData configureRouterURI(URI uri) {
+        this.routerURI = uri;
+        return this;
     }
 
     @Override
@@ -77,7 +85,10 @@ public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
     @Override
     public Stub.StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         return super.getContextForWR(wr, httpData)
-                .setProperty("wampURI", "ws" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + path())
+                .setProperty("wampURI",
+                        routerURI != null
+                                ? routerURI.toString()
+                                : "ws" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + path())
                 .setProperty("wampRealm", wr.realm);
     }
 

@@ -26,7 +26,6 @@ package ssg.lib.api;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import ssg.lib.api.dbms.DB_API;
 
 /**
  * API is consistent hierarchical (optionally) set of functions and data types
@@ -50,9 +49,9 @@ public abstract class API extends APIGroup {
 
     public static class APIResult extends LinkedHashMap<String, Object> {
 
-        public APIResult add(String name, Object value, DB_API.APIResult dbResult) {
+        public APIResult add(String name, Object value, APIResult result) {
             put(name, value);
-            return dbResult;
+            return result;
         }
     }
 }

@@ -59,7 +59,7 @@ public class WAMPCyleTesterAuth {
         WAMPAuthProvider wapcra2 = new WAMPAuthCRA("testCRA2");
         WAMPAuthProvider wapcra3 = new WAMPAuthCRA("testCRA3");
         WAMPAuthProvider wapticket = new WAMPAuthTicket("testTicket", (session, authid, ticket) -> {
-            Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, authid);
+            Map<String, Object> map = WAMPTools.createDict(K_AUTH_ID, authid, K_AUTH_METHOD, "user-ticket");
             map.put(K_AUTH_ROLE, "admin");
             return map;
         });

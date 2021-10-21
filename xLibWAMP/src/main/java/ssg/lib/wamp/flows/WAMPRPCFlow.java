@@ -25,7 +25,6 @@ package ssg.lib.wamp.flows;
 
 import java.util.Arrays;
 import ssg.lib.wamp.WAMP;
-import static ssg.lib.wamp.WAMPConstantsAdvanced.ERROR_Unavailable;
 import ssg.lib.wamp.util.WAMPException;
 import ssg.lib.wamp.WAMPSession;
 import ssg.lib.wamp.messages.WAMPMessage;
@@ -45,7 +44,6 @@ import ssg.lib.wamp.messages.WAMP_DT;
 import ssg.lib.wamp.rpc.WAMPCallee;
 import ssg.lib.wamp.rpc.WAMPCaller;
 import ssg.lib.wamp.rpc.WAMPDealer;
-import ssg.lib.wamp.util.WAMPTools;
 
 /**
  *
@@ -206,7 +204,7 @@ public class WAMPRPCFlow implements WAMPMessagesFlow {
         return WAMPFlowStatus.ignored;
     }
     
-    public boolean validateProcedure(WAMPSession session, String topic) {
-        return topic != null && WAMP_DT.uri.validate(topic);
+    public boolean validateProcedure(WAMPSession session, String procedure) {
+        return procedure != null && WAMP_DT.uri.validate(procedure);
     }
 }

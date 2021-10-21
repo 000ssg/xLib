@@ -524,6 +524,11 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             wamp.configureRouter(true, null).configureClient(true, null);
             this.routerPort = routerPort;
             wamp.getCSGroup().addListenerAt(this, InetAddress.getByAddress(new byte[]{0, 0, 0, 0}), routerPort);
+            try {
+                wampRouterURI = new URI("ws://localhost:" + routerPort);
+            } catch (Throwable th) {
+            }
+
             configUpdated(CFG_WAMP_PORT, null, routerPort);
         } else {
             throw new IOException("WAMP configuration is defined already.");
@@ -844,7 +849,8 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
     public WAMPClient connect(URI uri, String authid, String agent, String realm, WAMPFeature[] features, WAMP.Role... roles) throws WAMPException {
         if (wamp != null) {
             try {
-                if (wampRouterURI != null && wampRouterURI.equals(uri) && wamp.getRouter() != null) {
+                if (wampRouterURI != null && wampRouterURI.equals(uri) && wamp.getRouter() != null
+                        || uri == null && wampRouterURI == null && routerPort > 0) {
                     return wamp.connect(
                             wamp.getRouter(),
                             getWAMPAuth(uri, authid, agent, realm, features, roles),
@@ -914,7 +920,7 @@ public class WAMPRunner extends APIRunner<WAMPClient> {
             sb.append("\n  wampRouterURI=" + wampRouterURI);
             sb.append("\n  multiHost=" + multiHost);
         }
-        sb.append("\n  wamp=" + (wamp!=null ? wamp.toString().replace("\n", "\n  "):""));
+        sb.append("\n  wamp=" + (wamp != null ? wamp.toString().replace("\n", "\n  ") : ""));
         sb.append("\n  ws_wamp_connection_upgrade=" + ws_wamp_connection_upgrade);
         sb.append("\n  wampTransportHeaders=" + wampTransportHeaders);
         sb.append("\n  wampTransportAuths=" + wampTransportAuths);

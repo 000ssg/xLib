@@ -54,30 +54,29 @@ public interface Stub<A, F, P, T> {
 
     /**
      * Define API block and present API within comment if forComment is true.
-     *
-     * @param helper
-     * @param methods
-     * @param forComment
-     * @return
+     * 
+     * @param context
+     * @param api
+     * @return 
      */
     String openStub(StubContext<A, F, P, T> context, A api);
 
     /**
      * Finalize API block.
-     *
-     * @param helper
-     * @return
+     * 
+     * @param context
+     * @return 
      */
     String closeStub(StubContext<A, F, P, T> context);
 
     /**
      * Generate API method. Optional parameter "methodName" may be used to
      * override method name in API (e.g. if overloaded methods are present).
-     *
-     * @param helper
+     * 
+     * @param context
      * @param method
      * @param methodName
-     * @return
+     * @return 
      */
     String generateStubMethod(StubContext<A, F, P, T> context, F method, String methodName);
 
@@ -325,9 +324,6 @@ public interface Stub<A, F, P, T> {
                 if (type == null) {
                     return false;
                 }
-                for (P p : parameters(method)) {
-                    if (type.getClass().isAssignableFrom(type(p).getClass()));
-                }
             } else {
                 if (type == null) {
                     for (P p : parameters(method)) {
@@ -477,37 +473,37 @@ public interface Stub<A, F, P, T> {
             String sbp = generateStubMethodParametersObject(context, m);
 
             sb.append("\n  {\n");
-            sb.append("\n    var url=this.baseURL+'" + context.nameOf(m) + "';");
+            sb.append("\n    const url=this.baseURL+'" + context.nameOf(m) + "';");
 
             if (context.isUploadMethod(m)) {
                 Collection<P> ups = context.getUploadMethodParameters(m);
                 if (ups != null) {
                     for (P up : ups) {
                         sb.append("\n    {");
-                        sb.append("\n    var file = document.getElementById(" + context.nameOf(up) + ");");
+                        sb.append("\n    let file = document.getElementById(" + context.nameOf(up) + ");");
 
                         sb.append("\n    if (file && file.files && file.files[0])");
                         sb.append("\n        file = file.files[0];");
                         sb.append("\n    if (!file || file == '')");
                         sb.append("\n        return;");
 
-                        sb.append("\n    var fd = new FormData();");
+                        sb.append("\n    let fd = new FormData();");
                         sb.append("\n    fd.append(\"" + context.nameOf(up) + "\", file);");
                         sb.append("\n    // These extra params aren't necessary but show that you can include other data.");
                         sb.append("\n    //                fd.append(\"username\", \"Groucho\");");
                         sb.append("\n    //                fd.append(\"accountnum\", 123456);");
-                        sb.append("\n    var xhr = new XMLHttpRequest();");
+                        sb.append("\n    let xhr = new XMLHttpRequest();");
                         sb.append("\n    xhr.open('POST', url, true);");
 
                         sb.append("\n    xhr.upload.onprogress = function (e) {");
                         sb.append("\n        if (e.lengthComputable) {");
-                        sb.append("\n            var percentComplete = (e.loaded / e.total) * 100;");
+                        sb.append("\n            const percentComplete = (e.loaded / e.total) * 100;");
                         sb.append("\n            console.log(percentComplete + '% uploaded');");
                         sb.append("\n        }");
                         sb.append("\n    };");
                         sb.append("\n    xhr.onload = function () {");
                         sb.append("\n        if (this.status == 200) {");
-                        sb.append("\n            var resp = JSON.parse(this.response);");
+                        sb.append("\n            const resp = JSON.parse(this.response);");
                         sb.append("\n            if(\"function\"==typeof(this.callsDebug)) this.callsDebug(url, resp);");
                         sb.append("\n            if (resp.status == 'OK') {");
                         sb.append("\n                if(\"function\"==typeof(done)) done(url, resp);");
