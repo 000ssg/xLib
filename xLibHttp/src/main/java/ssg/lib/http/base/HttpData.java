@@ -82,6 +82,7 @@ public abstract class HttpData {
     public static final String HH_LAST_MODIFIED = "Last-Modified";
     public static final String HH_KEEP_ALIVE = "Keep-Alive";
     public static final String HH_IF_MODIFIED_SINCE = "If-Modified-Since";
+    public static final String HH_ORIGIN = "Origin";
     public static final String HH_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
     public static final String HH_ACCEPT_RANGES = "Accept-Ranges";
     public static final String HH_CONTENT_RANGE = "Content-Range";

@@ -42,6 +42,8 @@ import ssg.lib.wamp.nodes.WAMPRouter;
  * @author 000ssg
  */
 public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
+    public static final String P_WAMP_URI = "wampURI";
+    public static final String P_WAMP_REALM = "wampRealm";
 
     URI routerURI;
 
@@ -85,11 +87,11 @@ public class StubWAMPVirtualData extends StubVirtualData<WAMPRouter> {
     @Override
     public Stub.StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         return super.getContextForWR(wr, httpData)
-                .setProperty("wampURI",
+                .setProperty(P_WAMP_URI,
                         routerURI != null
                                 ? routerURI.toString()
                                 : "ws" + (httpData.isSecure() ? "s" : "") + "://" + httpData.getHead().getHeader1("host") + path())
-                .setProperty("wampRealm", wr.realm);
+                .setProperty(P_WAMP_REALM, wr.realm);
     }
 
     @Override

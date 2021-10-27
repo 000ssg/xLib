@@ -76,7 +76,7 @@ public class HttpMatcher implements Cloneable {
     public HttpMatcher append(HttpMatcher child) {
         HttpMatcher r = child.copy();
         r.absolutePath = this.absolutePath;
-        r.path=(path!=null ? path : "")+(r.path.startsWith("/") || path!=null && path.endsWith("/") ? "" : "/")+r.path;
+        r.path = (path != null ? path : "") + (r.path.startsWith("/") || path != null && path.endsWith("/") ? "" : "/") + r.path;
         if (paths != null) {
             r.paths = new String[r.paths.length + paths.length];
             for (int i = 0; i < paths.length; i++) {
@@ -339,9 +339,11 @@ public class HttpMatcher implements Cloneable {
             }
             if (qpm != null) {
                 for (int i = 0; i < qpm.length; i++) {
-                    if (qpm[i][0].startsWith("{")) {
+                    if (qpm[i][0] != null) {
                         String key = qpm[i][0];
-                        key = key.substring(1, key.length() - 1);
+                        if (qpm[i][0].startsWith("{")) {
+                            key = key.substring(1, key.length() - 1);
+                        }
 
                         String nv = qpm[i][1];
                         if (r.containsKey(key)) {

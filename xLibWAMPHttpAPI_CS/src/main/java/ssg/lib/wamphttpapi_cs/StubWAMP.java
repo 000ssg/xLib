@@ -27,6 +27,8 @@ import java.util.Map;
 import ssg.lib.common.Stub;
 import ssg.lib.common.Stub.StubContext.PDIR;
 import ssg.lib.wamp.WAMPRealm;
+import static ssg.lib.wamphttpapi_cs.StubWAMPVirtualData.P_WAMP_REALM;
+import static ssg.lib.wamphttpapi_cs.StubWAMPVirtualData.P_WAMP_URI;
 
 /**
  * JavaScript API generator for WAMP calls wrapper using "autobahn.js"
@@ -49,7 +51,7 @@ public class StubWAMP extends Stub.StubJavascript<WAMPRealm, Map, Map, String> {
     @Override
     public String openStub(StubContext<WAMPRealm, Map, Map, String> context, WAMPRealm api) {
         return super.openStub(context, api)
-                + "\n  caller: new autobahn.Connection({url: \"" + context.getProperty("wampURI") + "\", realm: \"" + context.getProperty("wampRealm") + "\"}),";
+                + "\n  caller: new autobahn.Connection({url: \"" + context.getProperty(P_WAMP_URI) + "\", realm: \"" + context.getProperty(P_WAMP_REALM) + "\"}),";
 
     }
 

@@ -24,16 +24,26 @@
 package ssg.lib.http.rest;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import ssg.lib.common.Stub;
 import ssg.lib.common.Stub.StubContext;
 import ssg.lib.http.base.HttpData;
+import ssg.lib.http.base.HttpRequest;
+import ssg.lib.http.base.HttpResponse;
 import ssg.lib.http.dp.HttpResourceBytes;
 import ssg.lib.http.dp.HttpResourceBytes.VirtualData;
 
 /**
+ * Stub VirtualData provides multi-type multi-variant data caching for stubs.
+ *
+ * Stub type is cached as WR (resources). Stub type variant is supported by WR
+ * based on dataKey/digest evaluation (defaults to query string + all query
+ * parameters uniqueness).
  *
  * @author 000ssg
  */
@@ -118,27 +128,43 @@ public class StubVirtualData<T> implements VirtualData {
 
     @Override
     public byte[] get(HttpResourceBytes owner, HttpData httpData) {
-        System.out.println("StubVirtualData.get: for="+httpData.toString().replace("\n", "\\n"));
+        System.out.println("StubVirtualData.get: for=" + httpData.toString().replace("\n", "\\n"));
         byte[] data = null;
         WR wr = resources.get(owner.path());
         if (wr != null) {
-            if(wr.crossOrigin!=null) {
-                        int a=0;
+            if (wr.crossOrigin != null) {
+                HttpRequest req = (httpData instanceof HttpRequest) ? (HttpRequest) httpData : null;
+                HttpResponse resp = (httpData instanceof HttpResponse)
+                        ? (HttpResponse) httpData
+                        : (req != null)
+                                ? req.getResponse()
+                                : null;
+                // if response and request are available and request has "Origin" header that matches -> set allow response header
+                if (resp != null && !resp.isHeaderLoaded()) try {
+                    String origin = req != null ? req.getHead().getHeader1(HttpData.HH_ORIGIN) : null;
+                    if (origin != null && ("*".equals(wr.crossOrigin) || wr.crossOrigin.contains(origin))) {
+                        resp.addHeader(HttpData.HH_ACCESS_CONTROL_ALLOW_ORIGIN, wr.crossOrigin);
+                    }
+                } catch (IOException ioex) {
+                    // should never happen...
+                    ioex.printStackTrace();
+                }
             }
-            data = wr.data;
+            String key = dataKey(httpData);
+            data = wr.data(key);
             timestamp = Math.max(timestamp, timestamp(wr.realm));
             if (data == null || timestamp == 0 || timestamp > owner.timestamp()) {
                 synchronized (this) {
                     for (WR wri : resources.values()) {
                         try {
-                            wri.update(httpData);
+                            wri.update(httpData, timestamp, key);
                         } catch (IOException ioex) {
                             ioex.printStackTrace();
                         }
                     }
                     owner.timestamp(timestamp);
                 }
-                data = wr.data;
+                data = wr.data(key);
             }
         }
         return data;
@@ -172,10 +198,14 @@ public class StubVirtualData<T> implements VirtualData {
      */
     public StubContext getContextForWR(WR wr, HttpData httpData) throws IOException {
         try {
+            Map<String, Object> reqParams = httpData instanceof HttpRequest ? ((HttpRequest) httpData).getParameters() : Collections.emptyMap();
             return context.clone()
                     .setProperty(Stub.StubContext.BASE_URL, httpData.getProto() + "://" + httpData.getHead().getHeader1("host") + StubVirtualData.this.basePath + "/" + wr.realm)
-                    .setProperty(Stub.StubContext.NAMESPACE, wr.realm + "_" + wr.type) //                    .setProperty("wampRealm", wr.realm)
-                    ;
+                    .setProperty(Stub.StubContext.NAMESPACE,
+                            reqParams.get(Stub.StubContext.NAMESPACE) != null
+                            ? "" + reqParams.get(Stub.StubContext.NAMESPACE)
+                            : wr.realm + "_" + wr.type)
+                    .setProperty("request_parameters", reqParams);
         } catch (Throwable th) {
             if (th instanceof IOException) {
                 throw (IOException) th;
@@ -188,14 +218,46 @@ public class StubVirtualData<T> implements VirtualData {
         return (Z) owner;
     }
 
+    public String dataKey(HttpData httpData) {
+        if (httpData instanceof HttpRequest) {
+            try {
+                return new String(digest(
+                        ((HttpRequest) httpData).getQuery(),
+                        ((HttpRequest) httpData).getParameters()
+                ), "ISO-8859-1");
+            } catch (IOException ioex) {
+                ioex.printStackTrace();
+            }
+        }
+        return "";
+    }
+
+    public byte[] digest(String path, Map<String, Object> params) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("md5");
+        } catch (Throwable th) {
+        }
+        digest.update(path.getBytes());
+        if (params != null && !params.isEmpty()) {
+            String[] keys = params.keySet().toArray(new String[params.size()]);
+            Arrays.sort(keys);
+            for (String key : keys) {
+                digest.update((key + ":" + params.get(key)).getBytes());
+            }
+        }
+        return digest.digest();
+    }
+
     public class WR {
 
         public String path;
         public String realm;
         public String type;
-        public byte[] data;
+        //public byte[] data;
         public long updated;
         public String crossOrigin = "*";
+        Map<String, byte[]> _data = new HashMap<>();
 
         public WR(String realm, String type) {
             this.realm = realm;
@@ -213,17 +275,25 @@ public class StubVirtualData<T> implements VirtualData {
             return path;
         }
 
-        public void update(HttpData httpData) throws IOException {
+        public void update(HttpData httpData, long timestamp, String key) throws IOException {
             try {
+                if (timestamp > updated) {
+                    _data.clear();
+                    updated = timestamp;
+                }
                 Stub stub = stubs.get(type);
                 String text = stub.generate(getContextForWR(this, httpData), getObjectForWR(this, httpData));
-                data = text.getBytes("UTF-8");
+                _data.put(key, text.getBytes("UTF-8"));
             } catch (Throwable th) {
                 if (th instanceof IOException) {
                     throw (IOException) th;
                 }
                 throw new IOException("Failed to update resource: " + getPath(), th);
             }
+        }
+
+        public byte[] data(String key) {
+            return _data.get(key);
         }
     }
 }

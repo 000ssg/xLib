@@ -309,8 +309,7 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     Runnable run = new Runnable() {
                         @Override
                         public void run() {
-                            try {
-                                InputStream is = respRes.open(data, replace);
+                            try ( InputStream is = respRes.open(data, replace);) {
                                 Body body = resp.getBody();
                                 byte[] buf = new byte[1024 * 4];
                                 int c = 0;
@@ -1080,10 +1079,12 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                         error = ioex;
                         DataPipeStatistics.init(req, "failed", ioex);
                         //System.out.println("DataPipe.initializer(" + req.getQuery() + ") I/O ERROR: " + ioex);
+                        close();
                     } catch (Throwable th) {
                         error = th;
                         DataPipeStatistics.init(req, "failed", th);
                         //System.out.println("DataPipe.initializer(" + req.getQuery() + ") I/O ERROR: " + th);
+                        close();
                     } finally {
                         DataPipeStatistics.init(req, "end", null);
                         //System.out.println("DataPipe.initializer(" + req.getQuery() + ") end");
@@ -1137,10 +1138,12 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
                     //System.out.println("[" + System.currentTimeMillis() + "][" + Thread.currentThread().getName() + "].runCycle[" + id + ", " + req.getQuery() + ", " + cycles + ", " + c + ", " + size + "] close response");
                     req.getResponse().onLoaded();
                     completed = System.currentTimeMillis();
+                    close();
                 }
                 return c;
             } catch (Throwable th) {
                 th.printStackTrace();
+                close();
                 if (th instanceof IOException) {
                     throw (IOException) th;
                 }
@@ -1151,6 +1154,17 @@ public class HttpStaticDataProcessor<P extends Channel> extends HttpDataProcesso
         @Override
         public String toString() {
             return "DataPipe{" + "req=" + (req != null ? req.getQuery() : "<none>") + ", is=" + is + ", timeout=" + timeout + ", size=" + size + ", started=" + started + ", completed=" + completed + ", cycles=" + cycles + ", initializer=" + initializer + ", error=" + error + '}';
+        }
+
+        void close() {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (Throwable th1) {
+                } finally {
+                    is = null;
+                }
+            }
         }
     }
 
